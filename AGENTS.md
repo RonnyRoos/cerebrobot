@@ -5,6 +5,12 @@
 - `pnpm lint` → `pnpm format:write` → `pnpm test` — run the hygiene loop after every significant change ([Engineering Best Practices](docs/best-practices.md)).
 - `pnpm dev` — bring up the LangGraph prototype once implemented.
 
+## MCP servers (Codex CLI)
+- Ensure your local Codex CLI has MCP support enabled in `~/.codex/config.toml`; copy the snippet in `codex-context7-http.toml` into your config and restart Codex.
+- Keep the **Context7** HTTP server configured (`mcp_servers.context7`) for instant library documentation (`https://context7.liam.sh/mcp`, `transport = "streamable-http"`).
+- Add the **Sequential Thinking** server (`mcp_servers.sequentialthinking`) via `npx -y @modelcontextprotocol/server-sequential-thinking` to unlock structured reasoning tools. Set `DISABLE_THOUGHT_LOGGING=true` if you need quieter logs.
+- Treat MCP servers as part of the default toolbox—consult them before reaching for ad-hoc web searches so specs, plans, and reviews cite authoritative sources.
+
 ## Project snapshot
 - Cerebrobot is a LangGraph-powered chatbot with an inspectable memory graph aimed at single-operator, Docker Compose deployments ([Mission Statement](docs/mission.md)).
 - Phase 1 scope: scaffold the conversational core, expose operator-managed memory read/write, and prove the loop with focused tests ([Mission Statement](docs/mission.md)).
