@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.pnpm-store/
+.corepack/
+.env
+.env.local
+.env.*.local
+.vscode/
+.DS_Store
+coverage/
