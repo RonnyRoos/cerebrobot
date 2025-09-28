@@ -1,4 +1,3 @@
-import supertest from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildServer } from '../../app.js';
 import type { ChatAgent, AgentStreamEvent, ChatInvocationContext } from '../chat-agent.js';
@@ -81,15 +80,20 @@ describe('POST /api/chat', () => {
     const app = buildServer({ config, sessionManager, chatAgent: agent });
     await app.ready();
 
-    const response = await supertest(app.server)
-      .post('/api/chat')
-      .set('accept', 'text/event-stream')
-      .send({ sessionId: 'session-123', message: 'Hello?' })
-      .expect(200);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      headers: {
+        accept: 'text/event-stream',
+        'content-type': 'application/json',
+      },
+      payload: { sessionId: 'session-123', message: 'Hello?' },
+    });
 
+    expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('text/event-stream');
-    expect(response.text).toContain('data: {"value":"Hello"}');
-    expect(response.text).not.toContain('summary');
+    expect(response.payload).toContain('data: {"value":"Hello"}');
+    expect(response.payload).not.toContain('summary');
 
     expect(agent.streamChat).toHaveBeenCalledTimes(1);
     const invocation = vi.mocked(agent.streamChat).mock.calls[0][0] as ChatInvocationContext;
@@ -115,20 +119,26 @@ describe('POST /api/chat', () => {
     const app = buildServer({ config, sessionManager, chatAgent: agent });
     await app.ready();
 
-    const response = await supertest(app.server)
-      .post('/api/chat')
-      .send({ sessionId: 'session-321', message: 'Hi there' })
-      .set('accept', 'application/json')
-      .expect(200);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      payload: { sessionId: 'session-321', message: 'Hi there' },
+    });
 
+    expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('application/json');
-    expect(response.body).toMatchObject({
+    const body = response.json();
+    expect(body).toMatchObject({
       sessionId: 'session-321',
       message: 'Buffered response',
       streamed: false,
       latencyMs: 2200,
     });
-    expect(response.body).not.toHaveProperty('summary');
+    expect(body).not.toHaveProperty('summary');
 
     expect(agent.completeChat).toHaveBeenCalledTimes(1);
     const invocation = vi.mocked(agent.completeChat).mock.calls[0][0] as ChatInvocationContext;

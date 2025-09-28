@@ -1,6 +1,7 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import type { Logger } from 'pino';
+import type { BaseMessage } from '@langchain/core/messages';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { ServerConfig } from '../config.js';
 import { InMemoryLangMem } from './memory.js';
@@ -41,10 +42,6 @@ function toStringContent(content: unknown): string {
   return String(content);
 }
 
-function tokenizeMessage(message: string): string[] {
-  return message.split(/(\s+)/).filter((token) => token.length > 0);
-}
-
 export interface LangGraphChatAgentOptions {
   readonly config: ServerConfig;
   readonly hotpathLimit: number;
@@ -75,21 +72,42 @@ export class LangGraphChatAgent implements ChatAgent {
   }
 
   public async *streamChat(context: ChatInvocationContext) {
-    const { finalMessage, latencyMs } = await this.generateAssistantReply(context);
+    const { promptMessages, startedAt } = this.preparePrompt(context);
+    let accumulatedMessage = '';
 
-    for (const token of tokenizeMessage(finalMessage)) {
+    const stream = await this.model.stream(promptMessages, {
+      configurable: { thread_id: context.sessionId },
+    });
+
+    for await (const chunk of stream) {
+      const token = toStringContent(chunk.content);
+      if (token.length === 0) {
+        continue;
+      }
+
+      accumulatedMessage += token;
       yield { type: 'token' as const, value: token };
     }
 
-    yield {
-      type: 'final' as const,
-      message: finalMessage,
-      latencyMs,
-    };
+    const { finalMessage, latencyMs } = this.recordAssistantResponse(
+      context,
+      startedAt,
+      accumulatedMessage,
+    );
+
+    yield { type: 'final' as const, message: finalMessage, latencyMs };
   }
 
   public async completeChat(context: ChatInvocationContext) {
-    const { finalMessage, latencyMs } = await this.generateAssistantReply(context);
+    const { promptMessages, startedAt } = this.preparePrompt(context);
+
+    const completion = await this.model.invoke(promptMessages, {
+      configurable: { thread_id: context.sessionId },
+    });
+
+    const content = toStringContent(completion.content);
+    const { finalMessage, latencyMs } = this.recordAssistantResponse(context, startedAt, content);
+
     return { message: finalMessage, summary: undefined, latencyMs };
   }
 
@@ -97,7 +115,10 @@ export class LangGraphChatAgent implements ChatAgent {
     this.memory.reset(sessionId);
   }
 
-  private async generateAssistantReply(context: ChatInvocationContext) {
+  private preparePrompt(context: ChatInvocationContext): {
+    promptMessages: BaseMessage[];
+    startedAt: number;
+  } {
     const startedAt = Date.now();
     this.logger?.info(
       {
@@ -123,18 +144,21 @@ export class LangGraphChatAgent implements ChatAgent {
 
     this.memory.append(context.sessionId, { role: 'user', content: context.message });
 
-    const promptMessages = [
+    const promptMessages: BaseMessage[] = [
       ...systemMessages,
       ...historyMessages,
       new HumanMessage(context.message),
     ];
 
-    const completion = await this.model.invoke(promptMessages, {
-      configurable: { thread_id: context.sessionId },
-    });
+    return { promptMessages, startedAt };
+  }
 
-    const finalMessage = toStringContent(completion.content).trim();
-
+  private recordAssistantResponse(
+    context: ChatInvocationContext,
+    startedAt: number,
+    message: string,
+  ) {
+    const finalMessage = message.trim();
     this.memory.append(context.sessionId, { role: 'assistant', content: finalMessage });
 
     const latencyMs = Date.now() - startedAt;
