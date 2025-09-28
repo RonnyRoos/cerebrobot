@@ -11,21 +11,21 @@
 ## Tasks
 
 1. **Setup & Environment**
-   - T001 — Establish pnpm workspace scaffolding (root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.npmrc` targeting Node 20) and install baseline dependencies.
-   - T002 — Scaffold `apps/server`, `apps/client`, and `packages/chat-shared` with TypeScript configs, shared lint/format tooling, and seed `.env.example` with agent configuration variables (system prompt, persona tag, model name, temperature, LangMem limits).
+   - [X] T001 — Establish pnpm workspace scaffolding (root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.npmrc` targeting Node 20) and install baseline dependencies.
+   - [X] T002 — Scaffold `apps/server`, `apps/client`, and `packages/chat-shared` with TypeScript configs, shared lint/format tooling, and seed `.env.example` with agent configuration variables (system prompt, persona tag, model name, temperature, LangMem limits).
 
 2. **Tests**
-   - T003 — Create failing unit tests for chat request/response Zod schemas in `packages/chat-shared/__tests__/chat-schema.test.ts`.
-   - T004 [P] — Add failing tests covering session issuance/renewal logic, long-lived IDs, and memory reset on new session under `apps/server/src/session/__tests__/session.routes.test.ts`.
-   - T005 — Draft failing integration test validating `POST /api/chat` SSE streaming/fallback behaviour, configuration sourced from env, and absence of LangMem summaries in responses (`apps/server/src/chat/__tests__/chat-route.integration.test.ts`).
-   - T006 [P] — Add failing React component tests for streaming updates, error surfaces, “New Session” control, and prevention of client-side config overrides in `apps/client/src/components/__tests__/ChatView.test.tsx`.
+   - [X] T003 — Create failing unit tests for chat request/response Zod schemas in `packages/chat-shared/__tests__/chat-schema.test.ts`.
+   - [X] T004 [P] — Add failing tests covering session issuance/renewal logic, long-lived IDs, and memory reset on new session under `apps/server/src/session/__tests__/session.routes.test.ts`.
+   - [X] T005 — Draft failing integration test validating `POST /api/chat` SSE streaming/fallback behaviour, configuration sourced from env, and absence of LangMem summaries in responses (`apps/server/src/chat/__tests__/chat-route.integration.test.ts`).
+   - [X] T006 [P] — Add failing React component tests for streaming updates, error surfaces, “New Session” control, and prevention of client-side config overrides in `apps/client/src/components/__tests__/ChatView.test.tsx`.
 
 3. **Core Implementation**
-   - T007 — Implement shared Zod schemas/types for chat payloads, SSE events, and correlation metadata in `packages/chat-shared`, exporting helpers consumed by server and client.
-   - T008 — Build LangGraph agent factory using environment configuration, LangMem hotpath memory, and summarization policy (summaries kept internal) in `apps/server/src/agent`.
-   - T009 — Implement session issuance endpoint/middleware issuing long-lived IDs, persisting client tokens, and resetting in-memory LangMem stores in `apps/server/src/session`.
-   - T010 — Implement validated `POST /api/chat` route invoking the agent factory, streaming via SSE with buffered fallback, enforcing env-derived configuration, and suppressing summary payloads in `apps/server/src/chat`.
-   - T011 — Implement React chat UI (EventSource hook, message log, latency placeholder, status indicators, “New Session” control, race-condition guard) in `apps/client/src` with no UI exposure of LangMem summaries.
+   - [X] T007 — Implement shared Zod schemas/types for chat payloads, SSE events, and correlation metadata in `packages/chat-shared`, exporting helpers consumed by server and client.
+   - [X] T008 — Build LangGraph agent factory using environment configuration, LangMem hotpath memory, and summarization policy (summaries kept internal) in `apps/server/src/agent`.
+   - [X] T009 — Implement session issuance endpoint/middleware issuing long-lived IDs, persisting client tokens, and resetting in-memory LangMem stores in `apps/server/src/session`.
+   - [X] T010 — Implement validated `POST /api/chat` route invoking the agent factory, streaming via SSE with buffered fallback, enforcing env-derived configuration, and suppressing summary payloads in `apps/server/src/chat`.
+   - [X] T011 — Implement React chat UI (EventSource hook, message log, latency placeholder, status indicators, “New Session” control, race-condition guard) in `apps/client/src` with no UI exposure of LangMem summaries.
 
 4. **Integration**
    - T012 — Wire structured logging with Pino across server and client, logging startup configuration metadata, correlation/session IDs, latency timings, and internal LangMem summarization events without leaking summaries.
