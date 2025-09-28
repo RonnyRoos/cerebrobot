@@ -1,4 +1,3 @@
-import supertest from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildServer } from '../../app.js';
 import type { ChatAgent } from '../../chat/chat-agent.js';
@@ -46,13 +45,15 @@ describe('session routes', () => {
     const app = buildServer({ sessionManager, chatAgent, config });
     await app.ready();
 
-    const response = await supertest(app.server)
-      .post('/api/session')
-      .send({})
-      .set('content-type', 'application/json')
-      .expect(201);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/session',
+      headers: { 'content-type': 'application/json' },
+      payload: {},
+    });
 
-    expect(response.body).toEqual({ sessionId });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ sessionId });
     expect(sessionManager.issueSession).toHaveBeenCalledTimes(1);
     expect(sessionManager.resetSession).not.toHaveBeenCalled();
 
@@ -66,13 +67,15 @@ describe('session routes', () => {
     const app = buildServer({ sessionManager, chatAgent, config });
     await app.ready();
 
-    const response = await supertest(app.server)
-      .post('/api/session')
-      .send({ previousSessionId: 'session-old-999' })
-      .set('content-type', 'application/json')
-      .expect(201);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/session',
+      headers: { 'content-type': 'application/json' },
+      payload: { previousSessionId: 'session-old-999' },
+    });
 
-    expect(response.body).toEqual({ sessionId });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ sessionId });
     expect(sessionManager.resetSession).toHaveBeenCalledTimes(1);
     expect(sessionManager.resetSession).toHaveBeenCalledWith('session-old-999');
     expect(sessionManager.issueSession).toHaveBeenCalledTimes(1);
@@ -84,11 +87,14 @@ describe('session routes', () => {
     const app = buildServer({ sessionManager, chatAgent, config });
     await app.ready();
 
-    await supertest(app.server)
-      .post('/api/session')
-      .send({ previousSessionId: '' })
-      .set('content-type', 'application/json')
-      .expect(400);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/session',
+      headers: { 'content-type': 'application/json' },
+      payload: { previousSessionId: '' },
+    });
+
+    expect(response.statusCode).toBe(400);
 
     await app.close();
   });

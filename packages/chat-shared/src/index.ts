@@ -7,6 +7,6 @@ export {
   ChatStreamErrorEventSchema,
   ChatErrorSchema,
   ChatResponseMetadataSchema,
-} from './schemas/chat.ts';
+} from './schemas/chat';
 
-export type { ChatRequest, ChatResponse, ChatError, ChatStreamEvent } from './schemas/chat.ts';
+export type { ChatRequest, ChatResponse, ChatError, ChatStreamEvent } from './schemas/chat';
