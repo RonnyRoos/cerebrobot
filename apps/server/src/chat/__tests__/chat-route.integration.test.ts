@@ -11,6 +11,7 @@ function createServerConfig(): ServerConfig {
     model: 'gpt-4o-mini',
     temperature: 0.2,
     hotpathLimit: 16,
+    port: 3000,
   };
 }
 

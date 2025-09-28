@@ -9,7 +9,7 @@ This document constrains Cerebrobot's technology choices, especially for Phase 1
   - `fastify@5.6.1` — current v5 LTS line.
   - `fastify-sse-v2@4.2.1` — helper to expose Server-Sent Events.
 - **LangGraph ecosystem**:
-  - `@langchain/langgraph@0.4.9` — latest JS/TS LangGraph runtime.
+  - `@langchain/langgraph@0.4.9` — LangGraph runtime (includes `MemorySaver` checkpointer re-export).
   - `langchain@0.3.34` — LangChain JS core package.
   - `@langchain/core@0.3.77` — required peer dependency.
 - **Schema & OpenAPI**:

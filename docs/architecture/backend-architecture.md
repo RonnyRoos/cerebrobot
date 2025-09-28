@@ -9,12 +9,12 @@ graph TD
 
   subgraph SessionLayer[Session Management]
     SRoutes --> SM[Session Manager]
-    SM -->|Issue/Reset IDs| LangMemStore[LangMem In-Memory Hotpath]
+    SM -->|Issue/Reset IDs| LangGraphState[LangGraph Hotpath State]
   end
 
   subgraph AgentLayer[LangGraph Agent]
     CRoutes -->|Validated Request| AgentFactory[LangGraph Chat Agent]
-    AgentFactory --> LangMemStore
+    AgentFactory --> LangGraphState
     AgentFactory -->|LLM Invocation| OpenAICompat[OpenAI-Compatible API]
   end
 
@@ -30,7 +30,7 @@ graph TD
   click SRoutes "../../apps/server/src/session/routes.ts" "Session Routes"
   click CRoutes "../../apps/server/src/chat/routes.ts" "Chat Routes"
   click SM "../../apps/server/src/session/session-manager.ts" "createSessionManager"
-  click LangMemStore "../../apps/server/src/agent/memory.ts" "InMemoryLangMem"
+  click LangGraphState "../../apps/server/src/agent/langgraph-agent.ts" "LangGraph hotpath state"
   click AgentFactory "../../apps/server/src/agent/langgraph-agent.ts" "createLangGraphChatAgent"
   click Schemas "../../packages/chat-shared/src" "Shared Zod Schemas"
   click TestsShared "../../packages/chat-shared/__tests__/chat-schema.test.ts" "Shared Schema Tests"

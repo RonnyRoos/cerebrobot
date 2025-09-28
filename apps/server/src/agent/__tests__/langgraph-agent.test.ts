@@ -1,18 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ChatOpenAI } from '@langchain/openai';
+import { AIMessage } from '@langchain/core/messages';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import type { AgentStreamEvent, ChatInvocationContext } from '../../chat/chat-agent.js';
 import type { ServerConfig } from '../../config.js';
-import type { InMemoryLangMem } from '../memory.js';
 
-const streamMock = vi.fn();
-const invokeMock = vi.fn();
+type InvokeHandler = (args: {
+  messages: unknown[];
+  options?: Record<string, unknown>;
+}) => Promise<AIMessage>;
+
+const chatInvokeHandlers: InvokeHandler[] = [];
+const summarizerInvokeHandlers: InvokeHandler[] = [];
 
 vi.mock('@langchain/openai', () => ({
-  ChatOpenAI: vi.fn(() => ({
-    stream: streamMock,
-    invoke: invokeMock,
-  })),
+  ChatOpenAI: vi.fn((options: { temperature?: number }) => {
+    const isSummarizer = options.temperature === 0;
+    const invokeHandlers = isSummarizer ? summarizerInvokeHandlers : chatInvokeHandlers;
+
+    return {
+      invoke: vi.fn(async (messages: unknown[], invokeOptions?: Record<string, unknown>) => {
+        const handler = invokeHandlers.shift();
+        if (!handler) {
+          return new AIMessage('default response');
+        }
+        return handler({ messages, options: invokeOptions });
+      }),
+      stream: vi.fn(async function* () {
+        // No-op placeholder; streamChat relies on LangGraph stream aggregation
+      }),
+    };
+  }),
 }));
 
 const baseConfig: ServerConfig = {
@@ -20,7 +37,7 @@ const baseConfig: ServerConfig = {
   personaTag: '',
   model: 'gpt-4o-mini',
   temperature: 0.1,
-  hotpathLimit: 8,
+  hotpathLimit: 3,
   port: 3000,
 };
 
@@ -35,71 +52,107 @@ const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvo
 describe('LangGraphChatAgent', () => {
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test-key';
-    streamMock.mockReset();
-    invokeMock.mockReset();
-    vi.mocked(ChatOpenAI).mockClear();
+    chatInvokeHandlers.length = 0;
+    summarizerInvokeHandlers.length = 0;
+    vi.clearAllMocks();
   });
 
-  it('streams incremental tokens and records the final assistant reply', async () => {
-    const chunks = [{ content: 'Hello ' }, { content: 'world   ' }];
+  it('streams chat events and emits a final assistant message', async () => {
+    chatInvokeHandlers.push(async () => new AIMessage('Hello world'));
 
-    streamMock.mockResolvedValue(
-      (async function* () {
-        for (const chunk of chunks) {
-          yield chunk;
-        }
-      })(),
-    );
+    const agent = new LangGraphChatAgent({ config: baseConfig });
+    const iterator = agent.streamChat(createContext());
 
-    const agent = new LangGraphChatAgent({
-      config: baseConfig,
-      hotpathLimit: baseConfig.hotpathLimit,
-    });
-    const events: AgentStreamEvent[] = [];
+    const finalEvent = await lastEvent(iterator);
 
-    for await (const event of agent.streamChat(createContext())) {
-      events.push(event);
-    }
-
-    expect(streamMock).toHaveBeenCalledTimes(1);
-    expect(streamMock.mock.calls[0][1]).toEqual({ configurable: { thread_id: 'session-1' } });
-    expect(invokeMock).not.toHaveBeenCalled();
-
-    expect(events).toEqual([
-      { type: 'token', value: 'Hello ' },
-      { type: 'token', value: 'world   ' },
-      {
-        type: 'final',
-        message: 'Hello world',
-        latencyMs: expect.any(Number),
-      },
-    ]);
-
-    const memory = (agent as unknown as { memory: InMemoryLangMem }).memory;
-    const snapshot = memory.snapshot('session-1');
-    expect(snapshot.messages.at(-1)?.content).toBe('Hello world');
+    assertFinalEvent(finalEvent);
+    expect(finalEvent.message).toBe('Hello world');
+    expect(finalEvent.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('collects a buffered response via invoke for completeChat', async () => {
-    invokeMock.mockResolvedValue({ content: 'Buffered reply' });
+  it('produces buffered output via completeChat', async () => {
+    chatInvokeHandlers.push(async () => new AIMessage('Buffered reply'));
 
-    const agent = new LangGraphChatAgent({
-      config: baseConfig,
-      hotpathLimit: baseConfig.hotpathLimit,
-    });
+    const agent = new LangGraphChatAgent({ config: baseConfig });
 
     const result = await agent.completeChat(createContext({ message: 'Buffered?' }));
-
-    expect(invokeMock).toHaveBeenCalledTimes(1);
-    expect(streamMock).not.toHaveBeenCalled();
 
     expect(result).toMatchObject({
       message: 'Buffered reply',
       latencyMs: expect.any(Number),
     });
+  });
 
-    const memory = (agent as unknown as { memory: InMemoryLangMem }).memory;
-    const snapshot = memory.snapshot('session-1');
-    expect(snapshot.messages.at(-1)?.content).toBe('Buffered reply');
+  it('summarizes when the hotpath limit is exceeded and persists summary', async () => {
+    const configWithTightLimit: ServerConfig = { ...baseConfig, hotpathLimit: 1 };
+
+    chatInvokeHandlers.push(async () => new AIMessage('first reply'));
+    chatInvokeHandlers.push(async () => new AIMessage('second reply'));
+
+    summarizerInvokeHandlers.push(async () => new AIMessage('summary of first turn'));
+
+    const agent = new LangGraphChatAgent({ config: configWithTightLimit });
+
+    await agent.completeChat(createContext({ message: 'First message' }));
+    await agent.completeChat(createContext({ message: 'Second message' }));
+
+    const state = await (
+      agent as unknown as {
+        graphContext: {
+          graph: {
+            getState: (config: { configurable: { thread_id: string } }) => Promise<{
+              values: { summary?: string | null; summaryUpdatedAt?: string | null };
+            }>;
+          };
+        };
+      }
+    ).graphContext.graph.getState({ configurable: { thread_id: 'session-1' } });
+
+    expect(state.values.summary).toBe('summary of first turn');
+    expect(state.values.summaryUpdatedAt).toBeDefined();
+    expect(typeof state.values.summaryUpdatedAt).toBe('string');
+  });
+
+  it('resets state for a session', async () => {
+    chatInvokeHandlers.push(async () => new AIMessage('reply'));
+
+    const agent = new LangGraphChatAgent({ config: baseConfig });
+    await agent.completeChat(createContext());
+
+    await agent.reset('session-1');
+
+    const state = await (
+      agent as unknown as {
+        graphContext: {
+          graph: {
+            getState: (config: { configurable: { thread_id: string } }) => Promise<{
+              values: { messages?: unknown[]; summary?: string | null };
+            }>;
+          };
+        };
+      }
+    ).graphContext.graph.getState({ configurable: { thread_id: 'session-1' } });
+
+    expect(state.values.messages ?? []).toHaveLength(0);
+    expect(state.values.summary).toBeNull();
   });
 });
+
+type FinalAgentEvent = Extract<AgentStreamEvent, { type: 'final' }>;
+
+async function lastEvent(iterable: AsyncIterable<AgentStreamEvent>) {
+  let finalEvent: AgentStreamEvent | undefined;
+  for await (const event of iterable) {
+    finalEvent = event;
+  }
+  if (!finalEvent) {
+    throw new Error('No events emitted');
+  }
+  return finalEvent;
+}
+
+function assertFinalEvent(event: AgentStreamEvent): asserts event is FinalAgentEvent {
+  if (event.type !== 'final') {
+    throw new Error(`Expected final event, received ${event.type}`);
+  }
+}
