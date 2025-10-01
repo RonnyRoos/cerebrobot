@@ -17,10 +17,20 @@ export const ChatErrorSchema = z
   })
   .strict();
 
+export const TokenUsageSchema = z
+  .object({
+    recentTokens: z.number().int().nonnegative(),
+    overflowTokens: z.number().int().nonnegative(),
+    budget: z.number().int().nonnegative(),
+    utilisationPct: z.number().int().min(0).max(100),
+  })
+  .strip();
+
 export const ChatResponseMetadataSchema = z
   .object({
     latencyMs: z.number().int().nonnegative().optional(),
     tokensConsumed: z.number().int().nonnegative().optional(),
+    tokenUsage: TokenUsageSchema.optional(),
   })
   .strip();
 
@@ -49,6 +59,7 @@ export const ChatStreamFinalEventSchema = z
     message: z.string(),
     latencyMs: z.number().int().nonnegative().optional(),
     summary: z.string().optional(),
+    tokenUsage: TokenUsageSchema.optional(),
   })
   .strict();
 
@@ -66,3 +77,4 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 export type ChatError = z.infer<typeof ChatErrorSchema>;
 export type ChatStreamEvent = z.infer<typeof ChatStreamEventSchema>;
+export type TokenUsage = z.infer<typeof TokenUsageSchema>;

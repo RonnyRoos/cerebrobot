@@ -30,3 +30,12 @@
   ```
 
 The server reads configuration from environment variables (see `.env.example`). Restart the process after changing agent parameters.
+
+## Hot-Path Memory Configuration
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LANGMEM_HOTPATH_LIMIT` | `10` | Maximum number of recent raw messages kept verbatim before summarization trims older turns. |
+| `LANGMEM_HOTPATH_TOKEN_BUDGET` | `3000` | Token budget for the recent message window; exceeding it triggers summarization. |
+| `LANGMEM_RECENT_MESSAGE_FLOOR` | `4` | Minimum number of latest messages that stay unsummarized even if the budget is exceeded. |
+| `LANGMEM_HOTPATH_MARGIN_PCT` | `0` | Headroom reserved inside the token budget (e.g. `0.1` keeps utilisation below 90%). |

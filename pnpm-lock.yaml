@@ -108,6 +108,9 @@ importers:
       fastify-sse-v2:
         specifier: 4.2.1
         version: 4.2.1(fastify@5.6.1)
+      js-tiktoken:
+        specifier: 1.0.21
+        version: 1.0.21
       langchain:
         specifier: 0.3.34
         version: 0.3.34(@langchain/core@0.3.77(openai@5.12.2(ws@8.18.3)(zod@4.1.11)))(openai@5.12.2(ws@8.18.3)(zod@4.1.11))(ws@8.18.3)
