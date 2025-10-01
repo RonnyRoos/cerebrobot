@@ -57,7 +57,13 @@ describe('<ChatView />', () => {
       sseResponse([
         { type: 'token', value: 'Hello' },
         { type: 'token', value: ' world' },
-        { type: 'final', message: 'Hello world', latencyMs: 1100, summary: 'should stay internal' },
+        {
+          type: 'final',
+          message: 'Hello world',
+          latencyMs: 1100,
+          summary: 'should stay internal',
+          tokenUsage: { recentTokens: 12, overflowTokens: 0, budget: 3000, utilisationPct: 0 },
+        },
       ]),
     );
 
@@ -68,6 +74,9 @@ describe('<ChatView />', () => {
     await user.click(screen.getByRole('button', { name: /send/i }));
 
     await waitFor(() => expect(screen.getByText('Hello world')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Context usage: 0% \(12\/3000 tokens\)/)).toBeInTheDocument(),
+    );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining('/api/chat'),
@@ -102,11 +111,25 @@ describe('<ChatView />', () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ sessionId: 'session-abc' }, { status: 201 }))
       .mockResolvedValueOnce(
-        sseResponse([{ type: 'final', message: 'First response', latencyMs: 900 }]),
+        sseResponse([
+          {
+            type: 'final',
+            message: 'First response',
+            latencyMs: 900,
+            tokenUsage: { recentTokens: 5, overflowTokens: 0, budget: 3000, utilisationPct: 0 },
+          },
+        ]),
       )
       .mockResolvedValueOnce(jsonResponse({ sessionId: 'session-def' }, { status: 201 }))
       .mockResolvedValueOnce(
-        sseResponse([{ type: 'final', message: 'Second response', latencyMs: 800 }]),
+        sseResponse([
+          {
+            type: 'final',
+            message: 'Second response',
+            latencyMs: 800,
+            tokenUsage: { recentTokens: 4, overflowTokens: 0, budget: 3000, utilisationPct: 0 },
+          },
+        ]),
       );
 
     const { user } = renderWithUser();

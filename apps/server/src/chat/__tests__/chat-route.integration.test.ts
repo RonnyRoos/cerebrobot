@@ -11,6 +11,9 @@ function createServerConfig(): ServerConfig {
     model: 'gpt-4o-mini',
     temperature: 0.2,
     hotpathLimit: 16,
+    hotpathTokenBudget: 3000,
+    recentMessageFloor: 4,
+    hotpathMarginPct: 0.1,
     port: 3000,
   };
 }
@@ -62,6 +65,7 @@ describe('POST /api/chat', () => {
         message: 'Hello world',
         summary: 'summaries stay internal',
         latencyMs: 1500,
+        tokenUsage: { recentTokens: 12, overflowTokens: 0, budget: 3000, utilisationPct: 0 },
       },
     ];
 
@@ -95,6 +99,7 @@ describe('POST /api/chat', () => {
     expect(response.headers['content-type']).toContain('text/event-stream');
     expect(response.payload).toContain('data: {"value":"Hello"}');
     expect(response.payload).not.toContain('summary');
+    expect(response.payload).toContain('"tokenUsage"');
 
     expect(agent.streamChat).toHaveBeenCalledTimes(1);
     const invocation = vi.mocked(agent.streamChat).mock.calls[0][0] as ChatInvocationContext;
@@ -140,6 +145,7 @@ describe('POST /api/chat', () => {
       latencyMs: 2200,
     });
     expect(body).not.toHaveProperty('summary');
+    expect(body.metadata?.tokenUsage).toBeUndefined();
 
     expect(agent.completeChat).toHaveBeenCalledTimes(1);
     const invocation = vi.mocked(agent.completeChat).mock.calls[0][0] as ChatInvocationContext;

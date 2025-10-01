@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { TokenUsage } from '@cerebrobot/chat-shared';
 
 const IS_TEST_ENV = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
@@ -9,6 +10,7 @@ interface ChatMessage {
   status?: 'streaming' | 'complete' | 'error';
   latencyMs?: number;
   error?: string;
+  tokenUsage?: TokenUsage;
 }
 
 interface ChatError {
@@ -191,8 +193,14 @@ export function ChatView(): JSX.Element {
       const payload = (await response.json()) as {
         message: string;
         latencyMs: number;
+        metadata?: { tokenUsage?: TokenUsage };
       };
-      finalizeAssistantMessage(assistantMessageId, payload.message, payload.latencyMs);
+      finalizeAssistantMessage(
+        assistantMessageId,
+        payload.message,
+        payload.latencyMs,
+        payload.metadata?.tokenUsage,
+      );
     }
 
     setIsStreaming(false);
@@ -263,6 +271,7 @@ export function ChatView(): JSX.Element {
           assistantMessageId,
           parsed.message ?? '',
           parsed.latencyMs ?? undefined,
+          parsed.tokenUsage,
         );
       } else if (resolvedType === 'error') {
         handleAssistantError({
@@ -291,7 +300,12 @@ export function ChatView(): JSX.Element {
     );
   };
 
-  const finalizeAssistantMessage = (messageId: string, message: string, latencyMs?: number) => {
+  const finalizeAssistantMessage = (
+    messageId: string,
+    message: string,
+    latencyMs?: number,
+    tokenUsage?: TokenUsage,
+  ) => {
     setMessages((current) =>
       current.map((entry) =>
         entry.id === messageId
@@ -300,6 +314,7 @@ export function ChatView(): JSX.Element {
               status: 'complete',
               content: message,
               latencyMs: latencyMs ?? entry.latencyMs,
+              tokenUsage: tokenUsage ?? entry.tokenUsage,
             }
           : entry,
       ),
@@ -339,6 +354,12 @@ export function ChatView(): JSX.Element {
             {message.latencyMs != null && (
               <small aria-label="latency">Latency: {message.latencyMs} ms</small>
             )}
+            {message.tokenUsage && (
+              <small aria-label="token usage">
+                Context usage: {message.tokenUsage.utilisationPct}% (
+                {message.tokenUsage.recentTokens}/{message.tokenUsage.budget} tokens)
+              </small>
+            )}
             {message.status === 'streaming' && <small aria-label="streaming">Streaming…</small>}
           </article>
         ))}
@@ -364,6 +385,18 @@ export function ChatView(): JSX.Element {
           rows={3}
           value={pendingMessage}
           onChange={(event) => setPendingMessage(event.target.value)}
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Enter' &&
+              !event.shiftKey &&
+              !event.altKey &&
+              !event.ctrlKey &&
+              !event.metaKey
+            ) {
+              event.preventDefault();
+              void handleSend();
+            }
+          }}
           disabled={isStreaming}
         />
         <div className="chat-actions">

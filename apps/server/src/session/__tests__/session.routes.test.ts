@@ -30,6 +30,9 @@ describe('session routes', () => {
       model: 'test-model',
       temperature: 0.1,
       hotpathLimit: 8,
+      recentMessageFloor: 2,
+      hotpathTokenBudget: 3000,
+      hotpathMarginPct: 0.1,
       port: 0,
     };
   });

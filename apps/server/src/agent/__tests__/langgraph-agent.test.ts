@@ -38,6 +38,9 @@ const baseConfig: ServerConfig = {
   model: 'gpt-4o-mini',
   temperature: 0.1,
   hotpathLimit: 3,
+  hotpathTokenBudget: 200,
+  recentMessageFloor: 2,
+  hotpathMarginPct: 0,
   port: 3000,
 };
 
@@ -68,6 +71,8 @@ describe('LangGraphChatAgent', () => {
     assertFinalEvent(finalEvent);
     expect(finalEvent.message).toBe('Hello world');
     expect(finalEvent.latencyMs).toBeGreaterThanOrEqual(0);
+    expect(finalEvent.tokenUsage).toBeDefined();
+    expect(finalEvent.tokenUsage?.budget).toBe(baseConfig.hotpathTokenBudget);
   });
 
   it('produces buffered output via completeChat', async () => {
@@ -84,7 +89,11 @@ describe('LangGraphChatAgent', () => {
   });
 
   it('summarizes when the hotpath limit is exceeded and persists summary', async () => {
-    const configWithTightLimit: ServerConfig = { ...baseConfig, hotpathLimit: 1 };
+    const configWithTightLimit: ServerConfig = {
+      ...baseConfig,
+      hotpathLimit: 1,
+      recentMessageFloor: 1,
+    };
 
     chatInvokeHandlers.push(async () => new AIMessage('first reply'));
     chatInvokeHandlers.push(async () => new AIMessage('second reply'));
@@ -101,7 +110,11 @@ describe('LangGraphChatAgent', () => {
         graphContext: {
           graph: {
             getState: (config: { configurable: { thread_id: string } }) => Promise<{
-              values: { summary?: string | null; summaryUpdatedAt?: string | null };
+              values: {
+                summary?: string | null;
+                summaryUpdatedAt?: string | null;
+                messages?: unknown[];
+              };
             }>;
           };
         };
@@ -111,6 +124,62 @@ describe('LangGraphChatAgent', () => {
     expect(state.values.summary).toBe('summary of first turn');
     expect(state.values.summaryUpdatedAt).toBeDefined();
     expect(typeof state.values.summaryUpdatedAt).toBe('string');
+    expect(Array.isArray(state.values.messages)).toBe(true);
+    expect(summarizerInvokeHandlers.length).toBe(0);
+    const usage = (state.values as { tokenUsage?: { budget: number; recentTokens: number } })
+      .tokenUsage;
+    expect(usage).toMatchObject({
+      budget: configWithTightLimit.hotpathTokenBudget,
+      recentTokens: expect.any(Number),
+    });
+  });
+
+  it('summarizes when the token budget is exceeded even with ample message slots', async () => {
+    const configWithTightBudget: ServerConfig = {
+      ...baseConfig,
+      hotpathLimit: 2,
+      hotpathTokenBudget: 50,
+      recentMessageFloor: 1,
+      hotpathMarginPct: 0.1,
+    };
+
+    const longUserMessage = 'This is a very long message that should take many tokens.'.repeat(5);
+
+    chatInvokeHandlers.push(
+      async () => new AIMessage('Initial reply that will later be summarized.'),
+    );
+    chatInvokeHandlers.push(async () => new AIMessage('Most recent reply that should remain.'));
+    summarizerInvokeHandlers.push(async () => new AIMessage('condensed history'));
+
+    const agent = new LangGraphChatAgent({ config: configWithTightBudget });
+
+    await agent.completeChat(createContext({ message: longUserMessage }));
+    await agent.completeChat(createContext({ message: `${longUserMessage} second turn` }));
+
+    const state = await (
+      agent as unknown as {
+        graphContext: {
+          graph: {
+            getState: (config: { configurable: { thread_id: string } }) => Promise<{
+              values: {
+                summary?: string | null;
+                messages?: unknown[];
+              };
+            }>;
+          };
+        };
+      }
+    ).graphContext.graph.getState({ configurable: { thread_id: 'session-1' } });
+
+    expect(state.values.summary).toBe('condensed history');
+    expect((state.values.messages ?? []).length).toBeGreaterThan(0);
+    expect(summarizerInvokeHandlers.length).toBe(0);
+    const usage = (state.values as { tokenUsage?: { budget: number; recentTokens: number } })
+      .tokenUsage;
+    expect(usage).toMatchObject({
+      budget: configWithTightBudget.hotpathTokenBudget,
+      recentTokens: expect.any(Number),
+    });
   });
 
   it('resets state for a session', async () => {

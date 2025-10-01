@@ -66,12 +66,14 @@ async function handleBufferedResponse(
 ) {
   try {
     const result = await agent.completeChat(context);
+    const metadata = result.tokenUsage ? { tokenUsage: result.tokenUsage } : undefined;
     const response = ChatResponseSchema.parse({
       sessionId: context.sessionId,
       correlationId: context.correlationId,
       message: result.message,
       latencyMs: result.latencyMs,
       streamed: false,
+      metadata,
     });
 
     logger?.info(
@@ -80,6 +82,7 @@ async function handleBufferedResponse(
         correlationId: context.correlationId,
         streamed: false,
         latencyMs: response.latencyMs,
+        tokenUsage: result.tokenUsage,
       },
       'chat response sent (buffered)',
     );
@@ -147,6 +150,7 @@ function createSsePayload(event: AgentStreamEvent) {
       return {
         message: event.message,
         latencyMs: event.latencyMs,
+        tokenUsage: event.tokenUsage,
       };
     case 'error':
       return {
