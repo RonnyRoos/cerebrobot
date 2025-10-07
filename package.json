@@ -1,0 +1,37 @@
+{
+  "name": "cerebrobot",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": "^20.0.0"
+  },
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "format:write": "pnpm -r format:write",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm --filter @cerebrobot/server exec tsc --noEmit",
+    "validate": "pnpm lint && pnpm format:write && pnpm typecheck && pnpm test",
+    "build": "pnpm -r build",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "7.15.0",
+    "@typescript-eslint/parser": "7.15.0",
+    "@types/node": "20.12.12",
+    "eslint": "8.57.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-jsx-a11y": "6.8.0",
+    "eslint-plugin-react": "7.34.3",
+    "eslint-plugin-react-hooks": "4.6.2",
+    "prettier": "3.3.2",
+    "tsx": "4.8.2",
+    "typescript": "5.5.2",
+    "vitest": "1.6.0",
+    "prisma": "5.17.0",
+    "@prisma/client": "5.17.0"
+  }
+}
