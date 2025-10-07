@@ -15,7 +15,7 @@ import type {
   PendingWrite,
 } from '@langchain/langgraph-checkpoint';
 import type { RunnableConfig } from '@langchain/core/runnables';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 
 interface PostgresOptions {
   readonly url: string;
@@ -36,6 +36,12 @@ function applySchemaToUrl(url: string, schema?: string): string {
 
 function createCompositeKey(threadId: string, namespace: string, checkpointId: string) {
   return { threadId, checkpointNamespace: namespace, checkpointId };
+}
+
+type CheckpointRecord = Prisma.LangGraphCheckpointGetPayload<{ include: { writes: true } }>;
+
+function toBuffer(value: Uint8Array | Buffer | string): Buffer {
+  return Buffer.isBuffer(value) ? value : Buffer.from(value);
 }
 
 export class PostgresCheckpointSaver extends BaseCheckpointSaver {
@@ -150,8 +156,8 @@ export class PostgresCheckpointSaver extends BaseCheckpointSaver {
         checkpoint_lookup: createCompositeKey(threadId, namespace, preparedCheckpoint.id),
       },
       update: {
-        checkpointData: serializedCheckpoint,
-        metadata: serializedMetadata,
+        checkpointData: toBuffer(serializedCheckpoint),
+        metadata: toBuffer(serializedMetadata),
         parentCheckpointId: parentId ?? undefined,
         updatedAt: new Date(),
       },
@@ -161,8 +167,8 @@ export class PostgresCheckpointSaver extends BaseCheckpointSaver {
         checkpointNamespace: namespace,
         checkpointId: preparedCheckpoint.id,
         parentCheckpointId: parentId ?? undefined,
-        checkpointData: serializedCheckpoint,
-        metadata: serializedMetadata,
+        checkpointData: toBuffer(serializedCheckpoint),
+        metadata: toBuffer(serializedMetadata),
       },
     });
 
@@ -204,7 +210,7 @@ export class PostgresCheckpointSaver extends BaseCheckpointSaver {
           },
           update: {
             channel,
-            value: serializedValue,
+            value: toBuffer(serializedValue),
           },
           create: {
             id: randomUUID(),
@@ -214,7 +220,7 @@ export class PostgresCheckpointSaver extends BaseCheckpointSaver {
             taskId,
             writeIndex,
             channel,
-            value: serializedValue,
+            value: toBuffer(serializedValue),
           },
         });
       }),
@@ -260,19 +266,7 @@ export class PostgresCheckpointSaver extends BaseCheckpointSaver {
   }
 
   private async recordToTuple(
-    record: {
-      threadId: string;
-      checkpointNamespace: string;
-      checkpointId: string;
-      parentCheckpointId: string | null;
-      checkpointData: string;
-      metadata: string;
-      writes: Array<{
-        taskId: string;
-        channel: string;
-        value: string;
-      }>;
-    },
+    record: CheckpointRecord,
     preloadedMetadata?: unknown,
   ): Promise<CheckpointTuple> {
     const [deserializedCheckpoint, metadata] = await Promise.all([

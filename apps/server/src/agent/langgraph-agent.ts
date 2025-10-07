@@ -414,10 +414,11 @@ export class LangGraphChatAgent implements ChatAgent {
 
     this.graphContext = buildConversationGraph(options, chatModel, summarizerModel);
 
+    const persistenceProvider = options.config.persistence.provider;
     this.logger?.info(
       {
-        persistence: options.config.persistence.provider,
-        postgresUrl: options.config.persistence.postgres?.url,
+        persistenceProvider,
+        persistenceConfigured: persistenceProvider === 'postgres',
       },
       'langgraph checkpointing configured',
     );

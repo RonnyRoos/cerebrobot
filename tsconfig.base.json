@@ -12,11 +12,6 @@
     "skipLibCheck": true,
     "strict": true,
     "resolveJsonModule": true,
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@cerebrobot/chat-shared": ["packages/chat-shared/src/index.ts"],
-      "@cerebrobot/chat-shared/*": ["packages/chat-shared/src/*"]
-    }
+    "noEmit": true
   }
 }
