@@ -7,7 +7,7 @@ import type { ChatInvocationContext } from '../../chat/chat-agent.js';
 import { createCheckpointSaver } from '../checkpointer.js';
 import { PostgresCheckpointSaver } from '../postgres-checkpoint.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
-import type { Checkpoint } from '@langchain/langgraph-checkpoint';
+import type { Checkpoint, CheckpointMetadata } from '@langchain/langgraph-checkpoint';
 
 const pgUrl = process.env.LANGGRAPH_PG_URL;
 const runPgTests = process.env.LANGGRAPH_PG_TESTS === 'true';
@@ -152,10 +152,16 @@ describeIfPg('LangGraph Postgres persistence', () => {
       versions_seen: {},
     };
 
+    const metadata: CheckpointMetadata = {
+      source: 'input',
+      step: 0,
+      parents: {},
+    };
+
     await saver.put(
       { configurable: { thread_id: 'connection-loss', checkpoint_ns: '' } },
       checkpoint,
-      {},
+      metadata,
       {},
     );
 

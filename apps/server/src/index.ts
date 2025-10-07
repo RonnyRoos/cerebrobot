@@ -15,8 +15,24 @@ export async function bootstrap(): Promise<void> {
     resolve(currentDir, '../.env'), // apps/server/.env
   ];
 
+  const originalEnvKeys = new Set(Object.keys(process.env));
+  const fileDefinedKeys = new Set<string>();
+
   for (const envPath of envCandidates) {
-    loadEnv({ path: envPath, override: false });
+    const result = loadEnv({ path: envPath, override: false });
+    const parsed = result?.parsed;
+    if (!parsed) {
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(parsed)) {
+      if (originalEnvKeys.has(key) && !fileDefinedKeys.has(key)) {
+        continue;
+      }
+
+      process.env[key] = value;
+      fileDefinedKeys.add(key);
+    }
   }
 
   const config = loadConfigFromEnv();
