@@ -1,0 +1,88 @@
+name: cerebrobot
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cerebrobot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cerebrobot}
+      POSTGRES_DB: ${POSTGRES_DB:-cerebrobot}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cerebrobot} -d ${POSTGRES_DB:-cerebrobot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  migrate:
+    image: node:20
+    depends_on:
+      postgres:
+        condition: service_healthy
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - pnpm-root:/workspace/node_modules
+      - pnpm-server:/workspace/apps/server/node_modules
+      - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
+    command: >-
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm db:generate && pnpm db:migrate"
+    environment:
+      DATABASE_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
+
+  backend:
+    image: node:20
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - pnpm-root:/workspace/node_modules
+      - pnpm-server:/workspace/apps/server/node_modules
+      - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
+    command: >-
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @cerebrobot/server dev"
+    environment:
+      DATABASE_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
+      LANGGRAPH_PG_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-}
+      FASTIFY_PORT: ${FASTIFY_PORT:-3030}
+    ports:
+      - "${FASTIFY_PORT:-3030}:3030"
+
+  client:
+    image: node:20
+    depends_on:
+      backend:
+        condition: service_started
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - pnpm-root:/workspace/node_modules
+      - pnpm-client:/workspace/apps/client/node_modules
+      - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
+    command: >-
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @cerebrobot/client run dev"
+    environment:
+      VITE_API_BASE: http://backend:3030
+      CLIENT_PORT: ${CLIENT_PORT:-5173}
+    ports:
+      - "${CLIENT_PORT:-5173}:5173"
+
+volumes:
+  postgres-data:
+    driver: local
+  pnpm-root:
+  pnpm-server:
+  pnpm-chat-shared:
+  pnpm-client:

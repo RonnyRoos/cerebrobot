@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+interface PostgresPersistenceConfig {
+  readonly url: string;
+  readonly schema?: string;
+}
+
 export interface ServerConfig {
   readonly systemPrompt: string;
   readonly personaTag: string;
@@ -10,6 +15,10 @@ export interface ServerConfig {
   readonly hotpathTokenBudget: number;
   readonly hotpathMarginPct: number;
   readonly port: number;
+  readonly persistence: {
+    readonly provider: 'memory' | 'postgres';
+    readonly postgres?: PostgresPersistenceConfig;
+  };
 }
 
 const FALLBACK_SYSTEM_PROMPT = 'You are Cerebrobot, a helpful assistant.';
@@ -25,6 +34,8 @@ const ConfigSchema = z.object({
   LANGMEM_RECENT_MESSAGE_FLOOR: z.coerce.number().int().min(1).default(4),
   LANGMEM_HOTPATH_MARGIN_PCT: z.coerce.number().min(0).max(0.9).default(0),
   FASTIFY_PORT: z.coerce.number().int().min(1).default(3000),
+  LANGGRAPH_PG_URL: z.string().optional(),
+  LANGGRAPH_PG_SCHEMA: z.string().optional(),
 });
 
 export function loadConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -41,6 +52,18 @@ export function loadConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerC
       'LANGCHAIN_MODEL missing; using default gpt-4o-mini. Set this env var to target a different model.',
     );
   }
+
+  const pgUrl = parsed.LANGGRAPH_PG_URL?.trim();
+  const persistence = pgUrl
+    ? {
+        provider: 'postgres' as const,
+        postgres: {
+          url: pgUrl,
+          schema: parsed.LANGGRAPH_PG_SCHEMA?.trim() || undefined,
+        },
+      }
+    : ({ provider: 'memory' as const } satisfies ServerConfig['persistence']);
+
   return {
     systemPrompt: parsed.LANGGRAPH_SYSTEM_PROMPT,
     personaTag: parsed.LANGGRAPH_PERSONA_TAG,
@@ -51,5 +74,6 @@ export function loadConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerC
     hotpathTokenBudget: parsed.LANGMEM_HOTPATH_TOKEN_BUDGET,
     hotpathMarginPct: parsed.LANGMEM_HOTPATH_MARGIN_PCT,
     port: parsed.FASTIFY_PORT,
+    persistence,
   };
 }

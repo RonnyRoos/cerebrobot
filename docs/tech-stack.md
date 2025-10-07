@@ -16,4 +16,6 @@ This document constrains Cerebrobot's technology choices, especially for Phase 1
 - **Schema & OpenAPI**:
   - `zod@4.1.11` — runtime validation and shared schemas.
   - `zod-openapi@5.4.1` — OpenAPI v3 generation from Zod definitions.
+- **Database & Migrations**:
+  - `prisma@latest` — migration and schema tooling for Phase 1.5 Postgres checkpointing (use `prisma migrate` / `prisma generate`).
 - **Logging**: `pino@9.11.0` (Fastify's default logger is Pino-compatible).

@@ -42,6 +42,7 @@ const baseConfig: ServerConfig = {
   recentMessageFloor: 2,
   hotpathMarginPct: 0,
   port: 3000,
+  persistence: { provider: 'memory' },
 };
 
 const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvocationContext => ({

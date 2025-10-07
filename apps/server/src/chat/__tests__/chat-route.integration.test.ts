@@ -15,6 +15,7 @@ function createServerConfig(): ServerConfig {
     recentMessageFloor: 4,
     hotpathMarginPct: 0.1,
     port: 3000,
+    persistence: { provider: 'memory' },
   };
 }
 

@@ -27,9 +27,7 @@ export type AgentStreamEvent =
 
 export interface ChatAgent {
   streamChat(context: ChatInvocationContext): AsyncIterable<AgentStreamEvent>;
-  completeChat(
-    context: ChatInvocationContext,
-  ): Promise<{
+  completeChat(context: ChatInvocationContext): Promise<{
     message: string;
     summary?: string;
     latencyMs: number;

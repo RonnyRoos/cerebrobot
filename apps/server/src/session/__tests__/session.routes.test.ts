@@ -34,6 +34,7 @@ describe('session routes', () => {
       hotpathTokenBudget: 3000,
       hotpathMarginPct: 0.1,
       port: 0,
+      persistence: { provider: 'memory' },
     };
   });
 

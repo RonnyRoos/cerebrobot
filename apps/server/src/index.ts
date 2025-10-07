@@ -16,7 +16,7 @@ export async function bootstrap(): Promise<void> {
   ];
 
   for (const envPath of envCandidates) {
-    loadEnv({ path: envPath, override: true });
+    loadEnv({ path: envPath, override: false });
   }
 
   const config = loadConfigFromEnv();

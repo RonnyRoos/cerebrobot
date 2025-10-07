@@ -29,6 +29,32 @@
   pnpm --filter @cerebrobot/client dev
   ```
 
+### Full stack via Docker Compose
+
+To run Postgres, apply Prisma migrations, and launch both backend and client together:
+
+```bash
+docker compose up
+```
+
+This will build/run four services:
+
+- `postgres` — database with health checks and persisted volume.
+- `migrate` — one-shot Prisma migration runner (exits when migrations finish).
+- `backend` — Fastify/LangGraph server on port `3030`.
+- `client` — Vite dev server on port `5173` proxied to the backend (`/api/*`).
+
+Stop the stack with `docker compose down` (add `-v` to remove volumes).
+
+### Manual persistence check
+
+1. With the stack running, interact with the client at `http://localhost:5173/`.
+2. Inspect saved checkpoints:
+   ```bash
+   docker compose exec postgres psql -U cerebrobot -d cerebrobot -c "SELECT thread_id, checkpoint_id, octet_length(checkpoint) AS checkpoint_bytes, updated_at FROM \"LangGraphCheckpoint\" ORDER BY updated_at DESC LIMIT 5;"
+   ```
+3. You should see entries even after restarting the backend container.
+
 The server reads configuration from environment variables (see `.env.example`). Restart the process after changing agent parameters.
 
 ## Hot-Path Memory Configuration
