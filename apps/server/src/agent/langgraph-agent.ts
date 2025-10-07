@@ -9,18 +9,13 @@ import {
 } from '@langchain/core/messages';
 import type { BaseMessage, BaseMessageLike } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
-import {
-  Annotation,
-  MemorySaver,
-  MessagesAnnotation,
-  StateGraph,
-  START,
-  END,
-} from '@langchain/langgraph';
+import { Annotation, MessagesAnnotation, StateGraph, START, END } from '@langchain/langgraph';
+import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { RunnableLambda, type RunnableConfig } from '@langchain/core/runnables';
 import type { Logger } from 'pino';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { ServerConfig } from '../config.js';
+import { createCheckpointSaver } from './checkpointer.js';
 
 function toStringContent(content: unknown): string {
   if (content == null) {
@@ -149,7 +144,10 @@ async function splitMessagesByBudget(
     Math.min(minimumRecentMessages, maxMessageCount, messages.length),
   );
 
-  const adjustedBudget = Math.max(0, Math.floor(tokenBudget * (1 - Math.min(Math.max(marginPct, 0), 0.9))));
+  const adjustedBudget = Math.max(
+    0,
+    Math.floor(tokenBudget * (1 - Math.min(Math.max(marginPct, 0), 0.9))),
+  );
   const effectiveBudget = Math.max(0, Math.min(tokenBudget, adjustedBudget));
 
   const tokenized = messages.map((message) => ({
@@ -232,7 +230,7 @@ function formatTokenUsageSnapshot(snapshot: TokenUsageSnapshot | null | undefine
 interface LangGraphChatAgentOptions {
   readonly config: ServerConfig;
   readonly logger?: Logger;
-  readonly checkpointer?: MemorySaver;
+  readonly checkpointer?: BaseCheckpointSaver;
 }
 
 function buildConversationGraph(
@@ -372,7 +370,7 @@ function buildConversationGraph(
     .addEdge('summarize', 'callModel')
     .addEdge('callModel', END);
 
-  const checkpointer = options.checkpointer ?? new MemorySaver();
+  const checkpointer = options.checkpointer ?? createCheckpointSaver(config);
   const graph = workflow.compile({ checkpointer });
 
   return {
@@ -415,6 +413,14 @@ export class LangGraphChatAgent implements ChatAgent {
     });
 
     this.graphContext = buildConversationGraph(options, chatModel, summarizerModel);
+
+    this.logger?.info(
+      {
+        persistence: options.config.persistence.provider,
+        postgresUrl: options.config.persistence.postgres?.url,
+      },
+      'langgraph checkpointing configured',
+    );
   }
 
   public async *streamChat(context: ChatInvocationContext) {

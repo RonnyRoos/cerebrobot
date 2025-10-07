@@ -1,0 +1,42 @@
+/// Prisma schema for LangGraph AsyncPostgresSaver checkpointing.
+/// Models will be added in later tasks once the LangGraph structures are mapped.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model LangGraphCheckpoint {
+  id                 String   @id @map("id")
+  threadId           String   @map("thread_id")
+  checkpointNamespace String  @map("checkpoint_ns")
+  checkpointId       String   @map("checkpoint_id")
+  parentCheckpointId String?  @map("parent_checkpoint_id")
+  checkpointData     Bytes    @map("checkpoint")
+  metadata           Bytes    @map("metadata")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  writes             LangGraphCheckpointWrite[]
+
+  @@unique([threadId, checkpointNamespace, checkpointId], name: "checkpoint_lookup")
+}
+
+model LangGraphCheckpointWrite {
+  id                  String               @id @default(uuid()) @map("id")
+  threadId            String               @map("thread_id")
+  checkpointNamespace String               @map("checkpoint_ns")
+  checkpointId        String               @map("checkpoint_id")
+  taskId              String               @map("task_id")
+  writeIndex          Int                  @map("write_index")
+  channel             String               @map("channel")
+  value               Bytes                @map("value")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  checkpoint          LangGraphCheckpoint  @relation(fields: [threadId, checkpointNamespace, checkpointId], references: [threadId, checkpointNamespace, checkpointId], onDelete: Cascade)
+
+  @@unique([threadId, checkpointNamespace, checkpointId, taskId, writeIndex], name: "write_lookup")
+  @@index([threadId, checkpointNamespace, checkpointId], name: "write_checkpoint_lookup")
+}
