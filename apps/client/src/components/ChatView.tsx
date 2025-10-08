@@ -1,25 +1,64 @@
-import { UserSetup } from './UserSetup.js';
-import { useUserId } from '../hooks/useUserId.js';
-import { useChatSession } from '../hooks/useChatSession.js';
+import { useThread } from '../hooks/useChatSession.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
+import { useThreadHistory } from '../hooks/useThreadHistory.js';
+import { useMemo, useEffect } from 'react';
 
-export function ChatView(): JSX.Element {
-  const {
-    userId,
-    showUserSetup,
-    handleUserIdReady: handleUserIdReadyFromHook,
-  } = useUserId(() => {
-    void startNewSession();
-  });
+interface ChatViewProps {
+  userId: string;
+  threadId: string | null;
+  onBack: () => void;
+}
 
-  const { sessionId, sessionPromise, createSession } = useChatSession();
+/**
+ * Main chat interface component
+ *
+ * Phase 3 Changes:
+ * - Now accepts userId, threadId, and onBack props from App.tsx
+ * - UserSetup handling moved to App.tsx
+ *
+ * Phase 4 Changes:
+ * - Loads thread history when threadId provided
+ * - Converts history messages to DisplayMessage format for useChatMessages
+ */
+export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Element {
+  // Load thread history if resuming an existing thread
+  const { messages: historyMessages, error: historyError } = useThreadHistory(threadId, userId);
 
-  // Callback to get active session ID for message sending
-  const getActiveSessionId = async (): Promise<string | null> => {
-    if (sessionId) return sessionId;
-    if (!sessionPromise) return null;
+  // Convert history messages to DisplayMessage format
+  const initialMessages = useMemo(
+    () =>
+      historyMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        status: 'complete' as const,
+      })),
+    [historyMessages],
+  );
+
+  const { threadId: activeThreadId, threadPromise, createThread } = useThread();
+
+  // Auto-create thread when component mounts for new conversations
+  // When resuming (threadId provided), reuse existing threadId
+  useEffect(() => {
+    if (activeThreadId) return; // Skip if we already have an active thread
+
+    if (threadId) {
+      // Reuse existing threadId when resuming conversation
+      void createThread(undefined, threadId);
+    } else {
+      // Create new thread for new conversation
+      void createThread();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount - threadId doesn't change for a ChatView instance
+
+  // Callback to get active thread ID for message sending
+  const getActiveThreadId = async (): Promise<string | null> => {
+    if (activeThreadId) return activeThreadId;
+    if (!threadPromise) return null;
     try {
-      return await sessionPromise;
+      return await threadPromise;
     } catch {
       return null;
     }
@@ -28,31 +67,42 @@ export function ChatView(): JSX.Element {
   const { messages, isStreaming, error, pendingMessage, handleSend, setPendingMessage, clearChat } =
     useChatMessages({
       userId,
-      getActiveSessionId,
+      getActiveThreadId,
+      initialMessages,
     });
 
-  const handleUserIdReady = (newUserId: string) => {
-    handleUserIdReadyFromHook(newUserId);
-  };
-
-  const startNewSession = async (previousSessionId?: string) => {
+  const startNewThread = async (previousThreadId?: string) => {
     clearChat();
 
     try {
-      await createSession(previousSessionId);
+      await createThread(previousThreadId);
     } catch (err) {
-      // Error will be set by the session hook
+      // Error will be set by the thread hook
     }
   };
-
-  if (showUserSetup) {
-    return <UserSetup onUserIdReady={handleUserIdReady} />;
-  }
 
   const disableSend = !pendingMessage.trim() || isStreaming;
 
   return (
     <section aria-label="Chat panel">
+      {/* Back to threads navigation */}
+      <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid #e5e7eb' }}>
+        <button
+          onClick={onBack}
+          style={{
+            padding: '0.25rem 0.75rem',
+            backgroundColor: 'transparent',
+            color: '#3b82f6',
+            border: '1px solid #3b82f6',
+            borderRadius: '0.375rem',
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+          }}
+        >
+          ← Back to Threads
+        </button>
+      </div>
+
       <div className="chat-history" aria-live="polite">
         {messages.map((message) => (
           <article key={message.id} data-role={message.role}>
@@ -72,6 +122,29 @@ export function ChatView(): JSX.Element {
         ))}
       </div>
 
+      {/* Show history loading error if thread not found */}
+      {historyError && (
+        <div role="alert" style={{ padding: '1rem', backgroundColor: '#fef2f2', margin: '1rem' }}>
+          <strong style={{ color: '#991b1b' }}>Failed to load conversation history</strong>
+          <p style={{ color: '#7f1d1d', margin: '0.5rem 0 0 0' }}>{historyError.message}</p>
+          <button
+            onClick={onBack}
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: 'pointer',
+            }}
+          >
+            Back to Thread List
+          </button>
+        </div>
+      )}
+
+      {/* Show message streaming or thread error */}
       {error && (
         <div role="alert">
           <strong>{error.message}</strong>
@@ -112,10 +185,10 @@ export function ChatView(): JSX.Element {
           </button>
           <button
             type="button"
-            onClick={() => sessionId && void startNewSession(sessionId)}
-            disabled={!sessionId}
+            onClick={() => activeThreadId && void startNewThread(activeThreadId)}
+            disabled={!activeThreadId}
           >
-            New Session
+            New Thread
           </button>
         </div>
       </form>

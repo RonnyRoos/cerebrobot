@@ -94,13 +94,13 @@ function buildConversationGraph(
     ];
 
     const response = await summarizerModel.invoke(summaryMessages, {
-      configurable: { thread_id: state.sessionId },
+      configurable: { thread_id: state.threadId },
     });
     const summaryText = toStringContent(response.content).trim();
     if (summaryText.length === 0) {
       logger?.info(
         {
-          sessionId: state.sessionId,
+          sessionId: state.threadId,
           trimmedMessages: messagesToSummarize.length,
           trimmedTokens: overflowTokenCount,
           recentTokens: recentTokenCount,
@@ -124,7 +124,7 @@ function buildConversationGraph(
 
     logger?.info(
       {
-        sessionId: state.sessionId,
+        sessionId: state.threadId,
         trimmedMessages: messagesToSummarize.length,
         trimmedTokens: overflowTokenCount,
         recentTokens: recentTokenCount,
@@ -163,7 +163,7 @@ function buildConversationGraph(
     const promptMessages: BaseMessage[] = [...systemMessages, ...recentMessages];
 
     const response = await modelWithTools.invoke(promptMessages, {
-      configurable: { thread_id: state.sessionId },
+      configurable: { thread_id: state.threadId },
     });
 
     // Log if response has tool calls

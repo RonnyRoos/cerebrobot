@@ -46,3 +46,18 @@ export type {
   BaseStore,
   StoreSearchOptions,
 } from './schemas/memory.js';
+
+// Thread schemas
+export {
+  ThreadMetadataSchema,
+  ThreadListResponseSchema,
+  MessageSchema,
+  MessageHistoryResponseSchema,
+} from './schemas/thread.js';
+
+export type {
+  ThreadMetadata,
+  ThreadListResponse,
+  Message,
+  MessageHistoryResponse,
+} from './schemas/thread.js';

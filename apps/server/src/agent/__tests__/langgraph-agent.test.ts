@@ -51,7 +51,7 @@ const baseConfig: ServerConfig = {
 };
 
 const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvocationContext => ({
-  sessionId: 'session-1',
+  threadId: 'thread-1',
   userId: 'user-123', // REQUIRED: userId must be provided
   message: 'Hello?',
   correlationId: 'corr-1',
@@ -126,7 +126,7 @@ describe('LangGraphChatAgent', () => {
           };
         };
       }
-    ).graphContext.graph.getState({ configurable: { thread_id: 'session-1' } });
+    ).graphContext.graph.getState({ configurable: { thread_id: 'thread-1' } });
 
     expect(state.values.summary).toBe('summary of first turn');
     expect(state.values.summaryUpdatedAt).toBeDefined();
@@ -176,7 +176,7 @@ describe('LangGraphChatAgent', () => {
           };
         };
       }
-    ).graphContext.graph.getState({ configurable: { thread_id: 'session-1' } });
+    ).graphContext.graph.getState({ configurable: { thread_id: 'thread-1' } });
 
     expect(state.values.summary).toBe('condensed history');
     expect((state.values.messages ?? []).length).toBeGreaterThan(0);
@@ -195,7 +195,7 @@ describe('LangGraphChatAgent', () => {
     const agent = new LangGraphChatAgent({ config: baseConfig });
     await agent.completeChat(createContext());
 
-    await agent.reset('session-1', 'user-123');
+    await agent.reset('thread-1', 'user-123');
 
     const state = await (
       agent as unknown as {
@@ -207,7 +207,7 @@ describe('LangGraphChatAgent', () => {
           };
         };
       }
-    ).graphContext.graph.getState({ configurable: { thread_id: 'session-1' } });
+    ).graphContext.graph.getState({ configurable: { thread_id: 'thread-1' } });
 
     expect(state.values.messages ?? []).toHaveLength(0);
     expect(state.values.summary).toBeNull();

@@ -5,7 +5,7 @@ describe('ChatRequestSchema', () => {
   it('accepts a minimal valid request payload', () => {
     const payload = {
       userId: '550e8400-e29b-41d4-a716-446655440000',
-      sessionId: 'session-123',
+      threadId: 'thread-123',
       message: 'Hello there!',
       clientRequestId: 'req-abc',
     };
@@ -15,7 +15,7 @@ describe('ChatRequestSchema', () => {
 
   it('rejects empty message bodies', () => {
     const payload = {
-      sessionId: 'session-123',
+      threadId: 'thread-123',
       message: '',
     };
 
@@ -27,7 +27,7 @@ describe('ChatRequestSchema', () => {
 describe('ChatResponseSchema', () => {
   it('accepts a response with correlation metadata and latency', () => {
     const payload = {
-      sessionId: 'session-123',
+      threadId: 'thread-123',
       correlationId: 'corr-456',
       message: 'All systems operational.',
       latencyMs: 1234,
@@ -39,7 +39,7 @@ describe('ChatResponseSchema', () => {
 
   it('rejects responses without correlation identifiers', () => {
     const payload = {
-      sessionId: 'session-123',
+      threadId: 'thread-123',
       message: 'Missing correlation.',
       latencyMs: 1200,
       streamed: true,
@@ -51,7 +51,7 @@ describe('ChatResponseSchema', () => {
 
   it('rejects negative latency measurements', () => {
     const payload = {
-      sessionId: 'session-123',
+      threadId: 'thread-123',
       correlationId: 'corr-456',
       message: 'Latencies should be non-negative.',
       latencyMs: -10,

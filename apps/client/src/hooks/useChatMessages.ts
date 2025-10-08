@@ -34,7 +34,8 @@ interface ErrorState {
 
 interface UseChatMessagesOptions {
   userId: string | null;
-  getActiveSessionId: () => Promise<string | null>;
+  getActiveThreadId: () => Promise<string | null>;
+  initialMessages?: DisplayMessage[];
 }
 
 interface UseChatMessagesResult {
@@ -56,15 +57,20 @@ function createClientRequestId(): string {
 }
 
 export function useChatMessages(options: UseChatMessagesOptions): UseChatMessagesResult {
-  const { userId, getActiveSessionId } = options;
+  const { userId, getActiveThreadId, initialMessages = [] } = options;
 
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>(initialMessages);
   const [pendingMessage, setPendingMessage] = useState('');
   const [error, setError] = useState<ErrorState | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
 
   const controllerRef = useRef<AbortController | null>(null);
   const assistantMessageIdRef = useRef<string | null>(null);
+
+  // Sync messages with initialMessages when they change (e.g., when switching threads)
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -214,11 +220,11 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
       return;
     }
 
-    const activeSessionId = await getActiveSessionId();
+    const activeThreadId = await getActiveThreadId();
 
-    if (!activeSessionId) {
+    if (!activeThreadId) {
       handleAssistantError({
-        message: 'Session unavailable',
+        message: 'Thread unavailable',
         retryable: true,
       });
       return;
@@ -272,7 +278,7 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
           Accept: 'text/event-stream',
         },
         body: JSON.stringify({
-          sessionId: activeSessionId,
+          threadId: activeThreadId,
           message: messageToSend,
           clientRequestId,
           userId, // REQUIRED: userId is guaranteed to be non-null here
@@ -284,8 +290,9 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
 
       if (IS_TEST_ENV && requestInit.body) {
         requestInit.body = JSON.stringify({
-          sessionId: activeSessionId,
+          threadId: activeThreadId,
           message: messageToSend,
+          userId,
           clientRequestId: { inverse: false },
         });
       }

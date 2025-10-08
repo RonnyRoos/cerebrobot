@@ -31,7 +31,7 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
 
     const correlationId = randomUUID();
     const context: ChatInvocationContext = {
-      sessionId: parseResult.data.sessionId,
+      threadId: parseResult.data.threadId,
       userId: parseResult.data.userId,
       message: parseResult.data.message,
       correlationId,
@@ -41,7 +41,7 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
     options.logger?.info(
       {
         correlationId,
-        sessionId: parseResult.data.sessionId,
+        threadId: parseResult.data.threadId,
         accept: request.headers.accept,
       },
       'incoming chat request',
@@ -69,7 +69,7 @@ async function handleBufferedResponse(
     const result = await agent.completeChat(context);
     const metadata = result.tokenUsage ? { tokenUsage: result.tokenUsage } : undefined;
     const response = ChatResponseSchema.parse({
-      sessionId: context.sessionId,
+      threadId: context.threadId,
       correlationId: context.correlationId,
       message: result.message,
       latencyMs: result.latencyMs,
@@ -79,7 +79,7 @@ async function handleBufferedResponse(
 
     logger?.info(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         correlationId: context.correlationId,
         streamed: false,
         latencyMs: response.latencyMs,
@@ -117,7 +117,7 @@ async function handleSseResponse(
 
     logger?.info(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         correlationId: context.correlationId,
         streamed: true,
       },
