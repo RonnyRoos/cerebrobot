@@ -8,12 +8,12 @@ import {
 } from '@langchain/core/messages';
 import type { BaseMessage, BaseMessageLike } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
-import { Annotation, MessagesAnnotation, StateGraph, START, END } from '@langchain/langgraph';
+import { StateGraph, START, END } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { RunnableLambda, type RunnableConfig } from '@langchain/core/runnables';
 import type { Logger } from 'pino';
-import type { MemorySearchResult, UpsertMemoryInput, BaseStore } from '@cerebrobot/chat-shared';
+import type { BaseStore } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { ServerConfig } from '../config.js';
 import { createCheckpointSaver } from './checkpointer.js';
@@ -26,28 +26,12 @@ import {
   formatTokenUsageSnapshot,
   type TokenUsageSnapshot,
 } from './utils/token-counting.js';
-
-const ConversationAnnotation = Annotation.Root({
-  ...MessagesAnnotation.spec,
-  summary: Annotation<string | null>(),
-  summaryUpdatedAt: Annotation<string | null>(),
-  sessionId: Annotation<string>(),
-  tokenUsage: Annotation<{
-    recentTokens: number;
-    overflowTokens: number;
-    budget: number;
-  } | null>(),
-  // Long-term memory fields
-  userId: Annotation<string | undefined>(),
-  retrievedMemories: Annotation<MemorySearchResult[] | undefined>(),
-  memoryOperations: Annotation<UpsertMemoryInput[] | undefined>(),
-});
-
-type ConversationState = typeof ConversationAnnotation.State;
-
-type ConversationMessages = BaseMessage[];
-
-type MessageStream = AsyncGenerator<[BaseMessageLike, unknown]>;
+import {
+  ConversationAnnotation,
+  type ConversationState,
+  type ConversationMessages,
+  type MessageStream,
+} from './graph/types.js';
 
 interface LangGraphChatAgentOptions {
   readonly config: ServerConfig;
