@@ -157,7 +157,7 @@ describe('PostgresMemoryStore', () => {
           key,
           content: 'User is vegetarian',
           metadata: { source: 'conversation' },
-          embedding: [0.1, 0.2, 0.3],
+          embedding: '[0.1,0.2,0.3]', // String format to match ::text cast
           created_at: new Date('2025-01-01'),
           updated_at: new Date('2025-01-01'),
         },

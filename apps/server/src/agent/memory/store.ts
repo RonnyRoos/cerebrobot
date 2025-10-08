@@ -75,12 +75,12 @@ export class PostgresMemoryStore implements BaseStore {
           key: string;
           content: string;
           metadata: unknown;
-          embedding: number[];
+          embedding: string; // Cast from vector to text
           created_at: Date;
           updated_at: Date;
         }>
       >`
-        SELECT id, namespace, key, content, metadata, embedding, created_at, updated_at
+        SELECT id, namespace, key, content, metadata, embedding::text, created_at, updated_at
         FROM memories
         WHERE namespace = ${namespace} AND key = ${key}
       `;
@@ -91,13 +91,20 @@ export class PostgresMemoryStore implements BaseStore {
       }
 
       const memory = result[0];
+      // Parse vector string "[1,2,3]" to array
+      // In unit tests with mocked Prisma, embedding may already be an array
+      const embedding =
+        typeof memory.embedding === 'string'
+          ? (JSON.parse(memory.embedding) as number[])
+          : memory.embedding;
+
       return {
         id: memory.id,
         namespace: memory.namespace,
         key: memory.key,
         content: memory.content,
         metadata: (memory.metadata as Record<string, unknown>) ?? undefined,
-        embedding: memory.embedding,
+        embedding,
         createdAt: memory.created_at,
         updatedAt: memory.updated_at,
       };
