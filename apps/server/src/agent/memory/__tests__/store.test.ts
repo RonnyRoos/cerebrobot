@@ -20,6 +20,13 @@ vi.mock('@prisma/client', () => {
 
   return {
     PrismaClient: PrismaClientMock,
+    Prisma: {
+      sql: (strings: TemplateStringsArray, ...values: unknown[]) => {
+        // Return a mock SQL fragment
+        return { raw: strings.join('?'), values };
+      },
+      empty: { raw: '', values: [] },
+    },
   };
 });
 

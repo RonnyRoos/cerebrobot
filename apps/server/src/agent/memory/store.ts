@@ -112,8 +112,11 @@ export class PostgresMemoryStore implements BaseStore {
     const limit = options?.limit;
 
     try {
-      this.logger.debug({ namespace, query: query.substring(0, 100) }, 'Generating query embedding for search');
-      
+      this.logger.debug(
+        { namespace, query: query.substring(0, 100) },
+        'Generating query embedding for search',
+      );
+
       const queryEmbedding = await generateEmbedding(query, this.config);
 
       if (!queryEmbedding) {
@@ -140,35 +143,6 @@ export class PostgresMemoryStore implements BaseStore {
           limit,
         },
         'Executing memory search with parameters',
-      );
-
-      // DEBUG: First get ALL similarities to see what's happening
-      const allResults = await this.prisma.$queryRaw<
-        Array<{
-          content: string;
-          similarity: number;
-        }>
-      >`
-        SELECT 
-          content,
-          1 - (embedding <=> ${embeddingString}::vector) AS similarity
-        FROM memories
-        WHERE namespace = ${namespace}::text[]
-        ORDER BY embedding <=> ${embeddingString}::vector
-        LIMIT 5
-      `;
-
-      this.logger.info(
-        {
-          namespace,
-          query: query.substring(0, 100),
-          allSimilarities: allResults.map(r => ({
-            content: r.content.substring(0, 50),
-            similarity: r.similarity,
-          })),
-          threshold,
-        },
-        'DEBUG: All similarities (regardless of threshold)',
       );
 
       // Use $queryRaw with tagged template for proper parameterization
@@ -207,7 +181,7 @@ export class PostgresMemoryStore implements BaseStore {
           query: query.substring(0, 100),
           resultCount: results.length,
           threshold,
-          topSimilarities: results.slice(0, 3).map(r => ({
+          topSimilarities: results.slice(0, 3).map((r) => ({
             content: r.content.substring(0, 50),
             similarity: r.similarity.toFixed(3),
           })),

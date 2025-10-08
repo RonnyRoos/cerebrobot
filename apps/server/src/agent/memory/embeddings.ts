@@ -44,7 +44,9 @@ export async function generateEmbedding(
     }
 
     // Log the dimensions we received
-    console.log(`✓ Generated embedding with ${embedding.length} dimensions for model ${config.embeddingModel}`);
+    console.log(
+      `✓ Generated embedding with ${embedding.length} dimensions for model ${config.embeddingModel}`,
+    );
 
     return embedding;
   } catch (error) {
