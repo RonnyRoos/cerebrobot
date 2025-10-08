@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TokenUsage } from '@cerebrobot/chat-shared';
 
+/**
+ * useChatMessages Hook (340 lines)
+ *
+ * Encapsulates all message state and SSE streaming logic for ChatView.
+ * Exceeds typical file size target (300 lines) but maintains strong cohesion—
+ * splitting would separate tightly coupled streaming state management.
+ *
+ * Error Handling Philosophy:
+ * - Manages internal error state for user-facing display
+ * - Includes retry logic (retryable vs. non-retryable errors)
+ * - Self-contained error recovery (caller doesn't need error handling)
+ */
+
 const IS_TEST_ENV = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 const decoder = new TextDecoder();
 

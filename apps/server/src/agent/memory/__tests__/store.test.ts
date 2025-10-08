@@ -4,7 +4,7 @@
  * Unit tests for PostgresMemoryStore implementation with mocked Prisma and embeddings.
  */
 
-import { describe, expect, it, vi, beforeEach, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { MemoryEntry } from '@cerebrobot/chat-shared';
 
 // Mock Prisma client
@@ -366,6 +366,94 @@ describe('PostgresMemoryStore', () => {
       const keys = await store.list(namespace);
 
       expect(keys).toEqual([]);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('handles embedding generation failure gracefully', async () => {
+      const namespace = ['memories', 'user-edge'];
+      const key = 'failing-embedding';
+      const memory: MemoryEntry = {
+        id: crypto.randomUUID(),
+        namespace,
+        key,
+        content: 'Test content',
+        embedding: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      vi.mocked(generateEmbedding).mockRejectedValueOnce(new Error('Embedding API timeout'));
+
+      // Should not throw, but should skip storage
+      await expect(store.put(namespace, key, memory)).resolves.toBeUndefined();
+
+      // Verify no database write attempted
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array when no memories meet similarity threshold', async () => {
+      const namespace = ['memories', 'user-threshold'];
+
+      vi.mocked(generateEmbedding).mockResolvedValueOnce(new Array(1536).fill(0));
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([]);
+
+      const results = await store.search(namespace, 'completely unrelated query', {
+        threshold: 0.99,
+      });
+
+      expect(results).toEqual([]);
+    });
+
+    it('handles empty namespace gracefully', async () => {
+      const namespace: string[] = [];
+      const key = 'test-key';
+      const memory: MemoryEntry = {
+        id: crypto.randomUUID(),
+        namespace,
+        key,
+        content: 'Test',
+        embedding: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      vi.mocked(generateEmbedding).mockResolvedValueOnce(new Array(1536).fill(0.1));
+
+      await store.put(namespace, key, memory);
+
+      // Verify database write was attempted with empty namespace
+      expect(prisma.$executeRaw).toHaveBeenCalled();
+      const callArgs = vi.mocked(prisma.$executeRaw).mock.calls[0];
+      // In Prisma's tagged template: callArgs[0] is the template array,
+      // callArgs[1] is memory.id, callArgs[2] is namespace
+      expect(callArgs[2]).toEqual([]); // Empty namespace array
+    });
+
+    it('handles very long content within token limits', async () => {
+      const namespace = ['memories', 'user-long'];
+      const key = 'long-content';
+      const longContent = 'word '.repeat(500); // ~2500 chars
+      const memory: MemoryEntry = {
+        id: crypto.randomUUID(),
+        namespace,
+        key,
+        content: longContent.trim(),
+        embedding: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      vi.mocked(generateEmbedding).mockResolvedValueOnce(new Array(1536).fill(0.5));
+
+      await store.put(namespace, key, memory);
+
+      expect(generateEmbedding).toHaveBeenCalledWith(
+        expect.stringContaining('word'),
+        expect.objectContaining({
+          contentMaxTokens: 2048,
+        }),
+      );
     });
   });
 });

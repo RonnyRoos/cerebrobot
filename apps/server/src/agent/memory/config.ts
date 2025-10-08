@@ -35,6 +35,20 @@ export const MemoryConfigSchema = z.object({
   retrievalTimeoutMs: z.number().int().positive().default(5000),
 });
 
+/**
+ * Memory System Configuration
+ */
+
+/**
+ * Embedding dimension for vector storage.
+ * Must match the embedding model being used:
+ * - OpenAI text-embedding-ada-002: 1536
+ * - OpenAI text-embedding-3-small: 1536
+ * - OpenAI text-embedding-3-large: 3072
+ * - Qwen/Qwen3-Embedding-8B (DeepInfra): 1536
+ */
+export const EMBEDDING_DIMENSIONS = 1536;
+
 export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
 
 /**

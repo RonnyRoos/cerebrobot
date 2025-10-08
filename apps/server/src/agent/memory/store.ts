@@ -58,6 +58,10 @@ export class PostgresMemoryStore implements BaseStore {
       this.logger.info({ namespace, key, memoryId: value.id }, 'Memory stored successfully');
     } catch (error) {
       this.logger.error({ error, namespace, key }, 'Failed to store memory');
+      // If embedding generation failed, skip storage gracefully
+      if (error instanceof Error && error.message.includes('Embedding')) {
+        return;
+      }
       throw error;
     }
   }

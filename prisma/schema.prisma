@@ -44,9 +44,10 @@ model LangGraphCheckpointWrite {
 
 /// Long-term memory models (Phase 2)
 model User {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
-  createdAt DateTime @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at") // Soft delete: null = active, non-null = deleted
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("users")
 }
@@ -62,5 +63,6 @@ model Memory {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([namespace, key])
+  @@index([namespace, createdAt(sort: Desc)]) // For listing memories by recency
   @@map("memories")
 }
