@@ -1,5 +1,4 @@
 import {
-  AIMessage,
   AIMessageChunk,
   HumanMessage,
   RemoveMessage,
@@ -22,42 +21,7 @@ import { createMemoryStore, loadMemoryConfig } from './memory/index.js';
 import { createRetrieveMemoriesNode } from './memory/nodes.js';
 import { createUpsertMemoryTool } from './memory/tools.js';
 import { getTokenizer, type TiktokenEncoder } from './utils/tiktoken-loader.js';
-
-function toStringContent(content: unknown): string {
-  if (content == null) {
-    return '';
-  }
-
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    return content
-      .map((item) => {
-        if (typeof item === 'string') {
-          return item;
-        }
-
-        if (item && typeof item === 'object' && 'text' in item && typeof item.text === 'string') {
-          return item.text;
-        }
-
-        return '';
-      })
-      .join('');
-  }
-
-  if (
-    typeof content === 'object' &&
-    'text' in content &&
-    typeof (content as { text: unknown }).text === 'string'
-  ) {
-    return (content as { text: string }).text;
-  }
-
-  return String(content);
-}
+import { toStringContent, extractLatestAssistantMessage } from './utils/message-utils.js';
 
 const TOKENS_PER_MESSAGE_OVERHEAD = 4;
 
@@ -645,16 +609,6 @@ export class LangGraphChatAgent implements ChatAgent {
 
     return base;
   }
-}
-
-function extractLatestAssistantMessage(messages: ConversationMessages): string {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message instanceof AIMessage) {
-      return toStringContent(message.content).trim();
-    }
-  }
-  return '';
 }
 
 export function createLangGraphChatAgent(
