@@ -17,7 +17,11 @@ import { useState, useRef } from 'react';
 interface UseThreadResult {
   threadId: string | null;
   threadPromise: Promise<string> | null;
-  createThread: (previousThreadId?: string, existingThreadId?: string) => Promise<string>;
+  createThread: (
+    previousThreadId?: string,
+    existingThreadId?: string,
+    userId?: string,
+  ) => Promise<string>;
 }
 
 export function useThread(): UseThreadResult {
@@ -27,6 +31,7 @@ export function useThread(): UseThreadResult {
   const createThread = async (
     previousThreadId?: string,
     existingThreadId?: string,
+    userId?: string,
   ): Promise<string> => {
     // If existingThreadId is provided, use it directly without API call
     if (existingThreadId) {
@@ -36,7 +41,7 @@ export function useThread(): UseThreadResult {
     }
 
     // Otherwise, request a new thread from the API
-    const promise = requestThread(previousThreadId);
+    const promise = requestThread(previousThreadId, userId);
     threadPromiseRef.current = promise;
 
     try {
@@ -50,21 +55,38 @@ export function useThread(): UseThreadResult {
     }
   };
 
-  const requestThread = async (previousThreadId?: string): Promise<string> => {
-    const response = await fetch('/api/session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(previousThreadId ? { previousThreadId } : {}),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to establish thread');
+  const requestThread = async (previousThreadId?: string, userId?: string): Promise<string> => {
+    // Build request body - include userId if resetting previous thread
+    const body: { previousThreadId?: string; userId?: string } = {};
+    if (previousThreadId && userId) {
+      body.previousThreadId = previousThreadId;
+      body.userId = userId;
     }
 
-    const payload = (await response.json()) as { threadId: string };
-    return payload.threadId;
+    try {
+      const response = await fetch('/api/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const context = previousThreadId ? ` (resetting from ${previousThreadId})` : '';
+        throw new Error(
+          `Failed to establish thread${context}: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const payload = (await response.json()) as { threadId: string };
+      return payload.threadId;
+    } catch (err) {
+      if (err instanceof Error) {
+        throw err;
+      }
+      throw new Error(`Failed to establish thread: ${String(err)}`);
+    }
   };
 
   return {
