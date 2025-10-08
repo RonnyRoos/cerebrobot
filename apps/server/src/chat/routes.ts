@@ -32,6 +32,7 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
     const correlationId = randomUUID();
     const context: ChatInvocationContext = {
       sessionId: parseResult.data.sessionId,
+      userId: parseResult.data.userId,
       message: parseResult.data.message,
       correlationId,
       config: options.config,

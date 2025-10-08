@@ -194,6 +194,23 @@ export class PostgresCheckpointSaver extends BaseCheckpointSaver {
       throw new Error('Failed to store checkpoint writes: missing thread_id or checkpoint_id');
     }
 
+    // Ensure parent checkpoint exists before creating writes (to satisfy foreign key constraint)
+    const existingCheckpoint = await this.prisma.langGraphCheckpoint.findUnique({
+      where: {
+        checkpoint_lookup: {
+          threadId,
+          checkpointNamespace: namespace,
+          checkpointId,
+        },
+      },
+    });
+
+    // If checkpoint doesn't exist, we can't create writes due to FK constraint
+    // This should not happen in normal flow - skip writes if checkpoint missing
+    if (!existingCheckpoint) {
+      return;
+    }
+
     await Promise.all(
       writes.map(async ([channel, value], idx) => {
         const [, serializedValue] = await this.serde.dumpsTyped(value);

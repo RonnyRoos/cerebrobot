@@ -17,7 +17,7 @@ vi.mock('@langchain/openai', () => ({
     const isSummarizer = options.temperature === 0;
     const invokeHandlers = isSummarizer ? summarizerInvokeHandlers : chatInvokeHandlers;
 
-    return {
+    const mockModel = {
       invoke: vi.fn(async (messages: unknown[], invokeOptions?: Record<string, unknown>) => {
         const handler = invokeHandlers.shift();
         if (!handler) {
@@ -28,7 +28,12 @@ vi.mock('@langchain/openai', () => ({
       stream: vi.fn(async function* () {
         // No-op placeholder; streamChat relies on LangGraph stream aggregation
       }),
+      bindTools: vi.fn(function (this: unknown) {
+        return this; // Return self to enable method chaining
+      }),
     };
+
+    return mockModel;
   }),
 }));
 
@@ -47,6 +52,7 @@ const baseConfig: ServerConfig = {
 
 const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvocationContext => ({
   sessionId: 'session-1',
+  userId: 'user-123', // REQUIRED: userId must be provided
   message: 'Hello?',
   correlationId: 'corr-1',
   config: baseConfig,
@@ -55,7 +61,7 @@ const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvo
 
 describe('LangGraphChatAgent', () => {
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.DEEPINFRA_API_KEY = 'test-key';
     chatInvokeHandlers.length = 0;
     summarizerInvokeHandlers.length = 0;
     vi.clearAllMocks();
@@ -189,7 +195,7 @@ describe('LangGraphChatAgent', () => {
     const agent = new LangGraphChatAgent({ config: baseConfig });
     await agent.completeChat(createContext());
 
-    await agent.reset('session-1');
+    await agent.reset('session-1', 'user-123');
 
     const state = await (
       agent as unknown as {

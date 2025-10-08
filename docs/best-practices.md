@@ -10,9 +10,12 @@ This guide speaks directly to Cerebrobot's LLM teammates. Follow these rules to 
 - Keep commits small, each representing a fully linted, formatted, and tested unit of work.
 
 ## Testing Expectations
-- Focus on coverage on deterministic unit tests for LangGraph nodes, memory mutations, and configuration parsers.
-- Prefer real implementations over heavy mocks; use lightweight fakes when isolating external services.
-- When fixing a bug, add or update a test that fails before the fix and passes afterward.
+- **Unit tests first**: Focus coverage on deterministic unit tests for LangGraph nodes, memory mutations, and configuration parsers.
+- **One Postgres validation test**: Create a single test that validates DB schema, migrations, and pgvector using real Postgres with mocked embeddings (deterministic).
+- **Manual smoke tests**: Validate real LLM behavior, real embeddings, and real semantic search accuracy manually before deployment (checklist in tasks).
+- **Avoid pseudo-integration tests**: Don't create "integration" tests that mock the LLM or embeddings—they can't validate the behavior they claim to test.
+- **Mock philosophy**: Prefer real implementations over heavy mocks; use lightweight fakes when isolating external services (e.g., fixed embeddings for vector tests).
+- **Regression tests**: When fixing a bug, add or update a test that fails before the fix and passes afterward.
 - Keep `test/` utilities minimal and shared; remove dead fixtures quickly to avoid drift.
 
 ## Linting & Formatting Discipline
