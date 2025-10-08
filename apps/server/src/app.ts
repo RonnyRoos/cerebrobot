@@ -1,15 +1,20 @@
 import fastify, { FastifyInstance } from 'fastify';
 import pino, { type Logger } from 'pino';
+import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
+import { PrismaClient } from '@prisma/client';
 import type { ChatAgent } from './chat/chat-agent.js';
 import type { ServerConfig } from './config.js';
-import type { SessionManager } from './session/session-manager.js';
+import type { ThreadManager } from './session/session-manager.js';
 import { registerSessionRoutes } from './session/routes.js';
 import { registerChatRoutes } from './chat/routes.js';
 import { registerUserRoutes } from './user/routes.js';
+import { registerThreadRoutes } from './thread/routes.js';
+import { createThreadService } from './thread/service.js';
 
 export interface BuildServerOptions {
-  readonly sessionManager: SessionManager;
+  readonly threadManager: ThreadManager;
   readonly chatAgent: ChatAgent;
+  readonly checkpointer: BaseCheckpointSaver;
   readonly config: ServerConfig;
   readonly logger?: Logger;
 }
@@ -22,13 +27,22 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
     logger: fastifyLogger,
   });
 
-  registerSessionRoutes(app, options.sessionManager);
+  registerSessionRoutes(app, options.threadManager);
   registerUserRoutes(app, { logger });
   registerChatRoutes(app, {
     chatAgent: options.chatAgent,
     config: options.config,
     logger,
   });
+
+  // Initialize ThreadService with checkpointer and Prisma
+  const prisma = new PrismaClient();
+  const threadService = createThreadService({
+    checkpointer: options.checkpointer,
+    prisma,
+    logger: logger.child({ component: 'thread-service' }),
+  });
+  registerThreadRoutes(app, threadService);
 
   logger.info(
     {

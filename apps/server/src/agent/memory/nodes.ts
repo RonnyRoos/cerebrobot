@@ -14,7 +14,7 @@ import type { Logger } from 'pino';
 interface MemoryState {
   messages: BaseMessage[];
   userId?: string;
-  sessionId: string;
+  threadId: string;
   retrievedMemories?: Array<{
     id: string;
     content: string;
@@ -36,7 +36,7 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
           'userId is required for memory retrieval but was not found in state',
         );
         logger.error(
-          { sessionId: state.sessionId, error: error.message },
+          { threadId: state.threadId, error: error.message },
           'CRITICAL: No userId in state - memory operations impossible',
         );
         throw error;
