@@ -7,4 +7,4 @@ Gate the feature behind config so we can ship incrementally.
 
 # Phase 4 – Memory Retrieval & Injection
 Implement retrieval (keyword search to start) in retrieveMemories, set state.memoryContext, and adjust prompts to include it.
-Add integration tests to ensure retrieved memories are surfaced without bloating the hot-path summary.
+Add unit tests (with mocked LLM) and manual smoke tests to ensure retrieved memories are surfaced without bloating the hot-path summary.

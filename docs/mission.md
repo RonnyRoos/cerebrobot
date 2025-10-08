@@ -35,9 +35,9 @@ Create an immersive, LangGraph-powered chatbot that not only converses naturally
   - Guardrails for conflicting edits and rollback mechanisms.
 - **Deliverables**:
   - Memory interface contracts and adapters (in-memory + persistent implementation).
-  - End-to-end tests that cover saving, loading, and editing memory.
+  - Unit tests for memory operations + one Postgres validation test + manual smoke test checklist.
   - Developer documentation on memory architecture and workflows.
-- **Definition of done**: Memory survives process restarts, exposes inspection APIs, and editing operations are validated by tests.
+- **Definition of done**: Memory survives process restarts, exposes inspection APIs, unit tests pass, and manual smoke tests validate real LLM/embedding behavior.
 
 ### Phase 3 — Public API Surface
 - **Goal**: Provide programmatic access to the chatbot and memory manipulation features.
@@ -48,7 +48,7 @@ Create an immersive, LangGraph-powered chatbot that not only converses naturally
   - Error handling and schema validation (e.g., Zod).
 - **Deliverables**:
   - API server with documented endpoints and request/response schemas.
-  - Integration tests (or contract tests) for core API flows.
+  - Unit tests for API routes, plus contract tests for core API flows (if needed).
   - API reference documentation and quickstart examples.
 - **Definition of done**: External clients can converse with the bot and manipulate its memory through stable APIs, backed by tests.
 
