@@ -58,7 +58,7 @@ describeIfPg('LangGraph Postgres persistence', () => {
   let skipReason: string | null = null;
 
   beforeAll(async () => {
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? 'test-key';
+    process.env.DEEPINFRA_API_KEY = process.env.DEEPINFRA_API_KEY ?? 'test-key';
     prisma = new PrismaClient({ datasources: { db: { url: pgUrl! } } });
     try {
       await prisma.$queryRawUnsafe('SELECT 1');
@@ -187,6 +187,7 @@ function createInvocationContext(
 ): ChatInvocationContext {
   return {
     sessionId,
+    userId: 'test-user-123', // REQUIRED: userId must be provided
     message: 'Hello persistence?',
     correlationId: `corr-${sessionId}`,
     config,

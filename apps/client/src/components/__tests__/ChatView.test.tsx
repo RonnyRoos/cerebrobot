@@ -44,6 +44,14 @@ describe('<ChatView />', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubGlobal('fetch', vi.fn());
+    // Mock localStorage to provide a userId so tests don't show UserSetup
+    const localStorageMock = {
+      getItem: vi.fn((key: string) => (key === 'cerebrobot_userId' ? 'test-user-123' : null)),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+    vi.stubGlobal('localStorage', localStorageMock);
   });
 
   afterEach(() => {

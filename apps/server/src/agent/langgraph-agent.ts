@@ -10,12 +10,17 @@ import {
 import type { BaseMessage, BaseMessageLike } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import { Annotation, MessagesAnnotation, StateGraph, START, END } from '@langchain/langgraph';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { RunnableLambda, type RunnableConfig } from '@langchain/core/runnables';
 import type { Logger } from 'pino';
+import type { MemorySearchResult, UpsertMemoryInput, BaseStore } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { ServerConfig } from '../config.js';
 import { createCheckpointSaver } from './checkpointer.js';
+import { createMemoryStore, loadMemoryConfig } from './memory/index.js';
+import { createRetrieveMemoriesNode, createStoreMemoryNode } from './memory/nodes.js';
+import { createUpsertMemoryTool } from './memory/tools.js';
 
 function toStringContent(content: unknown): string {
   if (content == null) {
@@ -197,6 +202,10 @@ const ConversationAnnotation = Annotation.Root({
     overflowTokens: number;
     budget: number;
   } | null>(),
+  // Long-term memory fields
+  userId: Annotation<string | undefined>(),
+  retrievedMemories: Annotation<MemorySearchResult[] | undefined>(),
+  memoryOperations: Annotation<UpsertMemoryInput[] | undefined>(),
 });
 
 type ConversationState = typeof ConversationAnnotation.State;
@@ -231,6 +240,8 @@ interface LangGraphChatAgentOptions {
   readonly config: ServerConfig;
   readonly logger?: Logger;
   readonly checkpointer?: BaseCheckpointSaver;
+  readonly memoryStore?: BaseStore;
+  readonly memoryTools?: ReturnType<typeof createUpsertMemoryTool>[]; // LangChain tools
 }
 
 function buildConversationGraph(
@@ -238,9 +249,22 @@ function buildConversationGraph(
   chatModel: ChatOpenAI,
   summarizerModel: ChatOpenAI,
 ) {
-  const { config, logger } = options;
+  const { config, logger, memoryTools } = options;
   const hotpathLimit = config.hotpathLimit;
   const hotpathTokenBudget = config.hotpathTokenBudget;
+
+  // Bind memory tools to chat model if provided
+  const modelWithTools =
+    memoryTools && memoryTools.length > 0
+      ? chatModel.bindTools(memoryTools as Parameters<typeof chatModel.bindTools>[0])
+      : chatModel;
+
+  // Log tool binding status
+  if (memoryTools && memoryTools.length > 0) {
+    logger?.info({ toolCount: memoryTools.length }, 'Tools bound to chat model');
+  } else {
+    logger?.warn('No tools bound to chat model');
+  }
 
   async function summarize(state: ConversationState) {
     const messages = state.messages as ConversationMessages;
@@ -354,21 +378,81 @@ function buildConversationGraph(
     const recentMessages = state.messages as ConversationMessages;
     const promptMessages: BaseMessage[] = [...systemMessages, ...recentMessages];
 
-    const response = await chatModel.invoke(promptMessages, {
+    const response = await modelWithTools.invoke(promptMessages, {
       configurable: { thread_id: state.sessionId },
     });
+
+    // Log if response has tool calls
+    const hasToolCalls = (response as { tool_calls?: unknown[] }).tool_calls?.length ?? 0;
+    logger?.info(
+      { hasToolCalls: hasToolCalls > 0, toolCallCount: hasToolCalls },
+      'Model response received',
+    );
 
     return {
       messages: [response],
     } satisfies Partial<ConversationState>;
   }
 
+  // Conditional edge: check if agent made tool calls (standard LangGraph pattern)
+  function shouldContinue(state: ConversationState): 'tools' | typeof END {
+    const messages = state.messages;
+    const lastMessage = messages[messages.length - 1];
+    
+    logger?.debug(
+      {
+        lastMessageType: lastMessage?._getType(),
+        hasToolCalls: lastMessage && 'tool_calls' in lastMessage,
+        messageCount: messages.length,
+      },
+      'shouldContinue: checking last message',
+    );
+    
+    // If the LLM makes a tool call, route to the "tools" node
+    if (lastMessage && 'tool_calls' in lastMessage) {
+      const toolCalls = (lastMessage as { tool_calls?: unknown[] }).tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        logger?.debug({ toolCallCount: toolCalls.length }, 'shouldContinue: routing to tools');
+        return 'tools';
+      }
+    }
+    
+    // Otherwise, we end (reply to the user)
+    logger?.debug('shouldContinue: routing to END');
+    return END;
+  }
+
   const workflow = new StateGraph(ConversationAnnotation)
     .addNode('summarize', RunnableLambda.from(summarize).withConfig({ tags: ['nostream'] }))
     .addNode('callModel', callModel)
-    .addEdge(START, 'summarize')
-    .addEdge('summarize', 'callModel')
-    .addEdge('callModel', END);
+    .addEdge(START, 'summarize');
+
+    // Add memory nodes if memory store is available
+  if (options.memoryStore && logger && memoryTools && memoryTools.length > 0) {
+    try {
+      const memoryConfig = loadMemoryConfig();
+
+      // Official LangGraph pattern: use ToolNode for tool execution
+      const toolNode = new ToolNode(memoryTools);
+
+      workflow
+        .addNode(
+          'retrieveMemories',
+          createRetrieveMemoriesNode(options.memoryStore, memoryConfig, logger),
+        )
+        .addNode('tools', toolNode) // ToolNode executes tools and creates ToolMessages
+        .addEdge('summarize', 'retrieveMemories')
+        .addEdge('retrieveMemories', 'callModel')
+        .addConditionalEdges('callModel', shouldContinue) // Route to tools or END
+        .addEdge('tools', 'callModel'); // Loop back to agent after tool execution
+    } catch (error) {
+      logger?.warn({ error }, 'Failed to add memory nodes, using fallback flow');
+      workflow.addEdge('summarize', 'callModel').addEdge('callModel', END);
+    }
+  } else {
+    // No memory - use original flow
+    workflow.addEdge('summarize', 'callModel').addEdge('callModel', END);
+  }
 
   const checkpointer = options.checkpointer ?? createCheckpointSaver(config);
   const graph = workflow.compile({ checkpointer });
@@ -390,8 +474,8 @@ export class LangGraphChatAgent implements ChatAgent {
   private readonly logger?: Logger;
 
   constructor(private readonly options: LangGraphChatAgentOptions) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY environment variable is required to run the chat agent.');
+    if (!process.env.DEEPINFRA_API_KEY) {
+      throw new Error('DEEPINFRA_API_KEY environment variable is required to run the chat agent.');
     }
 
     this.logger = options.logger;
@@ -399,20 +483,52 @@ export class LangGraphChatAgent implements ChatAgent {
     const chatModel = new ChatOpenAI({
       model: options.config.model,
       temperature: options.config.temperature,
+      apiKey: process.env.DEEPINFRA_API_KEY,
       configuration: {
-        baseURL: process.env.OPENAI_API_BASE,
+        baseURL: process.env.DEEPINFRA_API_BASE,
       },
     });
 
     const summarizerModel = new ChatOpenAI({
       model: options.config.model,
       temperature: 0,
+      apiKey: process.env.DEEPINFRA_API_KEY,
       configuration: {
-        baseURL: process.env.OPENAI_API_BASE,
+        baseURL: process.env.DEEPINFRA_API_BASE,
       },
     });
 
-    this.graphContext = buildConversationGraph(options, chatModel, summarizerModel);
+    // Initialize memory system if enabled
+    let memoryStore: BaseStore | undefined;
+    let memoryTools: ReturnType<typeof createUpsertMemoryTool>[] | undefined;
+
+    try {
+      const memoryConfig = loadMemoryConfig();
+      if (memoryConfig.enabled) {
+        memoryStore = createMemoryStore(this.logger ?? (console as unknown as Logger));
+
+        memoryTools = [
+          createUpsertMemoryTool(
+            memoryStore,
+            memoryConfig,
+            this.logger ?? (console as unknown as Logger),
+          ),
+        ];
+
+        this.logger?.info(
+          { memoryEnabled: true, toolCount: memoryTools.length },
+          'Memory system initialized with tools',
+        );
+      }
+    } catch (error) {
+      this.logger?.warn({ error }, 'Memory system disabled due to configuration error');
+    }
+
+    this.graphContext = buildConversationGraph(
+      { ...options, memoryStore, memoryTools },
+      chatModel,
+      summarizerModel,
+    );
 
     const persistenceProvider = options.config.persistence.provider;
     this.logger?.info(
@@ -425,12 +541,20 @@ export class LangGraphChatAgent implements ChatAgent {
   }
 
   public async *streamChat(context: ChatInvocationContext) {
+    // CRITICAL: Validate userId is present
+    if (!context.userId) {
+      const error = new Error('userId is required for all chat operations but was not provided');
+      this.logger?.error({ sessionId: context.sessionId, correlationId: context.correlationId }, error.message);
+      throw error;
+    }
+
     const startedAt = Date.now();
     let accumulated = '';
 
     this.logger?.info(
       {
         sessionId: context.sessionId,
+        userId: context.userId,
         correlationId: context.correlationId,
       },
       'invoking langgraph chat agent (stream)',
@@ -439,9 +563,10 @@ export class LangGraphChatAgent implements ChatAgent {
     const stream = (await this.graphContext.graph.stream(
       {
         sessionId: context.sessionId,
+        userId: context.userId,
         messages: [new HumanMessage(context.message)],
       },
-      this.createConfig(context.sessionId, 'stream'),
+      this.createConfig(context.sessionId, 'stream', context.userId),
     )) as MessageStream;
 
     for await (const [message] of stream) {
@@ -464,7 +589,7 @@ export class LangGraphChatAgent implements ChatAgent {
     const latencyMs = Date.now() - startedAt;
 
     const finalState = await this.graphContext.graph.getState(
-      this.createConfig(context.sessionId, 'invoke'),
+      this.createConfig(context.sessionId, 'invoke', context.userId),
     );
     const usageSnapshot = (finalState.values.tokenUsage as TokenUsageSnapshot | null) ?? null;
     const tokenUsage = formatTokenUsageSnapshot(usageSnapshot);
@@ -484,10 +609,18 @@ export class LangGraphChatAgent implements ChatAgent {
   }
 
   public async completeChat(context: ChatInvocationContext) {
+    // CRITICAL: Validate userId is present
+    if (!context.userId) {
+      const error = new Error('userId is required for all chat operations but was not provided');
+      this.logger?.error({ sessionId: context.sessionId, correlationId: context.correlationId }, error.message);
+      throw error;
+    }
+
     const startedAt = Date.now();
     this.logger?.info(
       {
         sessionId: context.sessionId,
+        userId: context.userId,
         correlationId: context.correlationId,
       },
       'invoking langgraph chat agent (complete)',
@@ -496,9 +629,10 @@ export class LangGraphChatAgent implements ChatAgent {
     const state = (await this.graphContext.graph.invoke(
       {
         sessionId: context.sessionId,
+        userId: context.userId,
         messages: [new HumanMessage(context.message)],
       },
-      this.createConfig(context.sessionId, 'invoke'),
+      this.createConfig(context.sessionId, 'invoke', context.userId),
     )) as ConversationState;
 
     const finalMessage = extractLatestAssistantMessage(state.messages);
@@ -519,8 +653,8 @@ export class LangGraphChatAgent implements ChatAgent {
     return { message: finalMessage, summary: undefined, latencyMs, tokenUsage };
   }
 
-  public async reset(sessionId: string): Promise<void> {
-    const config = this.createConfig(sessionId, 'invoke');
+  public async reset(sessionId: string, userId: string): Promise<void> {
+    const config = this.createConfig(sessionId, 'invoke', userId);
     const state = await this.graphContext.graph.getState(config);
     const messages: BaseMessage[] = Array.isArray(state.values.messages)
       ? (state.values.messages as BaseMessage[])
@@ -541,9 +675,16 @@ export class LangGraphChatAgent implements ChatAgent {
     this.logger?.info({ sessionId }, 'langgraph state reset for session');
   }
 
-  private createConfig(sessionId: string, mode: 'stream' | 'invoke'): RunnableConfig {
+  private createConfig(
+    sessionId: string, 
+    mode: 'stream' | 'invoke',
+    userId: string // REQUIRED: userId must be provided for all chat operations
+  ): RunnableConfig {
     const base: RunnableConfig = {
-      configurable: { thread_id: sessionId },
+      configurable: { 
+        thread_id: sessionId,
+        userId, // Pass userId to tools via config.configurable
+      },
     };
 
     if (mode === 'stream') {

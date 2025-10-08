@@ -1,35 +1,33 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: [TEMPLATE] → 1.0.0
-Action: Initial constitution ratification
+Version change: 1.0.0 → 1.1.0
+Action: Clarify testing philosophy to prevent pseudo-integration tests
 
-Principles defined:
-- I. Hygiene-First Development (NON-NEGOTIABLE)
-- II. Transparency & Inspectability
-- III. Type Safety & Testability
-- IV. Incremental & Modular Development
-- V. Stack Discipline
-- VI. Configuration Over Hardcoding
-- VII. Operator-Centric Design
+Modified principles:
+- III. Type Safety & Testability: Expanded with explicit 3-tier testing strategy
 
-Sections added:
-- Core Principles (7 principles)
-- Development Workflow & Quality Gates
-- Governance
+Sections modified:
+- Development Workflow & Quality Gates: "Before merging" step 2 now references test types precisely
+
+Runtime guidance docs updated:
+- ✅ docs/best-practices.md: Testing Expectations section clarified (unit + Postgres + manual)
+- ✅ docs/mission.md: Phase 2/3 deliverables use precise testing terminology
+- ✅ docs/roadmap.md: Replaced vague "integration tests" with specific test types
 
 Templates requiring updates:
-- ✅ plan-template.md: Constitution Check section aligns with principles
-- ✅ spec-template.md: User scenarios enforce testability (Principle IV)
-- ✅ tasks-template.md: Task organization supports incremental delivery (Principle IV)
+- ✅ plan-template.md: No changes needed (constitution check references principles generically)
+- ✅ spec-template.md: No changes needed (testability already enforced)
+- ✅ tasks-template.md: No changes needed (references best-practices.md for guidance)
 
 Follow-up actions:
-- None - all principles are concrete and actionable
+- None - testing philosophy now codified to prevent LLM-mocked "integration" tests
 
-Rationale for version 1.0.0:
-- First formal ratification of project constitution
-- Establishes foundational governance framework
-- All principles extracted from existing project documentation
+Rationale for version 1.1.0 (MINOR):
+- Material expansion of Principle III with concrete testing strategy
+- New anti-pattern guidance added (avoid pseudo-integration tests)
+- Not breaking (MAJOR): existing tests remain valid, guidance clarifies future approach
+- Not patch (PATCH): substantive new guidance, not just clarification
 -->
 
 # Cerebrobot Constitution
@@ -66,18 +64,38 @@ The system's internal state, especially the memory graph, MUST be observable and
 
 ### III. Type Safety & Testability
 
-Code MUST be type-safe, dependency-injected, and testable in isolation.
+Code MUST be type-safe, dependency-injected, and testable using a pragmatic 3-tier testing strategy.
 
-**Rules**:
+**Type Safety Rules**:
 - `any` type is forbidden; start from `unknown` and narrow explicitly
 - Use `interface` for cross-module contracts; `type` for unions and aliases
 - Model state machines with discriminated unions, not boolean flags
 - Inject dependencies (LLM clients, stores) via parameters or constructors
 - Prefer pure functions for graph logic; isolate I/O in adapters
-- Write tests that validate behavior, not implementation details
-- Use real implementations over mocks; leverage lightweight fakes for external services
 
-**Rationale**: Type safety catches errors at compile time. Dependency injection enables testing without production services. Pure functions eliminate hidden state and make reasoning about graph flows straightforward. Behavior-driven tests survive refactors.
+**Testing Strategy (3 Tiers)**:
+
+1. **Unit tests** (primary coverage mechanism)
+   - Test LangGraph nodes, memory operations, configuration parsers with deterministic inputs/outputs
+   - Mock external services only when necessary; prefer lightweight fakes (e.g., fixed embeddings for vector tests)
+   - Write tests that validate behavior, not implementation details
+
+2. **Postgres validation test** (infrastructure verification)
+   - ONE test file that validates: DB schema, migrations, pgvector index using real Postgres
+   - Uses test database with mocked embeddings (deterministic, no API costs)
+   - Ensures persistence layer works correctly without testing every feature
+
+3. **Manual smoke tests** (real-world validation)
+   - Pre-deployment checklist validating real LLM behavior, real embeddings, real semantic search
+   - Documents steps to verify integration with external APIs (DeepInfra, OpenAI)
+   - Catches issues that mocked tests cannot detect
+
+**Anti-Patterns to Avoid**:
+- Do NOT create "integration tests" that mock LLMs or embeddings—they cannot validate the behavior they claim to test
+- Do NOT test real API calls in automated suites (slow, expensive, flaky, breaks CI)
+- Do NOT write redundant tests that duplicate coverage (e.g., multiple Postgres tests)
+
+**Rationale**: Type safety catches errors at compile time. Dependency injection enables testing without production services. The 3-tier strategy balances automation (unit tests pass in CI), infrastructure validation (Postgres test ensures schema works), and real-world behavior (manual smoke tests before deployment) without creating pseudo-integration tests that heavily mock the very components they claim to integrate.
 
 ### IV. Incremental & Modular Development
 
@@ -152,7 +170,7 @@ Architecture and UX decisions MUST optimize for single-operator, self-hosted hob
 
 **Before merging**:
 1. All hygiene steps pass (`pnpm lint`, `pnpm format:write`, `pnpm test`)
-2. Integration tests cover new API endpoints or graph flows
+2. Unit tests cover new behavior; Postgres validation test updated if schema changed; manual smoke test checklist updated if new external integrations added
 3. Documentation updated (README, ADRs, phase specs)
 4. Constitution compliance verified (no unapproved stack changes, no `any` types, configuration exposed)
 
@@ -182,4 +200,4 @@ Architecture and UX decisions MUST optimize for single-operator, self-hosted hob
 - Principles tested against actual development friction; prune or refine as needed
 - Versioning and amendment history preserved in git commits
 
-**Version**: 1.0.0 | **Ratified**: 2025-10-07 | **Last Amended**: 2025-10-07
+**Version**: 1.1.0 | **Ratified**: 2025-10-07 | **Last Amended**: 2025-10-07
