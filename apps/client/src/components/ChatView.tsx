@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { TokenUsage } from '@cerebrobot/chat-shared';
 import { UserSetup } from './UserSetup.js';
 import { useUserId } from '../hooks/useUserId.js';
+import { useChatSession } from '../hooks/useChatSession.js';
 
 const IS_TEST_ENV = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
@@ -31,7 +32,6 @@ function createClientRequestId(): string {
 }
 
 export function ChatView(): JSX.Element {
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const {
     userId,
     showUserSetup,
@@ -39,6 +39,7 @@ export function ChatView(): JSX.Element {
   } = useUserId(() => {
     void startNewSession();
   });
+  const { sessionId, sessionPromise, createSession } = useChatSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingMessage, setPendingMessage] = useState('');
   const [error, setError] = useState<ChatError | null>(null);
@@ -46,7 +47,6 @@ export function ChatView(): JSX.Element {
 
   const controllerRef = useRef<AbortController | null>(null);
   const assistantMessageIdRef = useRef<string | null>(null);
-  const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -71,37 +71,14 @@ export function ChatView(): JSX.Element {
     setError(null);
     setIsStreaming(false);
 
-    const promise = requestSession(previousSessionId);
-    sessionPromiseRef.current = promise;
-
     try {
-      const newSessionId = await promise;
-      setSessionId(newSessionId);
+      await createSession(previousSessionId);
     } catch (err) {
       setError({
         message: err instanceof Error ? err.message : 'Failed to establish session',
         retryable: true,
       });
-      setSessionId(null);
-      sessionPromiseRef.current = null;
     }
-  };
-
-  const requestSession = async (previousSessionId?: string): Promise<string> => {
-    const response = await fetch('/api/session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(previousSessionId ? { previousSessionId } : {}),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to establish session');
-    }
-
-    const payload = (await response.json()) as { sessionId: string };
-    return payload.sessionId;
   };
 
   const handleSend = async () => {
@@ -112,14 +89,12 @@ export function ChatView(): JSX.Element {
     let activeSessionId = sessionId;
 
     if (!activeSessionId) {
-      const sessionPromise = sessionPromiseRef.current;
       if (!sessionPromise) {
         return;
       }
 
       try {
         activeSessionId = await sessionPromise;
-        setSessionId(activeSessionId);
       } catch (err) {
         handleAssistantError({
           message: err instanceof Error ? err.message : 'Session unavailable',
