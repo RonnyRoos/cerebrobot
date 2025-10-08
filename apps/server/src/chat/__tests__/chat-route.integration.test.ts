@@ -93,7 +93,11 @@ describe('POST /api/chat', () => {
         accept: 'text/event-stream',
         'content-type': 'application/json',
       },
-      payload: { sessionId: 'session-123', message: 'Hello?' },
+      payload: {
+        userId: '550e8400-e29b-41d4-a716-446655440000',
+        sessionId: 'session-123',
+        message: 'Hello?',
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -133,7 +137,11 @@ describe('POST /api/chat', () => {
         accept: 'application/json',
         'content-type': 'application/json',
       },
-      payload: { sessionId: 'session-321', message: 'Hi there' },
+      payload: {
+        userId: '550e8400-e29b-41d4-a716-446655440001',
+        sessionId: 'session-321',
+        message: 'Hi there',
+      },
     });
 
     expect(response.statusCode).toBe(200);

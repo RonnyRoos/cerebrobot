@@ -19,7 +19,7 @@ import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { ServerConfig } from '../config.js';
 import { createCheckpointSaver } from './checkpointer.js';
 import { createMemoryStore, loadMemoryConfig } from './memory/index.js';
-import { createRetrieveMemoriesNode, createStoreMemoryNode } from './memory/nodes.js';
+import { createRetrieveMemoriesNode } from './memory/nodes.js';
 import { createUpsertMemoryTool } from './memory/tools.js';
 
 function toStringContent(content: unknown): string {
@@ -80,18 +80,18 @@ async function ensureTiktokenModule(): Promise<TiktokenModule | null> {
     return tokenizerModuleCache.promise;
   }
 
-  tokenizerModuleCache.promise = import(/* @vite-ignore */ 'js-tiktoken')
-    .then(
-      (mod) =>
-        ({
-          encodingForModel: (model: string) => mod.encodingForModel(model as never),
-          getEncoding: (name: string) => mod.getEncoding(name as never),
-        }) as TiktokenModule,
-    )
-    .catch((error) => {
+  tokenizerModuleCache.promise = (async () => {
+    try {
+      const mod = await import(/* @vite-ignore */ 'js-tiktoken');
+      return {
+        encodingForModel: (model: string) => mod.encodingForModel(model as never),
+        getEncoding: (name: string) => mod.getEncoding(name as never),
+      } as TiktokenModule;
+    } catch (error) {
       console.warn('js-tiktoken not available; falling back to heuristic token estimation.', error);
       return null;
-    });
+    }
+  })();
 
   return tokenizerModuleCache.promise;
 }
@@ -398,7 +398,7 @@ function buildConversationGraph(
   function shouldContinue(state: ConversationState): 'tools' | typeof END {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
-    
+
     logger?.debug(
       {
         lastMessageType: lastMessage?._getType(),
@@ -407,7 +407,7 @@ function buildConversationGraph(
       },
       'shouldContinue: checking last message',
     );
-    
+
     // If the LLM makes a tool call, route to the "tools" node
     if (lastMessage && 'tool_calls' in lastMessage) {
       const toolCalls = (lastMessage as { tool_calls?: unknown[] }).tool_calls;
@@ -416,7 +416,7 @@ function buildConversationGraph(
         return 'tools';
       }
     }
-    
+
     // Otherwise, we end (reply to the user)
     logger?.debug('shouldContinue: routing to END');
     return END;
@@ -427,7 +427,7 @@ function buildConversationGraph(
     .addNode('callModel', callModel)
     .addEdge(START, 'summarize');
 
-    // Add memory nodes if memory store is available
+  // Add memory nodes if memory store is available
   if (options.memoryStore && logger && memoryTools && memoryTools.length > 0) {
     try {
       const memoryConfig = loadMemoryConfig();
@@ -544,7 +544,10 @@ export class LangGraphChatAgent implements ChatAgent {
     // CRITICAL: Validate userId is present
     if (!context.userId) {
       const error = new Error('userId is required for all chat operations but was not provided');
-      this.logger?.error({ sessionId: context.sessionId, correlationId: context.correlationId }, error.message);
+      this.logger?.error(
+        { sessionId: context.sessionId, correlationId: context.correlationId },
+        error.message,
+      );
       throw error;
     }
 
@@ -612,7 +615,10 @@ export class LangGraphChatAgent implements ChatAgent {
     // CRITICAL: Validate userId is present
     if (!context.userId) {
       const error = new Error('userId is required for all chat operations but was not provided');
-      this.logger?.error({ sessionId: context.sessionId, correlationId: context.correlationId }, error.message);
+      this.logger?.error(
+        { sessionId: context.sessionId, correlationId: context.correlationId },
+        error.message,
+      );
       throw error;
     }
 
@@ -676,12 +682,12 @@ export class LangGraphChatAgent implements ChatAgent {
   }
 
   private createConfig(
-    sessionId: string, 
+    sessionId: string,
     mode: 'stream' | 'invoke',
-    userId: string // REQUIRED: userId must be provided for all chat operations
+    userId: string, // REQUIRED: userId must be provided for all chat operations
   ): RunnableConfig {
     const base: RunnableConfig = {
-      configurable: { 
+      configurable: {
         thread_id: sessionId,
         userId, // Pass userId to tools via config.configurable
       },

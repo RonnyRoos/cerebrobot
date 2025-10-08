@@ -4,6 +4,7 @@ import { ChatRequestSchema, ChatResponseSchema } from '../src/schemas/chat.js';
 describe('ChatRequestSchema', () => {
   it('accepts a minimal valid request payload', () => {
     const payload = {
+      userId: '550e8400-e29b-41d4-a716-446655440000',
       sessionId: 'session-123',
       message: 'Hello there!',
       clientRequestId: 'req-abc',

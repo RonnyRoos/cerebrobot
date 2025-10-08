@@ -104,7 +104,10 @@ The system combines short-term memory (current conversation context) with long-t
 - **FR-002**: System MUST create user-specific memory namespaces using pattern `("memories", userId)`
 - **FR-003**: System MUST store memory entries as flexible JSON objects with at minimum `content` and `metadata` fields
 - **FR-004**: System MUST support semantic search using embeddings from DeepInfra (OpenAI-compatible endpoint)
-- **FR-005**: System MUST integrate two new graph nodes: `retrieveMemories` (before LLM) and `storeMemory` (after LLM)
+- **FR-005**: System MUST integrate memory operations into the conversation graph:
+  - **retrieveMemories** node (custom): Runs before LLM to inject relevant context via semantic search
+  - **tools** node (ToolNode): Executes the `upsertMemory` tool when LLM decides to store memories
+  - **Rationale**: Follows idiomatic LangGraph pattern—custom nodes for preprocessing, ToolNode for tool execution (see [ADR: ToolNode Pattern](../../docs/architecture/langgraph-toolnode-pattern.md))
 - **FR-006**: System MUST automatically retrieve relevant memories before each LLM call using semantic search, injecting all memories with similarity score above 0.7 threshold
 - **FR-007**: System MUST provide the LLM with an `upsertMemory` tool that accepts memory content and optional metadata
 - **FR-008**: System MUST preserve existing checkpoint-based short-term memory (thread-scoped state)

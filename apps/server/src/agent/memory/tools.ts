@@ -22,11 +22,7 @@ import type { Logger } from 'pino';
  * Allows the LLM to store or update memories about the user.
  * Uses config.configurable.userId for user identification.
  */
-export function createUpsertMemoryTool(
-  store: BaseStore,
-  config: MemoryConfig,
-  logger: Logger,
-) {
+export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, logger: Logger) {
   return tool(
     async (input, runnableConfig) => {
       try {
@@ -59,9 +55,10 @@ export function createUpsertMemoryTool(
         }
 
         // Get user identifier from config.configurable (passed at graph invocation)
-        const userId = (runnableConfig as any)?.configurable?.userId;
+        const userId = runnableConfig?.configurable?.userId as string | undefined;
         if (!userId) {
-          const errorMsg = 'CRITICAL: userId not found in config.configurable - memory operations require userId';
+          const errorMsg =
+            'CRITICAL: userId not found in config.configurable - memory operations require userId';
           logger.error({ config: runnableConfig }, errorMsg);
           return {
             success: false,

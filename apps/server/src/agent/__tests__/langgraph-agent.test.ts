@@ -17,7 +17,7 @@ vi.mock('@langchain/openai', () => ({
     const isSummarizer = options.temperature === 0;
     const invokeHandlers = isSummarizer ? summarizerInvokeHandlers : chatInvokeHandlers;
 
-    return {
+    const mockModel = {
       invoke: vi.fn(async (messages: unknown[], invokeOptions?: Record<string, unknown>) => {
         const handler = invokeHandlers.shift();
         if (!handler) {
@@ -28,7 +28,12 @@ vi.mock('@langchain/openai', () => ({
       stream: vi.fn(async function* () {
         // No-op placeholder; streamChat relies on LangGraph stream aggregation
       }),
+      bindTools: vi.fn(function (this: unknown) {
+        return this; // Return self to enable method chaining
+      }),
     };
+
+    return mockModel;
   }),
 }));
 

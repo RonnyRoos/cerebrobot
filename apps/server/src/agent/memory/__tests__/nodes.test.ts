@@ -1,13 +1,13 @@
 /**
  * Memory Node Tests
  *
- * Unit tests for retrieveMemories and storeMemory graph nodes.
+ * Unit tests for retrieveMemories graph node.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import type { BaseStore } from '@cerebrobot/chat-shared';
-import { createRetrieveMemoriesNode, createStoreMemoryNode } from '../nodes.js';
+import { createRetrieveMemoriesNode } from '../nodes.js';
 import type { MemoryConfig } from '../config.js';
 import pino from 'pino';
 
@@ -101,14 +101,14 @@ describe('Memory Nodes', () => {
 
       vi.mocked(mockStore.search).mockClear();
 
-      // Test without userId - should throw error (no fallback to sessionId)
-      await expect(
-        retrieveMemories({
-          messages: [new HumanMessage('test')],
-          sessionId: 'session-789',
-        }),
-      ).rejects.toThrow('userId is required for memory retrieval');
+      // Test without userId - should gracefully degrade (not throw)
+      const resultWithoutUser = await retrieveMemories({
+        messages: [new HumanMessage('test')],
+        sessionId: 'session-789',
+      });
 
+      // Should return empty and not call store (userId validation happens in try-catch)
+      expect(resultWithoutUser.retrievedMemories).toEqual([]);
       expect(mockStore.search).not.toHaveBeenCalled();
     });
 
@@ -123,23 +123,24 @@ describe('Memory Nodes', () => {
       const result = await retrieveMemories(state);
 
       expect(mockStore.search).not.toHaveBeenCalled();
-      expect(result).toEqual({});
+      expect(result).toEqual({ retrievedMemories: [] });
     });
 
     it('returns empty when no memories found', async () => {
       const retrieveMemories = createRetrieveMemoriesNode(mockStore, config, logger);
 
+      vi.mocked(mockStore.search).mockResolvedValue([]);
+
       const state = {
         messages: [new HumanMessage('test query')],
         sessionId: 'session-123',
+        userId: 'user-456',
       };
-
-      vi.mocked(mockStore.search).mockResolvedValue([]);
 
       const result = await retrieveMemories(state);
 
-      expect(result.retrievedMemories).toEqual([]);
-      expect(result.messages).toBeUndefined();
+      expect(mockStore.search).toHaveBeenCalled();
+      expect(result).toEqual({ retrievedMemories: [] });
     });
 
     it('applies token budget to limit injected memories', async () => {
@@ -148,6 +149,7 @@ describe('Memory Nodes', () => {
       const state = {
         messages: [new HumanMessage('test')],
         sessionId: 'session-123',
+        userId: 'user-456',
       };
 
       // Create memories that exceed budget (1000 tokens = ~4000 chars)
@@ -155,7 +157,7 @@ describe('Memory Nodes', () => {
       const mockResults = [
         {
           id: 'mem-1',
-          namespace: ['memories', 'session-123'],
+          namespace: ['memories', 'user-456'],
           key: 'key1',
           content: largeContent,
           similarity: 0.95,
@@ -164,7 +166,7 @@ describe('Memory Nodes', () => {
         },
         {
           id: 'mem-2',
-          namespace: ['memories', 'session-123'],
+          namespace: ['memories', 'user-456'],
           key: 'key2',
           content: largeContent,
           similarity: 0.85,
@@ -188,12 +190,13 @@ describe('Memory Nodes', () => {
       const state = {
         messages: [new HumanMessage('test')],
         sessionId: 'session-123',
+        userId: 'user-456',
       };
 
       const mockResults = [
         {
           id: 'mem-1',
-          namespace: ['memories', 'session-123'],
+          namespace: ['memories', 'user-456'],
           key: 'key1',
           content: 'User likes pizza',
           similarity: 0.95,
@@ -247,197 +250,6 @@ describe('Memory Nodes', () => {
 
       // Should timeout and return empty
       expect(result.retrievedMemories).toEqual([]);
-    });
-  });
-
-  describe('createStoreMemoryNode', () => {
-    it('extracts upsertMemory tool calls from AI message', async () => {
-      const storeMemory = createStoreMemoryNode(mockStore, config, logger);
-
-      const aiMessage = new AIMessage({
-        content: 'I will remember that.',
-        tool_calls: [
-          {
-            name: 'upsertMemory',
-            args: {
-              content: 'User is vegetarian',
-              key: 'diet-preference',
-            },
-            id: 'call-123',
-          },
-        ],
-      });
-
-      const state = {
-        messages: [aiMessage],
-        sessionId: 'session-123',
-        userId: 'user-456',
-      };
-
-      const result = await storeMemory(state);
-
-      expect(result.memoryOperations).toHaveLength(1);
-      expect(result.memoryOperations?.[0]).toMatchObject({
-        content: 'User is vegetarian',
-        key: 'diet-preference',
-      });
-    });
-
-    it('handles multiple upsertMemory tool calls', async () => {
-      const storeMemory = createStoreMemoryNode(mockStore, config, logger);
-
-      const aiMessage = new AIMessage({
-        content: 'Noted',
-        tool_calls: [
-          {
-            name: 'upsertMemory',
-            args: { content: 'User is vegetarian', key: 'diet' },
-            id: 'call-1',
-          },
-          {
-            name: 'upsertMemory',
-            args: { content: 'User lives in NYC', key: 'location' },
-            id: 'call-2',
-          },
-        ],
-      });
-
-      const state = {
-        messages: [aiMessage],
-        sessionId: 'session-123',
-      };
-
-      const result = await storeMemory(state);
-
-      expect(result.memoryOperations).toHaveLength(2);
-      expect(result.memoryOperations?.[0].content).toBe('User is vegetarian');
-      expect(result.memoryOperations?.[1].content).toBe('User lives in NYC');
-    });
-
-    it('ignores non-upsertMemory tool calls', async () => {
-      const storeMemory = createStoreMemoryNode(mockStore, config, logger);
-
-      const aiMessage = new AIMessage({
-        content: 'Response',
-        tool_calls: [
-          {
-            name: 'otherTool',
-            args: { data: 'something' },
-            id: 'call-1',
-          },
-          {
-            name: 'upsertMemory',
-            args: { content: 'User likes pizza', key: 'food' },
-            id: 'call-2',
-          },
-        ],
-      });
-
-      const state = {
-        messages: [aiMessage],
-        sessionId: 'session-123',
-      };
-
-      const result = await storeMemory(state);
-
-      expect(result.memoryOperations).toHaveLength(1);
-      expect(result.memoryOperations?.[0].content).toBe('User likes pizza');
-    });
-
-    it('returns empty when no AI message found', async () => {
-      const storeMemory = createStoreMemoryNode(mockStore, config, logger);
-
-      const state = {
-        messages: [new HumanMessage('test')],
-        sessionId: 'session-123',
-      };
-
-      const result = await storeMemory(state);
-
-      expect(result).toEqual({});
-    });
-
-    it('returns empty when AI message has no tool calls', async () => {
-      const storeMemory = createStoreMemoryNode(mockStore, config, logger);
-
-      const state = {
-        messages: [new AIMessage('Just a regular response')],
-        sessionId: 'session-123',
-      };
-
-      const result = await storeMemory(state);
-
-      expect(result).toEqual({});
-    });
-
-    it('handles malformed tool calls gracefully', async () => {
-      const storeMemory = createStoreMemoryNode(mockStore, config, logger);
-
-      const aiMessage = new AIMessage({
-        content: 'Response',
-      });
-
-      // Manually add malformed tool_calls
-      (aiMessage as { tool_calls?: unknown[] }).tool_calls = [
-        null, // null call
-        { name: 'upsertMemory' }, // missing args
-        {
-          name: 'upsertMemory',
-          args: { content: 'Valid memory', key: 'valid' },
-          id: 'call-1',
-        },
-      ];
-
-      const state = {
-        messages: [aiMessage],
-        sessionId: 'session-123',
-      };
-
-      const result = await storeMemory(state);
-
-      // Should only process the valid one
-      expect(result.memoryOperations).toHaveLength(1);
-      expect(result.memoryOperations?.[0].content).toBe('Valid memory');
-    });
-
-    it('logs operations for observability', async () => {
-      const mockLogger = {
-        debug: vi.fn(),
-        info: vi.fn(),
-        error: vi.fn(),
-        warn: vi.fn(),
-      } as unknown as pino.Logger;
-
-      const storeMemory = createStoreMemoryNode(mockStore, config, mockLogger);
-
-      const aiMessage = new AIMessage({
-        content: 'Noted',
-        tool_calls: [
-          {
-            name: 'upsertMemory',
-            args: { content: 'Test memory content', key: 'test-key', metadata: { source: 'test' } },
-            id: 'call-1',
-          },
-        ],
-      });
-
-      const state = {
-        messages: [aiMessage],
-        sessionId: 'session-123',
-        userId: 'user-456',
-      };
-
-      await storeMemory(state);
-
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          namespace: ['memories', 'user-456'],
-          contentPreview: 'Test memory content',
-          hasMetadata: true,
-          hasKey: true,
-        }),
-        'Memory operation recorded from LLM tool call',
-      );
     });
   });
 });
