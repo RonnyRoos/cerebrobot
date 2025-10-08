@@ -7,6 +7,7 @@ export const ChatRequestSchema = z
     sessionId: NonEmptyString,
     message: NonEmptyString,
     clientRequestId: NonEmptyString.optional(),
+    userId: z.string().uuid(), // REQUIRED: All chats must be tied to a user
   })
   .strict();
 

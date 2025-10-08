@@ -5,6 +5,7 @@ import type { ServerConfig } from './config.js';
 import type { SessionManager } from './session/session-manager.js';
 import { registerSessionRoutes } from './session/routes.js';
 import { registerChatRoutes } from './chat/routes.js';
+import { registerUserRoutes } from './user/routes.js';
 
 export interface BuildServerOptions {
   readonly sessionManager: SessionManager;
@@ -22,6 +23,7 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
   });
 
   registerSessionRoutes(app, options.sessionManager);
+  registerUserRoutes(app, { logger });
   registerChatRoutes(app, {
     chatAgent: options.chatAgent,
     config: options.config,
