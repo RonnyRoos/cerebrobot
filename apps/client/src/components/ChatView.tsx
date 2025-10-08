@@ -75,7 +75,7 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
     clearChat();
 
     try {
-      await createThread(previousThreadId);
+      await createThread(previousThreadId, undefined, userId);
     } catch (err) {
       // Error will be set by the thread hook
     }

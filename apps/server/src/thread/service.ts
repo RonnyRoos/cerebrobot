@@ -57,6 +57,9 @@ interface ThreadServiceOptions {
 }
 
 class DefaultThreadService implements ThreadService {
+  private static readonly TITLE_MAX_LENGTH = 50;
+  private static readonly PREVIEW_MAX_LENGTH = 100;
+
   constructor(private readonly options: ThreadServiceOptions) {}
 
   public async listThreads(userId: string): Promise<ThreadMetadata[]> {
@@ -83,6 +86,7 @@ class DefaultThreadService implements ThreadService {
 
     // Step 2: For each thread, get state and filter by userId
     const threads: ThreadMetadata[] = [];
+    const errors: Array<{ threadId: string; error: unknown }> = [];
 
     for (const record of threadRecords) {
       try {
@@ -128,8 +132,22 @@ class DefaultThreadService implements ThreadService {
         threads.push(metadata);
       } catch (error) {
         logger?.error({ threadId: record.threadId, error }, 'Error processing thread - skipping');
+        errors.push({ threadId: record.threadId, error });
         // Continue processing other threads
       }
+    }
+
+    // Log summary if there were errors
+    if (errors.length > 0) {
+      logger?.warn(
+        {
+          userId,
+          errorCount: errors.length,
+          totalAttempted: threadRecords.length,
+          successCount: threads.length,
+        },
+        'Some threads failed to load',
+      );
     }
 
     logger?.info({ userId, threadCount: threads.length }, 'Retrieved threads for user');
@@ -192,15 +210,17 @@ class DefaultThreadService implements ThreadService {
   ): ThreadMetadata {
     const messages = this.extractMessages(state);
 
-    // Derive title from first user message (first 50 chars)
+    // Derive title from first user message
     const firstUserMessage = messages.find((m) => m.role === 'user');
     const title = firstUserMessage
-      ? this.truncateText(firstUserMessage.content, 50)
+      ? this.truncateText(firstUserMessage.content, DefaultThreadService.TITLE_MAX_LENGTH)
       : 'New Conversation';
 
     // Get last message details
     const lastMessage = messages[messages.length - 1];
-    const lastMessageText = lastMessage ? this.truncateText(lastMessage.content, 100) : '';
+    const lastMessageText = lastMessage
+      ? this.truncateText(lastMessage.content, DefaultThreadService.PREVIEW_MAX_LENGTH)
+      : '';
     const lastMessageRole = lastMessage?.role ?? 'user';
 
     // Get timestamps from checkpoint
