@@ -27,6 +27,7 @@ import type { MemoryEntry } from '@cerebrobot/chat-shared';
 import { PostgresMemoryStore } from '../memory/store.js';
 import { generateEmbedding } from '../memory/embeddings.js';
 import type { MemoryConfig } from '../memory/config.js';
+import { EMBEDDING_DIMENSIONS } from '../memory/config.js';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import { loadConfigFromEnv } from '../../config.js';
 import type { ChatInvocationContext } from '../../chat/chat-agent.js';
@@ -100,7 +101,10 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
     vi.mocked(generateEmbedding).mockImplementation(async (text: string) => {
       // Create deterministic embeddings based on text content
       const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const embedding = Array.from({ length: 384 }, (_, i) => Math.sin(hash + i) / 10);
+      const embedding = Array.from(
+        { length: EMBEDDING_DIMENSIONS },
+        (_, i) => Math.sin(hash + i) / 10,
+      );
       return embedding;
     });
 
@@ -138,7 +142,7 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
     expect(retrieved?.id).toBe(memory.id);
     expect(retrieved?.content).toBe('User loves pizza');
     expect(retrieved?.metadata).toEqual({ source: 'integration-test' });
-    expect(retrieved?.embedding).toHaveLength(384);
+    expect(retrieved?.embedding).toHaveLength(EMBEDDING_DIMENSIONS);
   });
 
   it('updates existing memory on conflict', async () => {

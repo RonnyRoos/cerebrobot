@@ -1,4 +1,14 @@
-import { useRef, useState } from 'react';
+import { useState, useRef } from 'react';
+
+/**
+ * useChatSession Hook
+ *
+ * Manages session creation and promise-based session ID resolution.
+ *
+ * Error Handling Philosophy:
+ * - Throws errors to caller (ChatView decides retry/display strategy)
+ * - Allows fine-grained control over session error handling
+ */
 
 interface UseChatSessionResult {
   sessionId: string | null;

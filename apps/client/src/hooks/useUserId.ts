@@ -1,5 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 
+/**
+ * useUserId Hook
+ *
+ * Manages userId persistence in localStorage with UserSetup UI coordination.
+ *
+ * Error Handling Philosophy:
+ * - localStorage operations are synchronous and rarely fail
+ * - No explicit error state; failures are transparent (falls back to UserSetup)
+ */
+
 const USER_ID_KEY = 'cerebrobot_userId';
 
 interface UseUserIdResult {
