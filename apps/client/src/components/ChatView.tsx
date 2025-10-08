@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TokenUsage } from '@cerebrobot/chat-shared';
 import { UserSetup } from './UserSetup.js';
+import { useUserId } from '../hooks/useUserId.js';
 
 const IS_TEST_ENV = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-const USER_ID_KEY = 'cerebrobot_userId';
 
 interface ChatMessage {
   id: string;
@@ -32,8 +32,13 @@ function createClientRequestId(): string {
 
 export function ChatView(): JSX.Element {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [showUserSetup, setShowUserSetup] = useState(false);
+  const {
+    userId,
+    showUserSetup,
+    handleUserIdReady: handleUserIdReadyFromHook,
+  } = useUserId(() => {
+    void startNewSession();
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingMessage, setPendingMessage] = useState('');
   const [error, setError] = useState<ChatError | null>(null);
@@ -44,25 +49,13 @@ export function ChatView(): JSX.Element {
   const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
   useEffect(() => {
-    // Check for existing userId
-    const existingUserId = localStorage.getItem(USER_ID_KEY);
-    if (existingUserId) {
-      setUserId(existingUserId);
-      void startNewSession();
-    } else {
-      setShowUserSetup(true);
-    }
-
     return () => {
       controllerRef.current?.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUserIdReady = (newUserId: string) => {
-    setUserId(newUserId);
-    setShowUserSetup(false);
-    void startNewSession();
+    handleUserIdReadyFromHook(newUserId);
   };
 
   if (showUserSetup) {
