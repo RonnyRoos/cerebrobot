@@ -169,13 +169,14 @@ Searched for remaining "session" references:
 - Null checks comprehensive
 
 ## Related Documents
-- [ADR 005: Session to Thread Terminology](./005-session-to-thread-terminology.md) - Initial backend refactoring
-- [docs/code-style.md](../code-style.md) - TypeScript patterns and conventions
-- [docs/best-practices.md](../best-practices.md) - Engineering hygiene loop requirements
-- [AGENTS.md](../../AGENTS.md) - Constitution and working cadence
+- [ADR 005: Thread Terminology Standardization](./005-thread-terminology.md) - Initial backend refactoring
+- [Code Style Guide](../../code-style.md) - TypeScript patterns and conventions
+- [Engineering Best Practices](../../best-practices.md) - Engineering hygiene loop requirements
+- [AGENTS.md](../../../AGENTS.md) - Constitution and working cadence
 
 ## Review History
 - **2025-10-08**: ADR created after completing frontend terminology alignment
+- **2025-10-09**: Moved to `docs/decisions/adr/` with updated references
 - **Authors**: Constitution compliance audit
 - **Validation**: Sequential thinking applied, all terminology references audited
 

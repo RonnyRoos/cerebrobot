@@ -124,11 +124,11 @@ Technology choices MUST align with the approved stack; deviations require Archit
 - **Logging**: Pino 9.11.0
 
 **Rules**:
-- No version upgrades without testing and ADR review
+- No version upgrades without testing and decision documentation review
 - No new libraries without evaluating fit against existing dependencies
-- Justify exceptions in `docs/adr/` with rollback timeline if temporary
+- Justify exceptions in `docs/decisions/` (ADRs, TDRs) with rollback timeline if temporary
 
-**Rationale**: Version lock ensures reproducibility and avoids breaking changes mid-phase. The stack balances LangGraph ecosystem requirements (OpenAI-compatible APIs, Postgres checkpointing) with hobby-friendly deployment (Docker Compose). ADRs document trade-offs for future maintainers and LLM agents.
+**Rationale**: Version lock ensures reproducibility and avoids breaking changes mid-phase. The stack balances LangGraph ecosystem requirements (OpenAI-compatible APIs, Postgres checkpointing) with hobby-friendly deployment (Docker Compose). Decision documents record trade-offs for future maintainers and LLM agents.
 
 ### VI. Configuration Over Hardcoding
 
