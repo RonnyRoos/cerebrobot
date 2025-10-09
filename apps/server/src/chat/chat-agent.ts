@@ -1,7 +1,7 @@
 import type { ServerConfig } from '../config.js';
 
 export interface ChatInvocationContext {
-  readonly sessionId: string;
+  readonly threadId: string;
   readonly userId: string; // REQUIRED: All chats must be tied to a user
   readonly message: string;
   readonly correlationId: string;
@@ -34,5 +34,5 @@ export interface ChatAgent {
     latencyMs: number;
     tokenUsage?: TokenUsageEvent;
   }>;
-  reset?(sessionId: string, userId: string): void | Promise<void>;
+  reset?(threadId: string, userId: string): void | Promise<void>;
 }

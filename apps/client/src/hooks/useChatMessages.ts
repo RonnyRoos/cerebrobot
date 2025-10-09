@@ -34,7 +34,8 @@ interface ErrorState {
 
 interface UseChatMessagesOptions {
   userId: string | null;
-  getActiveSessionId: () => Promise<string | null>;
+  getActiveThreadId: () => Promise<string | null>;
+  initialMessages?: DisplayMessage[];
 }
 
 interface UseChatMessagesResult {
@@ -56,15 +57,20 @@ function createClientRequestId(): string {
 }
 
 export function useChatMessages(options: UseChatMessagesOptions): UseChatMessagesResult {
-  const { userId, getActiveSessionId } = options;
+  const { userId, getActiveThreadId, initialMessages = [] } = options;
 
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>(initialMessages);
   const [pendingMessage, setPendingMessage] = useState('');
   const [error, setError] = useState<ErrorState | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
 
   const controllerRef = useRef<AbortController | null>(null);
   const assistantMessageIdRef = useRef<string | null>(null);
+
+  // Sync messages with initialMessages when they change (e.g., when switching threads)
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -163,13 +169,13 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
         );
       } else if (resolvedType === 'error') {
         handleAssistantError({
-          message: parsed.message ?? 'Unknown error',
+          message: `Server error: ${parsed.message ?? 'Unknown error occurred during message processing'}`,
           retryable: !!parsed.retryable,
         });
       }
     } catch (err) {
       handleAssistantError({
-        message: err instanceof Error ? err.message : 'Unable to parse streaming payload',
+        message: `Failed to parse server response: ${err instanceof Error ? err.message : 'Invalid streaming payload format'}`,
         retryable: false,
       });
     }
@@ -180,7 +186,10 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
     assistantMessageId: string,
   ) => {
     if (!body) {
-      handleAssistantError({ message: 'Streaming payload missing', retryable: true });
+      handleAssistantError({
+        message: 'Streaming payload missing: Server response did not include message stream',
+        retryable: true,
+      });
       return;
     }
 
@@ -214,11 +223,12 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
       return;
     }
 
-    const activeSessionId = await getActiveSessionId();
+    const activeThreadId = await getActiveThreadId();
 
-    if (!activeSessionId) {
+    if (!activeThreadId) {
       handleAssistantError({
-        message: 'Session unavailable',
+        message:
+          'Thread unavailable: No active conversation thread found. Please refresh the page.',
         retryable: true,
       });
       return;
@@ -272,7 +282,7 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
           Accept: 'text/event-stream',
         },
         body: JSON.stringify({
-          sessionId: activeSessionId,
+          threadId: activeThreadId,
           message: messageToSend,
           clientRequestId,
           userId, // REQUIRED: userId is guaranteed to be non-null here
@@ -284,22 +294,25 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
 
       if (IS_TEST_ENV && requestInit.body) {
         requestInit.body = JSON.stringify({
-          sessionId: activeSessionId,
+          threadId: activeThreadId,
           message: messageToSend,
+          userId,
           clientRequestId: { inverse: false },
         });
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown network error';
       handleAssistantError({
-        message: err instanceof Error ? err.message : 'Network error',
+        message: `Network request failed: ${errorMessage}`,
         retryable: true,
       });
       return;
     }
 
     if (!response.ok) {
+      const statusText = response.statusText || 'Unknown error';
       handleAssistantError({
-        message: 'Chat request failed',
+        message: `Chat request failed: ${response.status} ${statusText}`,
         retryable: response.status >= 500,
       });
       return;

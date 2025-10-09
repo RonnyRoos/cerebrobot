@@ -46,7 +46,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new HumanMessage('What should I eat?')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
         userId: 'user-456',
       };
 
@@ -89,7 +89,7 @@ describe('Memory Nodes', () => {
       // Test with userId - should work
       await retrieveMemories({
         messages: [new HumanMessage('test')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
         userId: 'user-456',
       });
 
@@ -104,7 +104,7 @@ describe('Memory Nodes', () => {
       // Test without userId - should gracefully degrade (not throw)
       const resultWithoutUser = await retrieveMemories({
         messages: [new HumanMessage('test')],
-        sessionId: 'session-789',
+        threadId: 'thread-789',
       });
 
       // Should return empty and not call store (userId validation happens in try-catch)
@@ -117,7 +117,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new AIMessage('Hello!')], // AI message, not human
-        sessionId: 'session-123',
+        threadId: 'thread-123',
       };
 
       const result = await retrieveMemories(state);
@@ -133,7 +133,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new HumanMessage('test query')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
         userId: 'user-456',
       };
 
@@ -148,7 +148,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new HumanMessage('test')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
         userId: 'user-456',
       };
 
@@ -189,7 +189,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new HumanMessage('test')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
         userId: 'user-456',
       };
 
@@ -221,7 +221,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new HumanMessage('test')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
       };
 
       vi.mocked(mockStore.search).mockRejectedValue(new Error('Store failure'));
@@ -238,7 +238,7 @@ describe('Memory Nodes', () => {
 
       const state = {
         messages: [new HumanMessage('test')],
-        sessionId: 'session-123',
+        threadId: 'thread-123',
       };
 
       // Mock search to take longer than timeout

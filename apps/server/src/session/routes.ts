@@ -1,14 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { SessionManager } from './session-manager.js';
+import type { ThreadManager } from './session-manager.js';
 
 const SessionRequestSchema = z
   .object({
-    previousSessionId: z.string().trim().min(1).optional(),
+    previousThreadId: z.string().trim().min(1).optional(),
+    userId: z.string().uuid().optional(), // Required for reset
   })
   .strict();
 
-export function registerSessionRoutes(app: FastifyInstance, sessionManager: SessionManager): void {
+export function registerSessionRoutes(app: FastifyInstance, threadManager: ThreadManager): void {
   app.post('/api/session', async (request, reply) => {
     const parseResult = SessionRequestSchema.safeParse(request.body ?? {});
 
@@ -19,14 +20,14 @@ export function registerSessionRoutes(app: FastifyInstance, sessionManager: Sess
       });
     }
 
-    const { previousSessionId } = parseResult.data;
+    const { previousThreadId, userId } = parseResult.data;
 
-    if (previousSessionId) {
-      await sessionManager.resetSession(previousSessionId);
+    if (previousThreadId && userId) {
+      await threadManager.resetThread(previousThreadId, userId);
     }
 
-    const sessionId = await sessionManager.issueSession();
+    const threadId = await threadManager.issueThread();
 
-    return reply.status(201).send({ sessionId });
+    return reply.status(201).send({ threadId });
   });
 }

@@ -8,6 +8,7 @@ import {
 import type { BaseMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import type { RunnableConfig } from '@langchain/core/runnables';
+import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { Logger } from 'pino';
 import type { BaseStore } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
@@ -100,7 +101,7 @@ export class LangGraphChatAgent implements ChatAgent {
     if (!context.userId) {
       const error = new Error('userId is required for all chat operations but was not provided');
       this.logger?.error(
-        { sessionId: context.sessionId, correlationId: context.correlationId },
+        { threadId: context.threadId, correlationId: context.correlationId },
         error.message,
       );
       throw error;
@@ -111,7 +112,7 @@ export class LangGraphChatAgent implements ChatAgent {
 
     this.logger?.info(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         userId: context.userId,
         correlationId: context.correlationId,
       },
@@ -120,11 +121,11 @@ export class LangGraphChatAgent implements ChatAgent {
 
     const stream = (await this.graphContext.graph.stream(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         userId: context.userId,
         messages: [new HumanMessage(context.message)],
       },
-      this.createConfig(context.sessionId, 'stream', context.userId),
+      this.createConfig(context.threadId, 'stream', context.userId),
     )) as MessageStream;
 
     for await (const [message] of stream) {
@@ -147,14 +148,14 @@ export class LangGraphChatAgent implements ChatAgent {
     const latencyMs = Date.now() - startedAt;
 
     const finalState = await this.graphContext.graph.getState(
-      this.createConfig(context.sessionId, 'invoke', context.userId),
+      this.createConfig(context.threadId, 'invoke', context.userId),
     );
     const usageSnapshot = (finalState.values.tokenUsage as TokenUsageSnapshot | null) ?? null;
     const tokenUsage = formatTokenUsageSnapshot(usageSnapshot);
 
     this.logger?.info(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         correlationId: context.correlationId,
         latencyMs,
         messageLength: accumulated.length,
@@ -171,7 +172,7 @@ export class LangGraphChatAgent implements ChatAgent {
     if (!context.userId) {
       const error = new Error('userId is required for all chat operations but was not provided');
       this.logger?.error(
-        { sessionId: context.sessionId, correlationId: context.correlationId },
+        { threadId: context.threadId, correlationId: context.correlationId },
         error.message,
       );
       throw error;
@@ -180,7 +181,7 @@ export class LangGraphChatAgent implements ChatAgent {
     const startedAt = Date.now();
     this.logger?.info(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         userId: context.userId,
         correlationId: context.correlationId,
       },
@@ -189,11 +190,11 @@ export class LangGraphChatAgent implements ChatAgent {
 
     const state = (await this.graphContext.graph.invoke(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         userId: context.userId,
         messages: [new HumanMessage(context.message)],
       },
-      this.createConfig(context.sessionId, 'invoke', context.userId),
+      this.createConfig(context.threadId, 'invoke', context.userId),
     )) as ConversationState;
 
     const finalMessage = extractLatestAssistantMessage(state.messages);
@@ -202,7 +203,7 @@ export class LangGraphChatAgent implements ChatAgent {
 
     this.logger?.info(
       {
-        sessionId: context.sessionId,
+        threadId: context.threadId,
         correlationId: context.correlationId,
         latencyMs,
         messageLength: finalMessage.length,
@@ -214,8 +215,8 @@ export class LangGraphChatAgent implements ChatAgent {
     return { message: finalMessage, summary: undefined, latencyMs, tokenUsage };
   }
 
-  public async reset(sessionId: string, userId: string): Promise<void> {
-    const config = this.createConfig(sessionId, 'invoke', userId);
+  public async reset(threadId: string, userId: string): Promise<void> {
+    const config = this.createConfig(threadId, 'invoke', userId);
     const state = await this.graphContext.graph.getState(config);
     const messages: BaseMessage[] = Array.isArray(state.values.messages)
       ? (state.values.messages as BaseMessage[])
@@ -233,17 +234,17 @@ export class LangGraphChatAgent implements ChatAgent {
       tokenUsage: null,
     });
 
-    this.logger?.info({ sessionId }, 'langgraph state reset for session');
+    this.logger?.info({ threadId }, 'langgraph state reset for thread');
   }
 
   private createConfig(
-    sessionId: string,
+    threadId: string,
     mode: 'stream' | 'invoke',
     userId: string, // REQUIRED: userId must be provided for all chat operations
   ): RunnableConfig {
     const base: RunnableConfig = {
       configurable: {
-        thread_id: sessionId,
+        thread_id: threadId,
         userId, // Pass userId to tools via config.configurable
       },
     };
@@ -262,6 +263,7 @@ export class LangGraphChatAgent implements ChatAgent {
 export function createLangGraphChatAgent(
   config: ServerConfig,
   logger?: Logger,
+  checkpointer?: BaseCheckpointSaver,
 ): LangGraphChatAgent {
-  return new LangGraphChatAgent({ config, logger });
+  return new LangGraphChatAgent({ config, logger, checkpointer });
 }

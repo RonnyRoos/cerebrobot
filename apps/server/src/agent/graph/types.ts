@@ -6,7 +6,7 @@ const ConversationAnnotation = Annotation.Root({
   ...MessagesAnnotation.spec,
   summary: Annotation<string | null>(),
   summaryUpdatedAt: Annotation<string | null>(),
-  sessionId: Annotation<string>(),
+  threadId: Annotation<string>(),
   tokenUsage: Annotation<{
     recentTokens: number;
     overflowTokens: number;

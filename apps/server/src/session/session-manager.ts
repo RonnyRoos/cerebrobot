@@ -2,48 +2,44 @@ import { randomUUID } from 'node:crypto';
 import type { Logger } from 'pino';
 import type { ChatAgent } from '../chat/chat-agent.js';
 
-export interface SessionManager {
-  issueSession(): Promise<string>;
-  resetSession(sessionId: string): Promise<void>;
+export interface ThreadManager {
+  issueThread(): Promise<string>;
+  resetThread(threadId: string, userId: string): Promise<void>;
 }
 
-interface SessionManagerOptions {
+interface ThreadManagerOptions {
   readonly chatAgent: ChatAgent;
   readonly logger?: Logger;
 }
 
-class DefaultSessionManager implements SessionManager {
-  private readonly activeSessions = new Set<string>();
+class DefaultThreadManager implements ThreadManager {
+  private readonly activeThreads = new Set<string>();
 
-  constructor(private readonly options: SessionManagerOptions) {}
+  constructor(private readonly options: ThreadManagerOptions) {}
 
-  public async issueSession(): Promise<string> {
-    const sessionId = randomUUID();
-    this.activeSessions.add(sessionId);
+  public async issueThread(): Promise<string> {
+    const threadId = randomUUID();
+    this.activeThreads.add(threadId);
 
-    if (this.options.chatAgent.reset) {
-      await this.options.chatAgent.reset(sessionId);
-    }
+    this.options.logger?.info({ threadId }, 'issued new thread identifier');
 
-    this.options.logger?.info({ sessionId }, 'issued new session identifier');
-
-    return sessionId;
+    return threadId;
   }
 
-  public async resetSession(sessionId: string): Promise<void> {
-    if (!this.activeSessions.has(sessionId)) {
+  public async resetThread(threadId: string, userId: string): Promise<void> {
+    if (!this.activeThreads.has(threadId)) {
       return;
     }
 
     if (this.options.chatAgent.reset) {
-      await this.options.chatAgent.reset(sessionId);
+      await this.options.chatAgent.reset(threadId, userId);
     }
 
-    this.activeSessions.delete(sessionId);
-    this.options.logger?.info({ sessionId }, 'reset session identifier');
+    this.activeThreads.delete(threadId);
+    this.options.logger?.info({ threadId, userId }, 'reset thread identifier');
   }
 }
 
-export function createSessionManager(options: SessionManagerOptions): SessionManager {
-  return new DefaultSessionManager(options);
+export function createThreadManager(options: ThreadManagerOptions): ThreadManager {
+  return new DefaultThreadManager(options);
 }

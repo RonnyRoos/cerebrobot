@@ -4,7 +4,7 @@ const NonEmptyString = z.string().trim().min(1, 'Value cannot be empty');
 
 export const ChatRequestSchema = z
   .object({
-    sessionId: NonEmptyString,
+    threadId: NonEmptyString,
     message: NonEmptyString,
     clientRequestId: NonEmptyString.optional(),
     userId: z.string().uuid(), // REQUIRED: All chats must be tied to a user
@@ -37,7 +37,7 @@ export const ChatResponseMetadataSchema = z
 
 export const ChatResponseSchema = z
   .object({
-    sessionId: NonEmptyString,
+    threadId: NonEmptyString,
     correlationId: NonEmptyString,
     message: z.string(),
     latencyMs: z.number().int().nonnegative(),
