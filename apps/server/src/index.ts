@@ -5,7 +5,8 @@ import pino from 'pino';
 import { buildServer } from './app.js';
 import { loadConfigFromEnv } from './config.js';
 import { createLangGraphChatAgent } from './agent/langgraph-agent.js';
-import { createSessionManager } from './session/session-manager.js';
+import { createThreadManager } from './session/session-manager.js';
+import { createCheckpointSaver } from './agent/checkpointer.js';
 
 export async function bootstrap(): Promise<void> {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -38,15 +39,23 @@ export async function bootstrap(): Promise<void> {
   const config = loadConfigFromEnv();
   const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
-  const chatAgent = createLangGraphChatAgent(config, logger.child({ component: 'chat-agent' }));
-  const sessionManager = createSessionManager({
+  // Create shared checkpointer instance
+  const checkpointer = createCheckpointSaver(config);
+
+  const chatAgent = createLangGraphChatAgent(
+    config,
+    logger.child({ component: 'chat-agent' }),
+    checkpointer,
+  );
+  const threadManager = createThreadManager({
     chatAgent,
-    logger: logger.child({ component: 'session-manager' }),
+    logger: logger.child({ component: 'thread-manager' }),
   });
 
   const server = buildServer({
-    sessionManager,
+    threadManager,
     chatAgent,
+    checkpointer,
     config,
     logger: logger.child({ component: 'fastify' }),
   });

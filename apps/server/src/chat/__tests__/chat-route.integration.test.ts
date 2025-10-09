@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { buildServer } from '../../app.js';
 import type { ChatAgent, AgentStreamEvent, ChatInvocationContext } from '../chat-agent.js';
 import type { ServerConfig } from '../../config.js';
-import type { SessionManager } from '../../session/session-manager.js';
+import type { ThreadManager } from '../../session/session-manager.js';
 
 function createServerConfig(): ServerConfig {
   return {
@@ -19,10 +20,10 @@ function createServerConfig(): ServerConfig {
   };
 }
 
-function createSessionManager(): SessionManager {
+function createThreadManager(): ThreadManager {
   return {
-    issueSession: vi.fn(async () => 'unused'),
-    resetSession: vi.fn(async () => undefined),
+    issueThread: vi.fn(async () => 'unused'),
+    resetThread: vi.fn(async () => undefined),
   };
 }
 
@@ -46,11 +47,11 @@ function createAgent(overrides: Partial<ChatAgent> = {}): ChatAgent {
 
 describe('POST /api/chat', () => {
   let config: ServerConfig;
-  let sessionManager: SessionManager;
+  let threadManager: ThreadManager;
 
   beforeEach(() => {
     config = createServerConfig();
-    sessionManager = createSessionManager();
+    threadManager = createThreadManager();
   });
 
   afterEach(() => {
@@ -83,7 +84,13 @@ describe('POST /api/chat', () => {
       })),
     });
 
-    const app = buildServer({ config, sessionManager, chatAgent: agent });
+    const mockCheckpointer = {} as BaseCheckpointSaver;
+    const app = buildServer({
+      config,
+      threadManager,
+      chatAgent: agent,
+      checkpointer: mockCheckpointer,
+    });
     await app.ready();
 
     const response = await app.inject({
@@ -95,7 +102,7 @@ describe('POST /api/chat', () => {
       },
       payload: {
         userId: '550e8400-e29b-41d4-a716-446655440000',
-        sessionId: 'session-123',
+        threadId: 'thread-123',
         message: 'Hello?',
       },
     });
@@ -108,7 +115,7 @@ describe('POST /api/chat', () => {
 
     expect(agent.streamChat).toHaveBeenCalledTimes(1);
     const invocation = vi.mocked(agent.streamChat).mock.calls[0][0] as ChatInvocationContext;
-    expect(invocation.sessionId).toBe('session-123');
+    expect(invocation.threadId).toBe('thread-123');
     expect(invocation.message).toBe('Hello?');
     expect(invocation.config).toEqual(config);
 
@@ -127,7 +134,13 @@ describe('POST /api/chat', () => {
       })),
     });
 
-    const app = buildServer({ config, sessionManager, chatAgent: agent });
+    const mockCheckpointer = {} as BaseCheckpointSaver;
+    const app = buildServer({
+      config,
+      threadManager,
+      chatAgent: agent,
+      checkpointer: mockCheckpointer,
+    });
     await app.ready();
 
     const response = await app.inject({
@@ -139,7 +152,7 @@ describe('POST /api/chat', () => {
       },
       payload: {
         userId: '550e8400-e29b-41d4-a716-446655440001',
-        sessionId: 'session-321',
+        threadId: 'thread-321',
         message: 'Hi there',
       },
     });
@@ -148,7 +161,7 @@ describe('POST /api/chat', () => {
     expect(response.headers['content-type']).toContain('application/json');
     const body = response.json();
     expect(body).toMatchObject({
-      sessionId: 'session-321',
+      threadId: 'thread-321',
       message: 'Buffered response',
       streamed: false,
       latencyMs: 2200,

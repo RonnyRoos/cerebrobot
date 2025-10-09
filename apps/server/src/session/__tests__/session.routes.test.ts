@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { buildServer } from '../../app.js';
 import type { ChatAgent } from '../../chat/chat-agent.js';
 import type { ServerConfig } from '../../config.js';
-import type { SessionManager } from '../session-manager.js';
+import type { ThreadManager } from '../session-manager.js';
 
 describe('session routes', () => {
-  let sessionManager: SessionManager;
+  let threadManager: ThreadManager;
   let chatAgent: ChatAgent;
   let config: ServerConfig;
 
   beforeEach(() => {
-    sessionManager = {
-      issueSession: vi.fn(),
-      resetSession: vi.fn(),
+    threadManager = {
+      issueThread: vi.fn(),
+      resetThread: vi.fn(),
     };
 
     chatAgent = {
@@ -43,10 +44,11 @@ describe('session routes', () => {
   });
 
   it('creates a new session identifier', async () => {
-    const sessionId = 'session-new-123';
-    vi.mocked(sessionManager.issueSession).mockResolvedValue(sessionId);
+    const threadId = 'thread-new-123';
+    vi.mocked(threadManager.issueThread).mockResolvedValue(threadId);
 
-    const app = buildServer({ sessionManager, chatAgent, config });
+    const mockCheckpointer = {} as BaseCheckpointSaver;
+    const app = buildServer({ threadManager, chatAgent, config, checkpointer: mockCheckpointer });
     await app.ready();
 
     const response = await app.inject({
@@ -57,45 +59,53 @@ describe('session routes', () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json()).toEqual({ sessionId });
-    expect(sessionManager.issueSession).toHaveBeenCalledTimes(1);
-    expect(sessionManager.resetSession).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({ threadId });
+    expect(threadManager.issueThread).toHaveBeenCalledTimes(1);
+    expect(threadManager.resetThread).not.toHaveBeenCalled();
 
     await app.close();
   });
 
   it('resets provided previous session before issuing a new one', async () => {
-    const sessionId = 'session-new-456';
-    vi.mocked(sessionManager.issueSession).mockResolvedValue(sessionId);
+    const threadId = 'thread-new-456';
+    vi.mocked(threadManager.issueThread).mockResolvedValue(threadId);
 
-    const app = buildServer({ sessionManager, chatAgent, config });
+    const mockCheckpointer = {} as BaseCheckpointSaver;
+    const app = buildServer({ threadManager, chatAgent, config, checkpointer: mockCheckpointer });
     await app.ready();
 
     const response = await app.inject({
       method: 'POST',
       url: '/api/session',
       headers: { 'content-type': 'application/json' },
-      payload: { previousSessionId: 'session-old-999' },
+      payload: {
+        previousThreadId: 'thread-old-999',
+        userId: '550e8400-e29b-41d4-a716-446655440000',
+      },
     });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json()).toEqual({ sessionId });
-    expect(sessionManager.resetSession).toHaveBeenCalledTimes(1);
-    expect(sessionManager.resetSession).toHaveBeenCalledWith('session-old-999');
-    expect(sessionManager.issueSession).toHaveBeenCalledTimes(1);
+    expect(response.json()).toEqual({ threadId });
+    expect(threadManager.resetThread).toHaveBeenCalledTimes(1);
+    expect(threadManager.resetThread).toHaveBeenCalledWith(
+      'thread-old-999',
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
+    expect(threadManager.issueThread).toHaveBeenCalledTimes(1);
 
     await app.close();
   });
 
   it('rejects invalid payloads', async () => {
-    const app = buildServer({ sessionManager, chatAgent, config });
+    const mockCheckpointer = {} as BaseCheckpointSaver;
+    const app = buildServer({ threadManager, chatAgent, config, checkpointer: mockCheckpointer });
     await app.ready();
 
     const response = await app.inject({
       method: 'POST',
       url: '/api/session',
       headers: { 'content-type': 'application/json' },
-      payload: { previousSessionId: '' },
+      payload: { previousThreadId: '' },
     });
 
     expect(response.statusCode).toBe(400);

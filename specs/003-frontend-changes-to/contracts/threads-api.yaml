@@ -1,0 +1,320 @@
+openapi: 3.0.3
+info:
+  title: Cerebrobot Thread Management API
+  description: API endpoints for managing conversation threads
+  version: 1.0.0
+  contact:
+    name: Cerebrobot Team
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: threads
+    description: Conversation thread operations
+
+paths:
+  /api/threads:
+    get:
+      tags:
+        - threads
+      summary: List user's conversation threads
+      description: |
+        Retrieve all conversation threads for a specific user, sorted by most recent activity.
+        Returns thread metadata without loading full message history.
+      operationId: listThreads
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          description: UUID of the user whose threads to retrieve
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Successfully retrieved thread list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadListResponse'
+              examples:
+                withThreads:
+                  summary: User with existing threads
+                  value:
+                    threads:
+                      - threadId: "7a2e4b5c-1234-4567-890a-bcdef0123456"
+                        userId: "550e8400-e29b-41d4-a716-446655440000"
+                        title: "How do I deploy with Docker?"
+                        lastMessage: "Great! That worked perfectly. Thanks for your help."
+                        lastMessageRole: "user"
+                        messageCount: 12
+                        createdAt: "2025-10-07T10:30:00Z"
+                        updatedAt: "2025-10-08T14:22:00Z"
+                        isEmpty: false
+                      - threadId: "8b3f5c6d-2345-5678-901b-cdef01234567"
+                        userId: "550e8400-e29b-41d4-a716-446655440000"
+                        title: "New Conversation"
+                        lastMessage: ""
+                        lastMessageRole: "user"
+                        messageCount: 0
+                        createdAt: "2025-10-08T15:00:00Z"
+                        updatedAt: "2025-10-08T15:00:00Z"
+                        isEmpty: true
+                    total: 2
+                emptyList:
+                  summary: User with no threads
+                  value:
+                    threads: []
+                    total: 0
+        '400':
+          description: Invalid request (missing or malformed userId)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid userId parameter"
+                details:
+                  - code: "invalid_type"
+                    path: ["userId"]
+                    message: "Invalid uuid"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to retrieve threads"
+                retryable: true
+
+  /api/threads/{threadId}/messages:
+    get:
+      tags:
+        - threads
+      summary: Get complete message history for a thread
+      description: |
+        Retrieve all messages in a conversation thread in chronological order.
+        Always returns complete history (no pagination).
+      operationId: getThreadMessages
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          description: UUID of the thread
+          schema:
+            type: string
+            format: uuid
+          example: "7a2e4b5c-1234-4567-890a-bcdef0123456"
+        - name: userId
+          in: query
+          required: true
+          description: UUID of the user (for authorization)
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Successfully retrieved message history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageHistoryResponse'
+              examples:
+                activeThread:
+                  summary: Thread with messages
+                  value:
+                    threadId: "7a2e4b5c-1234-4567-890a-bcdef0123456"
+                    messages:
+                      - id: "msg-001"
+                        role: "user"
+                        content: "How do I deploy with Docker?"
+                        timestamp: "2025-10-07T10:30:00Z"
+                      - id: "msg-002"
+                        role: "assistant"
+                        content: "To deploy with Docker, you'll need to create a Dockerfile..."
+                        timestamp: "2025-10-07T10:30:15Z"
+                      - id: "msg-003"
+                        role: "user"
+                        content: "What about docker-compose?"
+                        timestamp: "2025-10-07T10:32:00Z"
+                emptyThread:
+                  summary: Thread with no messages
+                  value:
+                    threadId: "8b3f5c6d-2345-5678-901b-cdef01234567"
+                    messages: []
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Thread not found or user does not own thread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Thread not found"
+                retryable: false
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ThreadMetadata:
+      type: object
+      required:
+        - threadId
+        - userId
+        - title
+        - lastMessage
+        - lastMessageRole
+        - messageCount
+        - createdAt
+        - updatedAt
+        - isEmpty
+      properties:
+        threadId:
+          type: string
+          format: uuid
+          description: Unique thread identifier
+          example: "7a2e4b5c-1234-4567-890a-bcdef0123456"
+        userId:
+          type: string
+          format: uuid
+          description: Owner of the thread
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Thread title (first 50 chars of first user message)
+          example: "How do I deploy with Docker?"
+        lastMessage:
+          type: string
+          maxLength: 100
+          description: Preview of last message (truncated to 100 chars)
+          example: "Great! That worked perfectly. Thanks for your help."
+        lastMessageRole:
+          type: string
+          enum: [user, assistant]
+          description: Who sent the last message
+          example: "user"
+        messageCount:
+          type: integer
+          minimum: 0
+          description: Total number of messages in thread
+          example: 12
+        createdAt:
+          type: string
+          format: date-time
+          description: Thread creation timestamp
+          example: "2025-10-07T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last activity timestamp
+          example: "2025-10-08T14:22:00Z"
+        isEmpty:
+          type: boolean
+          description: True if thread has no messages
+          example: false
+
+    ThreadListResponse:
+      type: object
+      required:
+        - threads
+        - total
+      properties:
+        threads:
+          type: array
+          description: Array of thread metadata, sorted by updatedAt DESC
+          items:
+            $ref: '#/components/schemas/ThreadMetadata'
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of threads (same as threads.length initially)
+          example: 2
+
+    Message:
+      type: object
+      required:
+        - id
+        - role
+        - content
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: Message identifier
+          example: "msg-001"
+        role:
+          type: string
+          enum: [user, assistant]
+          description: Message sender
+          example: "user"
+        content:
+          type: string
+          description: Message text content
+          example: "How do I deploy with Docker?"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the message was sent
+          example: "2025-10-07T10:30:00Z"
+
+    MessageHistoryResponse:
+      type: object
+      required:
+        - threadId
+        - messages
+      properties:
+        threadId:
+          type: string
+          format: uuid
+          description: Thread identifier
+          example: "7a2e4b5c-1234-4567-890a-bcdef0123456"
+        messages:
+          type: array
+          description: Complete message history in chronological order
+          items:
+            $ref: '#/components/schemas/Message'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid userId parameter"
+        details:
+          type: array
+          description: Detailed validation errors (if applicable)
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              path:
+                type: array
+                items:
+                  type: string
+              message:
+                type: string
+        retryable:
+          type: boolean
+          description: Whether the operation can be retried
+          example: false

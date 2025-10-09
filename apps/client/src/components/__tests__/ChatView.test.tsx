@@ -37,21 +37,17 @@ function renderWithUser(): ReturnType<typeof render> & {
   user: ReturnType<typeof userEvent.setup>;
 } {
   const user = userEvent.setup();
-  return { user, ...render(<ChatView />) };
+  const mockOnBack = vi.fn();
+  return {
+    user,
+    ...render(<ChatView userId="test-user-123" threadId={null} onBack={mockOnBack} />),
+  };
 }
 
 describe('<ChatView />', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubGlobal('fetch', vi.fn());
-    // Mock localStorage to provide a userId so tests don't show UserSetup
-    const localStorageMock = {
-      getItem: vi.fn((key: string) => (key === 'cerebrobot_userId' ? 'test-user-123' : null)),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-      clear: vi.fn(),
-    };
-    vi.stubGlobal('localStorage', localStorageMock);
   });
 
   afterEach(() => {
@@ -60,7 +56,7 @@ describe('<ChatView />', () => {
 
   it('streams assistant tokens via SSE and renders the final message', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
-    fetchMock.mockResolvedValueOnce(jsonResponse({ sessionId: 'session-123' }, { status: 201 }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ threadId: 'thread-123' }, { status: 201 }));
     fetchMock.mockResolvedValueOnce(
       sseResponse([
         { type: 'token', value: 'Hello' },
@@ -100,7 +96,7 @@ describe('<ChatView />', () => {
 
   it('surfaces retriable errors returned by the backend', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
-    fetchMock.mockResolvedValueOnce(jsonResponse({ sessionId: 'session-456' }, { status: 201 }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ threadId: 'thread-456' }, { status: 201 }));
     fetchMock.mockResolvedValueOnce(
       sseResponse([{ type: 'error', message: 'LLM timeout', retryable: true }], { status: 200 }),
     );
@@ -114,10 +110,10 @@ describe('<ChatView />', () => {
     await waitFor(() => expect(screen.getByText(/LLM timeout/i)).toBeInTheDocument());
   });
 
-  it('resets state when creating a new session and never sends config overrides', async () => {
+  it('resets state when creating a new thread and never sends config overrides', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ sessionId: 'session-abc' }, { status: 201 }))
+      .mockResolvedValueOnce(jsonResponse({ threadId: 'thread-abc' }, { status: 201 }))
       .mockResolvedValueOnce(
         sseResponse([
           {
@@ -128,7 +124,7 @@ describe('<ChatView />', () => {
           },
         ]),
       )
-      .mockResolvedValueOnce(jsonResponse({ sessionId: 'session-def' }, { status: 201 }))
+      .mockResolvedValueOnce(jsonResponse({ threadId: 'thread-def' }, { status: 201 }))
       .mockResolvedValueOnce(
         sseResponse([
           {
@@ -147,7 +143,7 @@ describe('<ChatView />', () => {
     await user.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(screen.getByText('First response')).toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: /new session/i }));
+    await user.click(screen.getByRole('button', { name: /new thread/i }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenNthCalledWith(
         3,
@@ -167,8 +163,9 @@ describe('<ChatView />', () => {
     const lastCall = fetchMock.mock.calls.at(-1);
     expect(lastCall?.[1]).toMatchObject({
       body: JSON.stringify({
-        sessionId: 'session-def',
+        threadId: 'thread-def',
         message: 'Second',
+        userId: 'test-user-123',
         clientRequestId: expect.any(String),
       }),
     });

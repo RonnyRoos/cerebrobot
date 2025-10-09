@@ -22,7 +22,7 @@
  * See docs/best-practices.md for our 3-tier testing philosophy.
  */
 
-import { beforeAll, beforeEach, afterAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, afterEach, afterAll, describe, expect, it, vi } from 'vitest';
 import { AIMessage } from '@langchain/core/messages';
 import { PrismaClient } from '@prisma/client';
 import type { MemoryEntry } from '@cerebrobot/chat-shared';
@@ -448,11 +448,25 @@ describe('LangGraph Postgres persistence', () => {
     }
   });
 
+  // Track test thread IDs for cleanup instead of wiping entire database
+  const testThreadIds: string[] = [];
+
   beforeEach(async () => {
     chatInvokeHandlers.length = 0;
     summarizerInvokeHandlers.length = 0;
-    await prisma.langGraphCheckpointWrite.deleteMany();
-    await prisma.langGraphCheckpoint.deleteMany();
+  });
+
+  afterEach(async () => {
+    // Clean up only the threads created during this test
+    if (testThreadIds.length > 0) {
+      await prisma.langGraphCheckpointWrite.deleteMany({
+        where: { threadId: { in: testThreadIds } },
+      });
+      await prisma.langGraphCheckpoint.deleteMany({
+        where: { threadId: { in: testThreadIds } },
+      });
+      testThreadIds.length = 0; // Clear the tracking array
+    }
   });
 
   afterAll(async () => {
@@ -461,7 +475,8 @@ describe('LangGraph Postgres persistence', () => {
 
   it('persists conversation state across agent instances', async () => {
     const config = loadConfigFromEnv({ ...baseEnv, LANGGRAPH_PG_URL: pgUrl });
-    const sessionId = `session-${Date.now()}`;
+    const sessionId = `test-session-${Date.now()}`;
+    testThreadIds.push(sessionId); // Track for cleanup
 
     chatInvokeHandlers.push(async () => new AIMessage('Persisted reply'));
 
@@ -554,14 +569,14 @@ describe('LangGraph Postgres persistence', () => {
 });
 
 function createInvocationContext(
-  sessionId: string,
+  threadId: string,
   config: ReturnType<typeof loadConfigFromEnv>,
 ): ChatInvocationContext {
   return {
-    sessionId,
+    threadId,
     userId: 'test-user-123',
     message: 'Hello persistence?',
-    correlationId: `corr-${sessionId}`,
+    correlationId: `corr-${threadId}`,
     config,
   };
 }

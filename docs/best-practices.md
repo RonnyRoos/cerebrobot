@@ -28,10 +28,10 @@ This guide speaks directly to Cerebrobot's LLM teammates. Follow these rules to 
 - Mirror CI locally: run the same pnpm scripts that GitHub Actions executes (`lint`, `format:check`, `test`).
 - Keep Docker Compose definitions up to date with env files and scripts so local runs match deployment behavior.
 - Automate repetitive hygiene with pre-commit hooks (lefthook or husky) to catch regressions before they reach PR review.
-- Document any temporary deviations from the automated pipeline in `docs/adr/` with a timeline to revert.
+- Document any temporary deviations from the automated pipeline in `docs/decisions/` (ADRs, TDRs, or incident reports) with a timeline to revert.
 
 ## Guiding Principles
 - **KISS**: Prefer straightforward graph flows and memory manipulations; break complex steps into smaller nodes.
-- **YAGNI**: Implement only what Phase 1 needs; record future aspirations in the roadmap or ADRs instead of speculative code.
+- **YAGNI**: Implement only what Phase 1 needs; record future aspirations in the roadmap or decision documents instead of speculative code.
 - **SOLID**: Keep LangGraph nodes focused on single responsibilities; program memory interfaces against abstractions to ease future swaps.
 - **DRY**: Centralize shared typings, prompts, and helper utilities; refactor duplicated logic before it spreads across modules.

@@ -34,7 +34,7 @@ LLM teammates must follow this guide when writing or editing TypeScript. Formatt
 - Use Vitest lifecycle hooks sparingly; reset shared state in `beforeEach` to avoid cross-test coupling.
 
 ## Comments & Documentation
-- Write comments to explain intent, trade-offs, or links to ADRs; delete comments that merely restate obvious code.
+- Write comments to explain intent, trade-offs, or links to decision documents; delete comments that merely restate obvious code.
 - Add TSDoc blocks to exported functions or types when the signature alone does not convey usage.
-- Reference ADRs or docs with relative links (`docs/adr/...`) when extra context is required.
+- Reference decision documents with relative links (`docs/decisions/adr/...`, `docs/decisions/tdr/...`) when extra context is required.
 - Capture TODOs with issue numbers (`TODO(#123):`) and avoid leaving anonymous TODOs in shared code.
