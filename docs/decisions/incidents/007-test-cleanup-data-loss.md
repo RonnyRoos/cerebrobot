@@ -1,7 +1,10 @@
-# ADR 007: Test Database Cleanup Strategy
+# Incident Report 007: Test Database Cleanup Data Loss
 
 ## Status
-**Accepted** (2025-10-08)
+**Resolved** (2025-10-08)
+
+## Classification
+Incident Report - Data Loss Prevention
 
 ## Context
 
@@ -177,15 +180,16 @@ const prisma = new PrismaClient({ datasources: { db: { url: testDbUrl } } });
 - Test data accumulation becomes problematic
 
 ## Related Documents
-- [docs/best-practices.md](../best-practices.md) - Testing philosophy and hygiene loop
-- [postgres-validation.test.ts](../../apps/server/src/agent/__tests__/postgres-validation.test.ts) - Implementation
+- [Engineering Best Practices](../../best-practices.md) - Testing philosophy and hygiene loop
+- [postgres-validation.test.ts](../../../apps/server/src/agent/__tests__/postgres-validation.test.ts) - Implementation
 
-## Review History
-- **2025-10-08**: ADR created after fixing database wipe issue
-- **Root Cause**: User reported threads lost after running hygiene loop
-- **Investigation**: Found `beforeEach` hook deleting all checkpoints
-- **Fix**: Implement test-specific cleanup with ID tracking
-- **Validation**: Tests pass, user's thread preserved
+## Incident Timeline
+- **2025-10-08 - Discovery**: User reported threads lost after running hygiene loop
+- **2025-10-08 - Investigation**: Found `beforeEach` hook deleting all checkpoints in postgres-validation.test.ts
+- **2025-10-08 - Root Cause**: Test cleanup was wiping entire database instead of test-specific data
+- **2025-10-08 - Fix Implemented**: Replaced blanket `deleteMany()` with tracked ID cleanup pattern
+- **2025-10-08 - Validation**: Tests pass, user's production thread preserved
+- **2025-10-09 - Documentation**: Moved to `docs/decisions/incidents/` and reclassified as incident report
 
 ---
 

@@ -1,7 +1,7 @@
-# ADR 004: ThreadService Testing Deferred to Phase 7
+# TDR 004: Testing Strategy - Phased Approach (Integration First, Unit Later)
 
 ## Status
-Accepted (2025-10-08)
+Accepted (2025-10-08), Amended (2025-10-09)
 
 ## Context
 
@@ -81,12 +81,14 @@ This is intentional to avoid premature optimization and maintain velocity.
 
 ## References
 
-- **Spec**: [tasks.md](../../specs/003-frontend-changes-to/tasks.md) - T033, T034, T038
-- **Best Practices**: [best-practices.md](../best-practices.md) - Testing expectations
-- **Architecture**: [langgraph-checkpoint-structure.md](../architecture/langgraph-checkpoint-structure.md)
+- **Spec**: [tasks.md](../../../specs/003-frontend-changes-to/tasks.md) - T033, T034, T038
+- **Best Practices**: [best-practices.md](../../best-practices.md) - Testing expectations
+- **Architecture**: [langgraph-checkpoint-structure.md](../../architecture/langgraph-checkpoint-structure.md)
 
 ## Review History
 
-- **2025-10-08**: Initial ADR after thread discovery and filtering fixes
+- **2025-10-08**: Initial TDR after thread discovery and filtering fixes
+- **2025-10-09**: Moved to `docs/decisions/tdr/` and reclassified as Technical Decision Record
 - **Decision**: Defer ThreadService unit tests to Phase 7 (T033-T034)
 - **Validation**: Manual testing + existing integration tests sufficient until then
+- **Update**: Route integration tests were added in October 2025 (earlier than Phase 7) due to code review findings. See PR #4 for details.

@@ -38,5 +38,6 @@
 - Tech constraints & approved libraries: [docs/tech-stack.md](docs/tech-stack.md)
 - Engineering cadence & QA expectations: [docs/best-practices.md](docs/best-practices.md)
 - TypeScript structure & stylistic rules: [docs/code-style.md](docs/code-style.md)
+- Decision documentation: [docs/decisions/](docs/decisions/) (ADRs, TDRs, incident reports)
 
 Keep this file in sync with the docs above—when they change, update the references or add short notes instead of duplicating their content.

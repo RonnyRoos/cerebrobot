@@ -137,11 +137,17 @@ To minimize churn and maintain git history:
 - [LangGraph Documentation on Threads](https://langchain-ai.github.io/langgraphjs/concepts/low_level/#threads)
 - [LangGraph Persistence Guide](https://langchain-ai.github.io/langgraphjs/how-tos/persistence/)
 - [AGENTS.md](../../AGENTS.md) - Project coding guidelines
-- [Best Practices](../best-practices.md) - Engineering standards
+## References
+
+- [LangGraph Documentation on Threads](https://langchain-ai.github.io/langgraphjs/concepts/low_level/#threads)
+- [LangGraph Persistence Guide](https://langchain-ai.github.io/langgraphjs/how-tos/persistence/)
+- [AGENTS.md](../../../AGENTS.md) - Project coding guidelines
+- [Engineering Best Practices](../../best-practices.md) - Engineering standards
 
 ## Review History
 
 - **2025-10-08**: Initial ADR created as part of terminology standardization
+- **2025-10-09**: Moved to `docs/decisions/adr/` with updated references
 - **Authors**: Refactoring to align with LangGraph conventions
 - **Reviewers**: N/A (documentation-only change)
 
