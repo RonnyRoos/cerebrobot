@@ -7,7 +7,6 @@
 
 import type { Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
-import type { ServerConfig } from '../config.js';
 import type { ChatAgent } from '../chat/chat-agent.js';
 import {
   discoverAgentConfigs,
@@ -17,7 +16,6 @@ import {
 import { createLangGraphChatAgent } from './langgraph-agent.js';
 
 export interface AgentFactoryOptions {
-  readonly serverConfig: ServerConfig;
   readonly logger?: Logger;
   readonly checkpointer?: BaseCheckpointSaver;
 }
@@ -62,7 +60,6 @@ export class AgentFactory {
     const agentConfig = await loadAgentConfig(resolvedAgentId, this.options.logger);
 
     const agent = createLangGraphChatAgent(
-      this.options.serverConfig,
       agentConfig,
       this.options.logger,
       this.options.checkpointer,

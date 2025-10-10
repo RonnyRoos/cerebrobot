@@ -3,7 +3,6 @@ import pino, { type Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { PrismaClient } from '@prisma/client';
 import type { ChatAgent } from './chat/chat-agent.js';
-import type { ServerConfig } from './config.js';
 import type { ThreadManager } from './thread-manager/thread-manager.js';
 import { registerThreadRoutes as registerThreadCreationRoutes } from './thread-manager/routes.js';
 import { registerChatRoutes } from './chat/routes.js';
@@ -16,7 +15,6 @@ export interface BuildServerOptions {
   readonly threadManager: ThreadManager;
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
   readonly checkpointer: BaseCheckpointSaver;
-  readonly config: ServerConfig;
   readonly logger?: Logger;
 }
 
@@ -34,7 +32,6 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
   registerChatRoutes(app, {
     threadManager: options.threadManager,
     getAgent: options.getAgent,
-    config: options.config,
     logger,
   });
 
@@ -47,15 +44,7 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
   });
   registerThreadRoutes(app, threadService);
 
-  logger.info(
-    {
-      model: options.config.model,
-      personaTag: options.config.personaTag,
-      temperature: options.config.temperature,
-      hotpathLimit: options.config.hotpathLimit,
-    },
-    'fastify server initialized',
-  );
+  logger.info('fastify server initialized');
 
   return app;
 }

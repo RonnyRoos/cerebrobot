@@ -3,13 +3,11 @@ import type { Logger } from 'pino';
 import { randomUUID } from 'node:crypto';
 import { ChatRequestSchema, ChatResponseSchema } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext, AgentStreamEvent } from './chat-agent.js';
-import type { ServerConfig } from '../config.js';
 import type { ThreadManager } from '../thread-manager/thread-manager.js';
 
 interface RegisterChatRouteOptions {
   readonly threadManager: ThreadManager;
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
-  readonly config: ServerConfig;
   readonly logger?: Logger;
 }
 
@@ -37,7 +35,6 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
       userId: parseResult.data.userId,
       message: parseResult.data.message,
       correlationId,
-      config: options.config,
     };
 
     options.logger?.info(
