@@ -9,7 +9,11 @@ import type { Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { ServerConfig } from '../config.js';
 import type { ChatAgent } from '../chat/chat-agent.js';
-import { discoverAgentConfigs, loadAgentConfig } from '../config/agent-loader.js';
+import {
+  discoverAgentConfigs,
+  loadAgentConfig,
+  ENV_FALLBACK_AGENT_ID,
+} from '../config/agent-loader.js';
 import { createLangGraphChatAgent } from './langgraph-agent.js';
 
 export interface AgentFactoryOptions {
@@ -78,7 +82,7 @@ export class AgentFactory {
   /**
    * Get the default agent ID for Phase 1 (first available config or .env fallback).
    *
-   * @returns Agent ID (first available) or sentinel UUID for .env fallback
+   * @returns Agent ID (first available) or ENV_FALLBACK_AGENT_ID for .env fallback
    */
   private async getDefaultAgentId(): Promise<string> {
     try {
@@ -86,7 +90,7 @@ export class AgentFactory {
 
       if (configs.length === 0) {
         this.options.logger?.info('No JSON configs found, using .env fallback');
-        return '00000000-0000-0000-0000-000000000000'; // Sentinel UUID for .env fallback
+        return ENV_FALLBACK_AGENT_ID;
       }
 
       // Phase 1: Use first available config
@@ -97,7 +101,7 @@ export class AgentFactory {
       return configs[0].id;
     } catch (error) {
       this.options.logger?.warn({ error }, 'Failed to discover configs, using .env fallback');
-      return '00000000-0000-0000-0000-000000000000';
+      return ENV_FALLBACK_AGENT_ID;
     }
   }
 
