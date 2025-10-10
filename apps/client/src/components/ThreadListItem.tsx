@@ -3,6 +3,7 @@ import type { ThreadMetadata } from '@cerebrobot/chat-shared';
 
 interface ThreadListItemProps {
   thread: ThreadMetadata;
+  agentName?: string; // Agent display name for this thread
   onSelect: (threadId: string) => void;
 }
 
@@ -15,7 +16,7 @@ interface ThreadListItemProps {
  * - Relative timestamp (e.g., "5m ago", "2h ago", "Yesterday")
  * - Message count
  */
-export function ThreadListItem({ thread, onSelect }: ThreadListItemProps): JSX.Element {
+export function ThreadListItem({ thread, agentName, onSelect }: ThreadListItemProps): JSX.Element {
   const [isHovered, setIsHovered] = useState(false);
 
   /**
@@ -106,6 +107,12 @@ export function ThreadListItem({ thread, onSelect }: ThreadListItemProps): JSX.E
           color: '#9ca3af',
         }}
       >
+        {agentName && (
+          <>
+            <span style={{ color: '#6366f1', fontWeight: 500 }}>{agentName}</span>
+            <span>·</span>
+          </>
+        )}
         <span>{formatTimestamp(thread.updatedAt)}</span>
         <span>·</span>
         <span>

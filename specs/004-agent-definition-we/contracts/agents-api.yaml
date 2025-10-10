@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: Cerebrobot Agent Configuration API
+  description: API for listing and managing agent configurations
+  version: 1.0.0
+  contact:
+    name: Cerebrobot Team
+
+servers:
+  - url: http://localhost:3030
+    description: Local development server
+  - url: http://localhost:3030/api
+    description: API base path
+
+paths:
+  /api/agents:
+    get:
+      summary: List all available agent configurations
+      description: |
+        Returns metadata for all valid agent configuration files found in the
+        `./config/agents/` directory. Excludes the template file. API keys and
+        secrets are not included in the response.
+        
+        This endpoint scans the filesystem on each request (lazy loading) and
+        validates ALL configurations. If ANY config is invalid, returns 500 with
+        details. To add new configs, simply create the file and refresh (no restart).
+        
+        **Fail-fast validation**: ALL configs must be valid for 200 response.
+      operationId: listAgents
+      tags:
+        - agents
+      responses:
+        '200':
+          description: Successfully retrieved agent list (all configs valid)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - agents
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentMetadata'
+                    description: Array of available agent configurations
+              examples:
+                multipleAgents:
+                  value:
+                    agents:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        name: "Flirty Assistant"
+                      - id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                        name: "Professional Helper"
+                emptyList:
+                  value:
+                    agents: []
+                  summary: No agents configured (fallback to .env)
+        '500':
+          description: Invalid configurations detected or server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                invalidConfig:
+                  value:
+                    error: "Invalid agent configurations detected"
+                    details:
+                      - file: "agent-a.json"
+                        error: "temperature must be between 0 and 2"
+                      - file: "agent-b.json"
+                        error: "id must be a valid UUID v4"
+                serverError:
+                  value:
+                    error: "Internal server error"
+                    message: "Failed to read config directory"
+
+components:
+  schemas:
+    AgentMetadata:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent (UUID v4)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          minLength: 1
+          description: Human-readable name of the agent
+          example: "Flirty Assistant"
+      description: |
+        Lightweight representation of an agent configuration.
+        Excludes secrets (API keys) and detailed configuration.
+    
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type/category
+          example: "Internal server error"
+        message:
+          type: string
+          description: Human-readable error description
+    
+    ValidationError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error type/category
+          example: "Invalid agent configurations detected"
+        details:
+          type: array
+          items:
+            type: object
+            required:
+              - file
+              - error
+            properties:
+              file:
+                type: string
+                description: Filename of invalid config
+                example: "agent-a.json"
+              error:
+                type: string
+                description: Validation error message
+                example: "temperature must be between 0 and 2"
+          description: List of validation errors (fail-fast details)
+        message:
+          type: string
+          description: Alternative error message for non-validation errors
+          example: "Failed to read config directory"
+          example: "Failed to load agent configurations"
+        details:
+          type: object
+          description: Optional additional error context
+          additionalProperties: true
+
+tags:
+  - name: agents
+    description: Agent configuration operations

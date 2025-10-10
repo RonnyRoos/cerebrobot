@@ -56,7 +56,9 @@ describe('<ChatView />', () => {
 
   it('streams assistant tokens via SSE and renders the final message', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
-    fetchMock.mockResolvedValueOnce(jsonResponse({ threadId: 'thread-123' }, { status: 201 }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ threadId: '550e8400-e29b-41d4-a716-446655440001' }, { status: 201 }),
+    );
     fetchMock.mockResolvedValueOnce(
       sseResponse([
         { type: 'token', value: 'Hello' },
@@ -96,7 +98,9 @@ describe('<ChatView />', () => {
 
   it('surfaces retriable errors returned by the backend', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
-    fetchMock.mockResolvedValueOnce(jsonResponse({ threadId: 'thread-456' }, { status: 201 }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ threadId: '550e8400-e29b-41d4-a716-446655440002' }, { status: 201 }),
+    );
     fetchMock.mockResolvedValueOnce(
       sseResponse([{ type: 'error', message: 'LLM timeout', retryable: true }], { status: 200 }),
     );
@@ -113,7 +117,9 @@ describe('<ChatView />', () => {
   it('resets state when creating a new thread and never sends config overrides', async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ threadId: 'thread-abc' }, { status: 201 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ threadId: '550e8400-e29b-41d4-a716-446655440003' }, { status: 201 }),
+      )
       .mockResolvedValueOnce(
         sseResponse([
           {
@@ -124,7 +130,9 @@ describe('<ChatView />', () => {
           },
         ]),
       )
-      .mockResolvedValueOnce(jsonResponse({ threadId: 'thread-def' }, { status: 201 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ threadId: '550e8400-e29b-41d4-a716-446655440004' }, { status: 201 }),
+      )
       .mockResolvedValueOnce(
         sseResponse([
           {
@@ -147,7 +155,7 @@ describe('<ChatView />', () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenNthCalledWith(
         3,
-        expect.stringContaining('/api/session'),
+        expect.stringContaining('/api/thread'),
         expect.anything(),
       ),
     );
@@ -163,7 +171,7 @@ describe('<ChatView />', () => {
     const lastCall = fetchMock.mock.calls.at(-1);
     expect(lastCall?.[1]).toMatchObject({
       body: JSON.stringify({
-        threadId: 'thread-def',
+        threadId: '550e8400-e29b-41d4-a716-446655440004',
         message: 'Second',
         userId: 'test-user-123',
         clientRequestId: expect.any(String),

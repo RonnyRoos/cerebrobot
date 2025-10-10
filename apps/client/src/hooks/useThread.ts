@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { ThreadCreateResponseSchema } from '@cerebrobot/chat-shared';
 
 /**
  * useThread Hook
@@ -18,6 +19,7 @@ interface UseThreadResult {
   threadId: string | null;
   threadPromise: Promise<string> | null;
   createThread: (
+    agentId: string,
     previousThreadId?: string,
     existingThreadId?: string,
     userId?: string,
@@ -29,6 +31,7 @@ export function useThread(): UseThreadResult {
   const threadPromiseRef = useRef<Promise<string> | null>(null);
 
   const createThread = async (
+    agentId: string,
     previousThreadId?: string,
     existingThreadId?: string,
     userId?: string,
@@ -41,7 +44,7 @@ export function useThread(): UseThreadResult {
     }
 
     // Otherwise, request a new thread from the API
-    const promise = requestThread(previousThreadId, userId);
+    const promise = requestThread(agentId, previousThreadId, userId);
     threadPromiseRef.current = promise;
 
     try {
@@ -55,9 +58,13 @@ export function useThread(): UseThreadResult {
     }
   };
 
-  const requestThread = async (previousThreadId?: string, userId?: string): Promise<string> => {
-    // Build request body - include userId if resetting previous thread
-    const body: { previousThreadId?: string; userId?: string } = {};
+  const requestThread = async (
+    agentId: string,
+    previousThreadId?: string,
+    userId?: string,
+  ): Promise<string> => {
+    // Build request body - agentId is required
+    const body: { agentId: string; previousThreadId?: string; userId?: string } = { agentId };
     if (previousThreadId && userId) {
       body.previousThreadId = previousThreadId;
       body.userId = userId;
@@ -79,7 +86,8 @@ export function useThread(): UseThreadResult {
         );
       }
 
-      const payload = (await response.json()) as { threadId: string };
+      const json = await response.json();
+      const payload = ThreadCreateResponseSchema.parse(json);
       return payload.threadId;
     } catch (err) {
       if (err instanceof Error) {

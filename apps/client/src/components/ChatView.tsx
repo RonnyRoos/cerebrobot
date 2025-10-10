@@ -1,10 +1,11 @@
-import { useThread } from '../hooks/useChatSession.js';
+import { useThread } from '../hooks/useThread.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
 import { useMemo, useEffect } from 'react';
 
 interface ChatViewProps {
   userId: string;
+  agentId: string;
   threadId: string | null;
   onBack: () => void;
 }
@@ -20,9 +21,13 @@ interface ChatViewProps {
  * - Loads thread history when threadId provided
  * - Converts history messages to DisplayMessage format for useChatMessages
  */
-export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Element {
-  // Load thread history if resuming an existing thread
-  const { messages: historyMessages, error: historyError } = useThreadHistory(threadId, userId);
+export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): JSX.Element {
+  // Load thread history if resuming an existing thread (not 'new' sentinel)
+  const effectiveThreadId = threadId && threadId !== 'new' ? threadId : null;
+  const { messages: historyMessages, error: historyError } = useThreadHistory(
+    effectiveThreadId,
+    userId,
+  );
 
   // Convert history messages to DisplayMessage format
   const initialMessages = useMemo(
@@ -39,16 +44,16 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
   const { threadId: activeThreadId, threadPromise, createThread } = useThread();
 
   // Auto-create thread when component mounts for new conversations
-  // When resuming (threadId provided), reuse existing threadId
+  // When resuming (threadId provided and not 'new' sentinel), reuse existing threadId
   useEffect(() => {
     if (activeThreadId) return; // Skip if we already have an active thread
 
-    if (threadId) {
+    if (threadId && threadId !== 'new') {
       // Reuse existing threadId when resuming conversation
-      void createThread(undefined, threadId);
+      void createThread(agentId, undefined, threadId);
     } else {
-      // Create new thread for new conversation
-      void createThread();
+      // Create new thread for new conversation (threadId is null or 'new')
+      void createThread(agentId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount - threadId doesn't change for a ChatView instance
@@ -75,7 +80,7 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
     clearChat();
 
     try {
-      await createThread(previousThreadId, undefined, userId);
+      await createThread(agentId, previousThreadId, undefined, userId);
     } catch (err) {
       // Error will be set by the thread hook
     }

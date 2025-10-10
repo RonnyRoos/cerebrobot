@@ -8,3 +8,9 @@ dist/
 .vscode/
 .DS_Store
 coverage/
+.playwright-mcp/
+
+# Agent configurations (exclude secrets, keep template and directory marker)
+config/agents/*
+!config/agents/.gitkeep
+!config/agents/template.json

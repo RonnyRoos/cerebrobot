@@ -13,7 +13,8 @@ import type { Logger } from 'pino';
 import type { BaseStore } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { ServerConfig } from '../config.js';
-import { createMemoryStore, loadMemoryConfig } from './memory/index.js';
+import type { AgentConfig } from '../config/agent-config.js';
+import { createMemoryStore } from './memory/index.js';
 import { createUpsertMemoryTool } from './memory/tools.js';
 import { toStringContent, extractLatestAssistantMessage } from './utils/message-utils.js';
 import { formatTokenUsageSnapshot, type TokenUsageSnapshot } from './utils/token-counting.js';
@@ -29,28 +30,39 @@ export class LangGraphChatAgent implements ChatAgent {
   private readonly graphContext: GraphContext;
   private readonly logger?: Logger;
 
-  constructor(private readonly options: LangGraphChatAgentOptions) {
-    if (!process.env.DEEPINFRA_API_KEY) {
-      throw new Error('DEEPINFRA_API_KEY environment variable is required to run the chat agent.');
+  constructor(
+    private readonly options: LangGraphChatAgentOptions,
+    private readonly agentConfig: AgentConfig, // Now required - no env fallback
+  ) {
+    // Use agent config directly - no environment variable fallbacks
+    const apiKey = agentConfig.llm.apiKey;
+    const apiBase = agentConfig.llm.apiBase;
+    const model = agentConfig.llm.model;
+    const temperature = agentConfig.llm.temperature;
+
+    if (!apiKey) {
+      throw new Error(
+        `Agent config "${agentConfig.id}" is missing llm.apiKey. API key is required.`,
+      );
     }
 
     this.logger = options.logger;
 
     const chatModel = new ChatOpenAI({
-      model: options.config.model,
-      temperature: options.config.temperature,
-      apiKey: process.env.DEEPINFRA_API_KEY,
+      model,
+      temperature,
+      apiKey,
       configuration: {
-        baseURL: process.env.DEEPINFRA_API_BASE,
+        baseURL: apiBase,
       },
     });
 
     const summarizerModel = new ChatOpenAI({
-      model: options.config.model,
+      model,
       temperature: 0,
-      apiKey: process.env.DEEPINFRA_API_KEY,
+      apiKey,
       configuration: {
-        baseURL: process.env.DEEPINFRA_API_BASE,
+        baseURL: apiBase,
       },
     });
 
@@ -59,7 +71,18 @@ export class LangGraphChatAgent implements ChatAgent {
     let memoryTools: ReturnType<typeof createUpsertMemoryTool>[] | undefined;
 
     try {
-      const memoryConfig = loadMemoryConfig();
+      // Use agent config for memory (no .env fallback)
+      const memoryConfig = {
+        enabled: true,
+        apiKey: agentConfig.llm.apiKey,
+        embeddingEndpoint: agentConfig.memory.embeddingEndpoint,
+        embeddingModel: agentConfig.memory.embeddingModel,
+        similarityThreshold: agentConfig.memory.similarityThreshold,
+        contentMaxTokens: agentConfig.memory.maxTokens,
+        injectionBudget: agentConfig.memory.injectionBudget,
+        retrievalTimeoutMs: agentConfig.memory.retrievalTimeoutMs,
+      };
+
       if (memoryConfig.enabled) {
         memoryStore = createMemoryStore(this.logger ?? (console as unknown as Logger));
 
@@ -81,7 +104,23 @@ export class LangGraphChatAgent implements ChatAgent {
     }
 
     this.graphContext = buildConversationGraph(
-      { ...options, memoryStore, memoryTools },
+      {
+        ...options,
+        // Use agent-specific config values
+        config: {
+          ...options.config,
+          systemPrompt: agentConfig.systemPrompt,
+          personaTag: agentConfig.personaTag,
+          model: agentConfig.llm.model,
+          temperature: agentConfig.llm.temperature,
+          hotpathLimit: agentConfig.memory.hotPathLimit,
+          hotpathTokenBudget: agentConfig.memory.hotPathTokenBudget,
+          recentMessageFloor: agentConfig.memory.recentMessageFloor,
+          hotpathMarginPct: agentConfig.memory.hotPathMarginPct,
+        },
+        memoryStore,
+        memoryTools,
+      },
       chatModel,
       summarizerModel,
     );
@@ -262,8 +301,9 @@ export class LangGraphChatAgent implements ChatAgent {
 
 export function createLangGraphChatAgent(
   config: ServerConfig,
+  agentConfig: AgentConfig, // Required agent config from JSON file
   logger?: Logger,
   checkpointer?: BaseCheckpointSaver,
 ): LangGraphChatAgent {
-  return new LangGraphChatAgent({ config, logger, checkpointer });
+  return new LangGraphChatAgent({ config, logger, checkpointer }, agentConfig);
 }
