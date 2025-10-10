@@ -14,9 +14,10 @@ interface UseThreadsResult {
  * This follows the spec's "no loading indicators" requirement.
  *
  * @param userId - User ID to fetch threads for (null if not authenticated)
+ * @param agentId - Optional agent ID to filter threads by specific agent
  * @returns Thread list, error state, and manual refresh function
  */
-export function useThreads(userId: string | null): UseThreadsResult {
+export function useThreads(userId: string | null, agentId?: string | null): UseThreadsResult {
   const [threads, setThreads] = useState<ThreadMetadata[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -38,7 +39,11 @@ export function useThreads(userId: string | null): UseThreadsResult {
 
     try {
       setError(null);
-      const response = await fetch(`/api/threads?userId=${userId}`, {
+      const params = new URLSearchParams({ userId });
+      if (agentId) {
+        params.append('agentId', agentId);
+      }
+      const response = await fetch(`/api/threads?${params}`, {
         signal: controller.signal,
       });
 
@@ -62,7 +67,7 @@ export function useThreads(userId: string | null): UseThreadsResult {
       setError(err instanceof Error ? err : new Error('Unknown error fetching threads'));
       setThreads([]); // Clear threads on error
     }
-  }, [userId]);
+  }, [userId, agentId]);
 
   // Auto-fetch when userId changes
   useEffect(() => {

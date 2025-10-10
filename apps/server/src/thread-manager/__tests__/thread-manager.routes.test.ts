@@ -3,7 +3,7 @@ import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { buildServer } from '../../app.js';
 import type { ChatAgent } from '../../chat/chat-agent.js';
 import type { ServerConfig } from '../../config.js';
-import type { ThreadManager } from '../../thread-manager/thread-manager.js';
+import type { ThreadManager } from '../thread-manager.js';
 
 vi.mock('../../config/agent-loader.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../config/agent-loader.js')>();
@@ -20,17 +20,24 @@ vi.mock('../../config/agent-loader.js', async (importOriginal) => {
         model: 'test-model',
         temperature: 0.7,
       },
-      memorySystem: {
-        similarityThreshold: 0.7,
-        hotpathLimit: 10,
-        hotpathTokenBudget: 800,
+      memory: {
+        embeddingModel: 'test-embedding',
+        similarityThreshold: 0.5,
+        contentMaxTokens: 2048,
       },
-      personaTag: 'test',
+      behavior: {
+        systemPrompt: 'Test prompt',
+        personaTag: 'test',
+        hotpathLimit: 8,
+        recentMessageFloor: 2,
+        hotpathTokenBudget: 3000,
+        hotpathMarginPct: 0.1,
+      },
     })),
   };
 });
 
-describe('session routes', () => {
+describe('thread creation routes', () => {
   let threadManager: ThreadManager;
   let chatAgent: ChatAgent;
   let config: ServerConfig;
@@ -38,8 +45,8 @@ describe('session routes', () => {
   beforeEach(() => {
     threadManager = {
       issueThread: vi.fn(),
-      resetThread: vi.fn(),
       getThread: vi.fn(),
+      resetThread: vi.fn(),
     };
 
     chatAgent = {
@@ -69,13 +76,18 @@ describe('session routes', () => {
     vi.restoreAllMocks();
   });
 
-  it('creates a new session identifier', async () => {
+  it('creates a new thread identifier', async () => {
     const threadId = 'thread-new-123';
     vi.mocked(threadManager.issueThread).mockResolvedValue(threadId);
 
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const getAgent = async () => chatAgent;
-    const app = buildServer({ threadManager, getAgent, config, checkpointer: mockCheckpointer });
+    const app = buildServer({
+      threadManager,
+      getAgent,
+      config,
+      checkpointer: mockCheckpointer,
+    });
     await app.ready();
 
     const response = await app.inject({
@@ -88,18 +100,24 @@ describe('session routes', () => {
     expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual({ threadId });
     expect(threadManager.issueThread).toHaveBeenCalledTimes(1);
+    expect(threadManager.issueThread).toHaveBeenCalledWith('my-agent', undefined);
     expect(threadManager.resetThread).not.toHaveBeenCalled();
 
     await app.close();
   });
 
-  it('resets provided previous session before issuing a new one', async () => {
+  it('resets provided previous thread before issuing a new one', async () => {
     const threadId = 'thread-new-456';
     vi.mocked(threadManager.issueThread).mockResolvedValue(threadId);
 
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const getAgent = async () => chatAgent;
-    const app = buildServer({ threadManager, getAgent, config, checkpointer: mockCheckpointer });
+    const app = buildServer({
+      threadManager,
+      getAgent,
+      config,
+      checkpointer: mockCheckpointer,
+    });
     await app.ready();
 
     const response = await app.inject({
@@ -121,6 +139,10 @@ describe('session routes', () => {
       '550e8400-e29b-41d4-a716-446655440000',
     );
     expect(threadManager.issueThread).toHaveBeenCalledTimes(1);
+    expect(threadManager.issueThread).toHaveBeenCalledWith(
+      'my-agent',
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
 
     await app.close();
   });
@@ -128,7 +150,12 @@ describe('session routes', () => {
   it('rejects invalid payloads', async () => {
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const getAgent = async () => chatAgent;
-    const app = buildServer({ threadManager, getAgent, config, checkpointer: mockCheckpointer });
+    const app = buildServer({
+      threadManager,
+      getAgent,
+      config,
+      checkpointer: mockCheckpointer,
+    });
     await app.ready();
 
     const response = await app.inject({

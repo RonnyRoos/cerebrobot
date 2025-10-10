@@ -11,6 +11,7 @@ import type { ThreadService } from './service.js';
 // Request validation schemas
 const ListThreadsQuerySchema = z.object({
   userId: z.string().uuid('Invalid userId format'),
+  agentId: z.string().min(1, 'agentId must not be empty').optional(),
 });
 
 const GetThreadHistoryParamsSchema = z.object({
@@ -36,10 +37,10 @@ export function registerThreadRoutes(app: FastifyInstance, threadService: Thread
       });
     }
 
-    const { userId } = queryParse.data;
+    const { userId, agentId } = queryParse.data;
 
     try {
-      const threads = await threadService.listThreads(userId);
+      const threads = await threadService.listThreads(userId, agentId);
 
       return reply.status(200).send({
         threads,

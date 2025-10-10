@@ -7,6 +7,7 @@ import { z } from 'zod';
 export const ThreadMetadataSchema = z.object({
   threadId: z.string().uuid(),
   userId: z.string().uuid(),
+  agentId: z.string(), // Agent configuration ID for this thread
   title: z.string().min(1).max(50),
   lastMessage: z.string().max(100),
   lastMessageRole: z.enum(['user', 'assistant']),
@@ -52,3 +53,13 @@ export const MessageHistoryResponseSchema = z.object({
 });
 
 export type MessageHistoryResponse = z.infer<typeof MessageHistoryResponseSchema>;
+
+/**
+ * Thread Creation Response Schema
+ * API response from POST /api/thread
+ */
+export const ThreadCreateResponseSchema = z.object({
+  threadId: z.string().uuid(),
+});
+
+export type ThreadCreateResponse = z.infer<typeof ThreadCreateResponseSchema>;

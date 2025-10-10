@@ -3,7 +3,7 @@ import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { buildServer } from '../../app.js';
 import type { ChatAgent, AgentStreamEvent, ChatInvocationContext } from '../chat-agent.js';
 import type { ServerConfig } from '../../config.js';
-import type { ThreadManager } from '../../session/session-manager.js';
+import type { ThreadManager } from '../../thread-manager/thread-manager.js';
 
 function createServerConfig(): ServerConfig {
   return {
@@ -23,6 +23,7 @@ function createServerConfig(): ServerConfig {
 function createThreadManager(): ThreadManager {
   return {
     issueThread: vi.fn(async () => 'unused'),
+    getThread: vi.fn(async () => ({ id: 'test-thread', agentId: 'my-agent', userId: null })),
     resetThread: vi.fn(async () => undefined),
   };
 }
@@ -88,7 +89,7 @@ describe('POST /api/chat', () => {
     const app = buildServer({
       config,
       threadManager,
-      chatAgent: agent,
+      getAgent: async () => agent,
       checkpointer: mockCheckpointer,
     });
     await app.ready();
@@ -138,7 +139,7 @@ describe('POST /api/chat', () => {
     const app = buildServer({
       config,
       threadManager,
-      chatAgent: agent,
+      getAgent: async () => agent,
       checkpointer: mockCheckpointer,
     });
     await app.ready();

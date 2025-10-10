@@ -1,0 +1,24 @@
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "My Assistant",
+  "systemPrompt": "You are a helpful, friendly AI assistant. Be concise and clear in your responses.",
+  "personaTag": "assistant",
+  "llm": {
+    "model": "deepseek-ai/DeepSeek-V3.1-Terminus",
+    "temperature": 0.7,
+    "apiKey": "YOUR_DEEPINFRA_API_KEY_HERE",
+    "apiBase": "https://api.deepinfra.com/v1/openai"
+  },
+  "memory": {
+    "hotPathLimit": 1000,
+    "hotPathTokenBudget": 1024,
+    "recentMessageFloor": 2,
+    "hotPathMarginPct": 0.3,
+    "embeddingModel": "Qwen/Qwen3-Embedding-8B",
+    "embeddingEndpoint": "https://api.deepinfra.com/v1/openai",
+    "similarityThreshold": 0.5,
+    "maxTokens": 2048,
+    "injectionBudget": 1000,
+    "retrievalTimeoutMs": 5000
+  }
+}

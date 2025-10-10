@@ -2,10 +2,11 @@ import { config as loadEnv } from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pino from 'pino';
+import { PrismaClient } from '@prisma/client';
 import { buildServer } from './app.js';
 import { loadConfigFromEnv } from './config.js';
-import { createLangGraphChatAgent } from './agent/langgraph-agent.js';
-import { createThreadManager } from './session/session-manager.js';
+import { createAgentFactory } from './agent/agent-factory.js';
+import { createThreadManager } from './thread-manager/thread-manager.js';
 import { createCheckpointSaver } from './agent/checkpointer.js';
 
 export async function bootstrap(): Promise<void> {
@@ -39,22 +40,28 @@ export async function bootstrap(): Promise<void> {
   const config = loadConfigFromEnv();
   const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
+  // Create shared Prisma client
+  const prisma = new PrismaClient();
+
   // Create shared checkpointer instance
   const checkpointer = createCheckpointSaver(config);
 
-  const chatAgent = createLangGraphChatAgent(
-    config,
-    logger.child({ component: 'chat-agent' }),
+  // Create agent factory (lazy loading - no config/agent creation at startup)
+  const agentFactory = createAgentFactory({
+    serverConfig: config,
+    logger: logger.child({ component: 'agent-factory' }),
     checkpointer,
-  );
+  });
+
   const threadManager = createThreadManager({
-    chatAgent,
+    prisma,
+    getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     logger: logger.child({ component: 'thread-manager' }),
   });
 
   const server = buildServer({
     threadManager,
-    chatAgent,
+    getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     checkpointer,
     config,
     logger: logger.child({ component: 'fastify' }),
