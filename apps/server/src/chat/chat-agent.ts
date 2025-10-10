@@ -1,11 +1,8 @@
-import type { ServerConfig } from '../config.js';
-
 export interface ChatInvocationContext {
   readonly threadId: string;
   readonly userId: string; // REQUIRED: All chats must be tied to a user
   readonly message: string;
   readonly correlationId: string;
-  readonly config: ServerConfig;
 }
 
 export interface TokenUsageEvent {

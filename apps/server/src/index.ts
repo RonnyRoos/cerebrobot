@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import pino from 'pino';
 import { PrismaClient } from '@prisma/client';
 import { buildServer } from './app.js';
-import { loadConfigFromEnv } from './config.js';
+import { loadInfrastructureConfig } from './config.js';
 import { createAgentFactory } from './agent/agent-factory.js';
 import { createThreadManager } from './thread-manager/thread-manager.js';
 import { createCheckpointSaver } from './agent/checkpointer.js';
@@ -37,18 +37,17 @@ export async function bootstrap(): Promise<void> {
     }
   }
 
-  const config = loadConfigFromEnv();
+  const infrastructureConfig = loadInfrastructureConfig();
   const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
   // Create shared Prisma client
   const prisma = new PrismaClient();
 
-  // Create shared checkpointer instance
-  const checkpointer = createCheckpointSaver(config);
+  // Create shared checkpointer instance (only needs persistence config)
+  const checkpointer = createCheckpointSaver(infrastructureConfig);
 
-  // Create agent factory (lazy loading - no config/agent creation at startup)
+  // Create agent factory (lazy loading - agents loaded from JSON, not .env)
   const agentFactory = createAgentFactory({
-    serverConfig: config,
     logger: logger.child({ component: 'agent-factory' }),
     checkpointer,
   });
@@ -63,11 +62,10 @@ export async function bootstrap(): Promise<void> {
     threadManager,
     getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     checkpointer,
-    config,
     logger: logger.child({ component: 'fastify' }),
   });
 
-  const port = config.port;
+  const port = infrastructureConfig.port;
   const host = process.env.HOST ?? '0.0.0.0';
 
   const shutdown = async (signal: NodeJS.Signals) => {

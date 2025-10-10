@@ -1,5 +1,5 @@
 import { MemorySaver } from '@langchain/langgraph-checkpoint';
-import type { ServerConfig } from '../config.js';
+import type { InfrastructureConfig } from '../config.js';
 import { PostgresCheckpointSaver, type PostgresCheckpointOptions } from './postgres-checkpoint.js';
 
 const POSTGRES_SAVERS = new Map<string, PostgresCheckpointSaver>();
@@ -14,7 +14,7 @@ function getPostgresSaver(options: PostgresCheckpointOptions): PostgresCheckpoin
   return saver;
 }
 
-export function createCheckpointSaver(config: ServerConfig) {
+export function createCheckpointSaver(config: InfrastructureConfig) {
   if (config.persistence.provider === 'postgres' && config.persistence.postgres) {
     return getPostgresSaver(config.persistence.postgres);
   }

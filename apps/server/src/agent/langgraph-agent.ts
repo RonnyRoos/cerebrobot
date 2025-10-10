@@ -12,7 +12,6 @@ import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { Logger } from 'pino';
 import type { BaseStore } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
-import type { ServerConfig } from '../config.js';
 import type { AgentConfig } from '../config/agent-config.js';
 import { createMemoryStore } from './memory/index.js';
 import { createUpsertMemoryTool } from './memory/tools.js';
@@ -21,7 +20,6 @@ import { formatTokenUsageSnapshot, type TokenUsageSnapshot } from './utils/token
 import { type ConversationState, type MessageStream } from './graph/types.js';
 import {
   buildConversationGraph,
-  type LangGraphChatAgentOptions,
 } from './graph/conversation-graph.js';
 
 type GraphContext = ReturnType<typeof buildConversationGraph>;
@@ -29,11 +27,16 @@ type GraphContext = ReturnType<typeof buildConversationGraph>;
 export class LangGraphChatAgent implements ChatAgent {
   private readonly graphContext: GraphContext;
   private readonly logger?: Logger;
+  private readonly checkpointer?: BaseCheckpointSaver;
 
   constructor(
-    private readonly options: LangGraphChatAgentOptions,
-    private readonly agentConfig: AgentConfig, // Now required - no env fallback
+    agentConfig: AgentConfig, // Agent config from JSON
+    logger?: Logger,
+    checkpointer?: BaseCheckpointSaver,
   ) {
+    this.logger = logger;
+    this.checkpointer = checkpointer;
+
     // Use agent config directly - no environment variable fallbacks
     const apiKey = agentConfig.llm.apiKey;
     const apiBase = agentConfig.llm.apiBase;
@@ -45,8 +48,6 @@ export class LangGraphChatAgent implements ChatAgent {
         `Agent config "${agentConfig.id}" is missing llm.apiKey. API key is required.`,
       );
     }
-
-    this.logger = options.logger;
 
     const chatModel = new ChatOpenAI({
       model,
@@ -105,33 +106,21 @@ export class LangGraphChatAgent implements ChatAgent {
 
     this.graphContext = buildConversationGraph(
       {
-        ...options,
-        // Use agent-specific config values
-        config: {
-          ...options.config,
-          systemPrompt: agentConfig.systemPrompt,
-          personaTag: agentConfig.personaTag,
-          model: agentConfig.llm.model,
-          temperature: agentConfig.llm.temperature,
-          hotpathLimit: agentConfig.memory.hotPathLimit,
-          hotpathTokenBudget: agentConfig.memory.hotPathTokenBudget,
-          recentMessageFloor: agentConfig.memory.recentMessageFloor,
-          hotpathMarginPct: agentConfig.memory.hotPathMarginPct,
-        },
+        // Pass agent config values directly (no ServerConfig object)
+        systemPrompt: agentConfig.systemPrompt,
+        personaTag: agentConfig.personaTag,
+        model: agentConfig.llm.model,
+        hotpathLimit: agentConfig.memory.hotPathLimit,
+        hotpathTokenBudget: agentConfig.memory.hotPathTokenBudget,
+        recentMessageFloor: agentConfig.memory.recentMessageFloor,
+        hotpathMarginPct: agentConfig.memory.hotPathMarginPct,
+        logger: this.logger,
+        checkpointer: this.checkpointer,
         memoryStore,
         memoryTools,
       },
       chatModel,
       summarizerModel,
-    );
-
-    const persistenceProvider = options.config.persistence.provider;
-    this.logger?.info(
-      {
-        persistenceProvider,
-        persistenceConfigured: persistenceProvider === 'postgres',
-      },
-      'langgraph checkpointing configured',
     );
   }
 
@@ -300,10 +289,9 @@ export class LangGraphChatAgent implements ChatAgent {
 }
 
 export function createLangGraphChatAgent(
-  config: ServerConfig,
-  agentConfig: AgentConfig, // Required agent config from JSON file
+  agentConfig: AgentConfig, // Agent config from JSON file
   logger?: Logger,
   checkpointer?: BaseCheckpointSaver,
 ): LangGraphChatAgent {
-  return new LangGraphChatAgent({ config, logger, checkpointer }, agentConfig);
+  return new LangGraphChatAgent(agentConfig, logger, checkpointer);
 }
