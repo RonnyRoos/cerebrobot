@@ -25,31 +25,105 @@ const CONFIG_DIR = path.resolve(__dirname, '../../../../config/agents');
 const TEMPLATE_FILE = 'template.json';
 
 /**
- * Discover all agent configurations with fail-fast validation.
+ * Reserved UUID for .env fallback agent configuration.
  *
- * Scans CONFIG_DIR, validates ALL .json files (except template.json).
- * If ANY config is invalid, throws error (fail-fast).
- * Falls back to .env if directory missing/empty.
+ * This UUID is used when no JSON agent configs exist and the system
+ * falls back to reading configuration from environment variables.
  *
- * @param logger - Optional logger for warnings
- * @returns Array of agent metadata (id, name only)
- * @throws Error if any config file is invalid or unreadable
+ * Format: Uses version 5 UUID structure to indicate it's deterministic.
+ * Value chosen to be clearly distinguishable from random UUIDs.
+ *
+ * DO NOT use this UUID in your agent configuration files.
+ * This value is RESERVED for internal use only.
  */
-export async function discoverAgentConfigs(logger?: Logger): Promise<AgentMetadata[]> {
-  try {
-    const files = await fs.readdir(CONFIG_DIR);
+export const ENV_FALLBACK_AGENT_ID = '00000000-0000-5000-8000-000000000001';
+
+/**
+ * Options for AgentLoader constructor
+ */
+export interface AgentLoaderOptions {
+  /**
+   * Directory containing agent configuration JSON files.
+   * Defaults to CONFIG_DIR (config/agents) in production.
+   * Injectable for testing.
+   */
+  readonly configDir?: string;
+
+  /**
+   * Optional logger for diagnostic messages
+   */
+  readonly logger?: Logger;
+}
+
+/**
+ * Agent Configuration Loader
+ *
+ * Handles discovery and loading of agent configurations from filesystem.
+ * Supports dependency injection for testing (configDir parameter).
+ */
+export class AgentLoader {
+  private readonly configDir: string;
+  private readonly logger?: Logger;
+
+  constructor(options: AgentLoaderOptions = {}) {
+    this.configDir = options.configDir ?? CONFIG_DIR;
+    this.logger = options.logger;
+  }
+
+  /**
+   * Discover all agent configurations with fail-fast validation.
+   *
+   * Scans configDir, validates ALL .json files (except template.json).
+   * If ANY config is invalid, throws error (fail-fast).
+   * Falls back to .env if directory missing/empty.
+   *
+   * @returns Array of agent metadata (id, name only)
+   * @throws Error if any config file is invalid or unreadable
+   */
+  async discoverAgentConfigs(): Promise<AgentMetadata[]> {
+    return this.withEnvFallback(
+      () => this.discoverFromFilesystem(),
+      () => buildEnvFallbackMetadata(),
+      'Agent config directory not found or empty',
+    );
+  }
+
+  /**
+   * Load a specific agent configuration by ID with strict validation.
+   *
+   * Reads file from configDir, validates against schema.
+   * If config invalid or not found, throws error (fail-fast).
+   * Falls back to .env if directory missing/empty.
+   *
+   * @param agentId - UUID of the agent to load
+   * @returns Validated agent configuration
+   * @throws Error if config not found, invalid, or unreadable
+   */
+  async loadAgentConfig(agentId: string): Promise<AgentConfig> {
+    return this.withEnvFallback(
+      () => this.loadFromFilesystem(agentId),
+      () => buildEnvFallbackConfig(),
+      'Agent config directory not found',
+    );
+  }
+
+  /**
+   * Discover agent configs from filesystem (internal implementation)
+   */
+  private async discoverFromFilesystem(): Promise<AgentMetadata[]> {
+    const files = await fs.readdir(this.configDir);
     const jsonFiles = files.filter(
       (f) => f.endsWith('.json') && f !== TEMPLATE_FILE && !f.startsWith('.'),
     );
 
     if (jsonFiles.length === 0) {
-      logger?.info('No agent configs found, falling back to .env');
+      this.logger?.info('No agent configs found, falling back to .env');
       return buildEnvFallbackMetadata();
     }
 
     // Validate ALL configs (fail-fast)
     const metadataPromises = jsonFiles.map(async (filename) => {
-      const filePath = path.join(CONFIG_DIR, filename);
+      const filePath = path.join(this.configDir, filename);
       try {
         const content = await fs.readFile(filePath, 'utf-8');
         const json = JSON.parse(content);
@@ -69,45 +143,25 @@ export async function discoverAgentConfigs(logger?: Logger): Promise<AgentMetada
     });
 
     return await Promise.all(metadataPromises);
-  } catch (error: unknown) {
-    // Directory missing or unreadable → fallback to .env
-    if (isNodeError(error) && error.code === 'ENOENT') {
-      logger?.info(`Agent config directory not found: ${CONFIG_DIR}, falling back to .env`);
-      return buildEnvFallbackMetadata();
-    }
-
-    // Validation errors → fail-fast
-    throw error;
   }
-}
 
-/**
- * Load a specific agent configuration by ID with strict validation.
- *
- * Reads file from CONFIG_DIR, validates against schema.
- * If config invalid or not found, throws error (fail-fast).
- * Falls back to .env if directory missing/empty.
- *
- * @param agentId - UUID of the agent to load
- * @param logger - Optional logger for warnings
- * @returns Validated agent configuration
- * @throws Error if config not found, invalid, or unreadable
- */
-export async function loadAgentConfig(agentId: string, logger?: Logger): Promise<AgentConfig> {
-  try {
-    const files = await fs.readdir(CONFIG_DIR);
+  /**
+   * Load specific agent config from filesystem (internal implementation)
+   */
+  private async loadFromFilesystem(agentId: string): Promise<AgentConfig> {
+    const files = await fs.readdir(this.configDir);
     const jsonFiles = files.filter(
       (f) => f.endsWith('.json') && f !== TEMPLATE_FILE && !f.startsWith('.'),
     );
 
     if (jsonFiles.length === 0) {
-      logger?.info('No agent configs found, falling back to .env');
+      this.logger?.info('No agent configs found, falling back to .env');
       return buildEnvFallbackConfig();
     }
 
     // Find config file with matching ID
     for (const filename of jsonFiles) {
-      const filePath = path.join(CONFIG_DIR, filename);
+      const filePath = path.join(this.configDir, filename);
       const content = await fs.readFile(filePath, 'utf-8');
       const json = JSON.parse(content);
 
@@ -126,28 +180,74 @@ export async function loadAgentConfig(agentId: string, logger?: Logger): Promise
 
     // Not found
     throw new Error(`Agent configuration not found: ${agentId}`);
-  } catch (error: unknown) {
-    // Directory missing → fallback to .env
-    if (isNodeError(error) && error.code === 'ENOENT') {
-      logger?.info(`Agent config directory not found: ${CONFIG_DIR}, falling back to .env`);
-      return buildEnvFallbackConfig();
-    }
-
-    // Re-throw validation errors
-    throw error;
   }
+
+  /**
+   * Execute operation with .env fallback on ENOENT errors
+   *
+   * DRY helper to eliminate duplicated fallback logic.
+   */
+  private async withEnvFallback<T>(
+    operation: () => Promise<T>,
+    fallback: () => T,
+    context: string,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      // Directory missing or unreadable → fallback to .env
+      if (isNodeError(error) && error.code === 'ENOENT') {
+        this.logger?.info(`${context}, falling back to .env`);
+        return fallback();
+      }
+
+      // Validation errors and other errors → fail-fast
+      throw error;
+    }
+  }
+}
+
+/**
+ * Discover all agent configurations with fail-fast validation.
+ *
+ * Module-level convenience function for backward compatibility.
+ * Uses default CONFIG_DIR from environment.
+ *
+ * @param logger - Optional logger for warnings
+ * @returns Array of agent metadata (id, name only)
+ * @throws Error if any config file is invalid or unreadable
+ */
+export async function discoverAgentConfigs(logger?: Logger): Promise<AgentMetadata[]> {
+  const loader = new AgentLoader({ logger });
+  return loader.discoverAgentConfigs();
+}
+
+/**
+ * Load a specific agent configuration by ID with strict validation.
+ *
+ * Module-level convenience function for backward compatibility.
+ * Uses default CONFIG_DIR from environment.
+ *
+ * @param agentId - UUID of the agent to load
+ * @param logger - Optional logger for warnings
+ * @returns Validated agent configuration
+ * @throws Error if config not found, invalid, or unreadable
+ */
+export async function loadAgentConfig(agentId: string, logger?: Logger): Promise<AgentConfig> {
+  const loader = new AgentLoader({ logger });
+  return loader.loadAgentConfig(agentId);
 }
 
 /**
  * Build fallback AgentMetadata from current .env configuration.
  *
- * @returns Array with single agent metadata entry
+ * @returns Array with single agent metadata entry using ENV_FALLBACK_AGENT_ID
  */
 function buildEnvFallbackMetadata(): AgentMetadata[] {
   const config = loadConfigFromEnv();
   return [
     {
-      id: '00000000-0000-0000-0000-000000000000', // Sentinel UUID for .env fallback
+      id: ENV_FALLBACK_AGENT_ID,
       name: config.personaTag || 'Default Agent',
     },
   ];
@@ -156,7 +256,7 @@ function buildEnvFallbackMetadata(): AgentMetadata[] {
 /**
  * Build fallback AgentConfig from current .env configuration.
  *
- * @returns Complete agent config from environment variables
+ * @returns Complete agent config from environment variables using ENV_FALLBACK_AGENT_ID
  */
 function buildEnvFallbackConfig(): AgentConfig {
   const serverConfig = loadConfigFromEnv();
@@ -168,7 +268,7 @@ function buildEnvFallbackConfig(): AgentConfig {
   }
 
   return {
-    id: '00000000-0000-0000-0000-000000000000', // Sentinel UUID
+    id: ENV_FALLBACK_AGENT_ID,
     name: serverConfig.personaTag || 'Default Agent',
     systemPrompt: serverConfig.systemPrompt,
     personaTag: serverConfig.personaTag,
