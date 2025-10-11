@@ -22,6 +22,10 @@ const GetThreadHistoryQuerySchema = z.object({
   userId: z.string().uuid('Invalid userId format'),
 });
 
+const GetThreadHistoryQueryOptionalSchema = z.object({
+  userId: z.string().uuid('Invalid userId format').optional(),
+});
+
 export function registerThreadRoutes(app: FastifyInstance, threadService: ThreadService): void {
   /**
    * GET /api/threads
@@ -101,6 +105,62 @@ export function registerThreadRoutes(app: FastifyInstance, threadService: Thread
         }
 
         app.log.error({ error, threadId, userId }, 'Failed to get thread history');
+        return reply.status(500).send({
+          error: 'Failed to retrieve thread history',
+        });
+      }
+    },
+  );
+
+  /**
+   * GET /api/thread/:threadId/history
+   * Back-compat endpoint for legacy clients expecting singular /thread route.
+   */
+  app.get<{ Params: { threadId: string } }>(
+    '/api/thread/:threadId/history',
+    async (request, reply) => {
+      const paramsParse = GetThreadHistoryParamsSchema.safeParse(request.params);
+      const queryParse = GetThreadHistoryQueryOptionalSchema.safeParse(request.query);
+
+      if (!paramsParse.success) {
+        return reply.status(400).send({
+          error: 'Invalid thread ID',
+          details: paramsParse.error.issues,
+        });
+      }
+
+      if (!queryParse.success) {
+        return reply.status(400).send({
+          error: 'Invalid query parameters',
+          details: queryParse.error.issues,
+        });
+      }
+
+      const { threadId } = paramsParse.data;
+      const { userId } = queryParse.data;
+
+      try {
+        const history = await threadService.getThreadHistory(threadId, userId);
+        return reply.status(200).send(history);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        if (errorMessage.includes('not found')) {
+          return reply.status(404).send({
+            error: `Thread ${threadId} not found`,
+          });
+        }
+
+        if (errorMessage.includes('Unauthorized')) {
+          return reply.status(403).send({
+            error: 'You do not have access to this thread',
+          });
+        }
+
+        app.log.error(
+          { error, threadId, userId },
+          'Failed to get thread history via compatibility route',
+        );
         return reply.status(500).send({
           error: 'Failed to retrieve thread history',
         });

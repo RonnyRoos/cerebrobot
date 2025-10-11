@@ -7,7 +7,8 @@ This document constrains Cerebrobot's technology choices, especially for Phase 1
 - **Runtime**: Node.js ≥ 20 (required for Fastify v5 and modern TypeScript tooling).
 - **HTTP framework & plugins**:
   - `fastify@5.6.1` — current v5 LTS line.
-  - `fastify-sse-v2@4.2.1` — helper to expose Server-Sent Events.
+  - `@fastify/websocket@10.0.1` — Fastify plugin for WebSocket routes (1 MB payload cap).
+  - `ws@8.18.0` — underlying WebSocket implementation required by @fastify/websocket.
 - **LangGraph ecosystem**:
   - `@langchain/langgraph@0.4.9` — LangGraph runtime (includes `MemorySaver` checkpointer re-export).
   - `langchain@0.3.34` — LangChain JS core package.
