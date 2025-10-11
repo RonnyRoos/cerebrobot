@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@cerebrobot/chat-shared": "workspace:*",
+    "@fastify/websocket": "^11.2.0",
     "@langchain/core": "0.3.77",
     "@langchain/langgraph": "0.4.9",
     "@langchain/langgraph-checkpoint": "0.1.1",
@@ -29,6 +30,9 @@
     "zod": "4.1.11"
   },
   "devDependencies": {
-    "vitest": "1.6.0"
+    "@types/ws": "^8.18.1",
+    "vitest": "1.6.0",
+    "vitest-websocket-mock": "^0.5.0",
+    "ws": "^8.18.3"
   }
 }

@@ -44,11 +44,11 @@ export interface ThreadService {
   /**
    * Get complete message history for a specific thread
    * @param threadId - Thread ID to retrieve
-   * @param userId - User ID for authorization check
+   * @param userId - Optional user ID for authorization check. When omitted, the owner is inferred.
    * @returns Message history response with all messages
    * @throws Error if thread not found or user not authorized
    */
-  getThreadHistory(threadId: string, userId: string): Promise<MessageHistoryResponse>;
+  getThreadHistory(threadId: string, userId?: string): Promise<MessageHistoryResponse>;
 }
 
 interface ThreadServiceOptions {
@@ -193,7 +193,10 @@ class DefaultThreadService implements ThreadService {
     return threads;
   }
 
-  public async getThreadHistory(threadId: string, userId: string): Promise<MessageHistoryResponse> {
+  public async getThreadHistory(
+    threadId: string,
+    userId?: string,
+  ): Promise<MessageHistoryResponse> {
     const { checkpointer, logger } = this.options;
 
     logger?.debug({ threadId, userId }, 'Retrieving thread history');
@@ -221,14 +224,17 @@ class DefaultThreadService implements ThreadService {
     // Step 3: Validate userId matches state userId (NOT config.configurable.userId)
     // The userId is stored in the graph state's channel_values
     const checkpointUserId = channelValues.userId;
-    if (checkpointUserId !== userId) {
+    if (userId && checkpointUserId !== userId) {
       throw new Error(`Unauthorized: User ${userId} cannot access thread ${threadId}`);
     }
 
     // Step 4: Extract messages from state
     const messages = this.extractMessages(tuple.checkpoint);
 
-    logger?.info({ threadId, userId, messageCount: messages.length }, 'Retrieved thread history');
+    logger?.info(
+      { threadId, resolvedUserId: checkpointUserId, messageCount: messages.length },
+      'Retrieved thread history',
+    );
 
     return {
       threadId,
