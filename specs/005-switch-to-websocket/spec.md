@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-switch-to-websocket`  
 **Created**: October 11, 2025  
-**Status**: Draft  
+**Status**: Implemented  
 **Input**: User description: "We are switching to websocket as communication protocol. Focus on the switch, and REMOVE the old protocol. I don't want them running in parallell."
 
 ## Clarifications

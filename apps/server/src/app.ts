@@ -27,6 +27,9 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
     logger: fastifyLogger,
   });
 
+  // Initialize PrismaClient as singleton for the application lifecycle
+  const prisma = new PrismaClient();
+
   // Register WebSocket plugin first
   app.register(websocket, {
     options: {
@@ -45,14 +48,18 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
       logger,
     });
 
-    // Initialize ThreadService with checkpointer and Prisma
-    const prisma = new PrismaClient();
+    // Initialize ThreadService with checkpointer and singleton Prisma instance
     const threadService = createThreadService({
       checkpointer: options.checkpointer,
       prisma,
       logger: logger.child({ component: 'thread-service' }),
     });
     registerThreadRoutes(fastifyInstance, threadService);
+  });
+
+  // Cleanup Prisma connection on server shutdown
+  app.addHook('onClose', async () => {
+    await prisma.$disconnect();
   });
 
   logger.info('fastify server initialized');

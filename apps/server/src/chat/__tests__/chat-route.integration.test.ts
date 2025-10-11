@@ -57,13 +57,14 @@ describe('Chat routes', () => {
 
     try {
       expect(app.hasRoute({ method: 'GET', url: '/api/chat/ws' })).toBe(true);
+      // Verify no dedicated SSE endpoint exists (SSE functionality was removed)
       expect(app.hasRoute({ method: 'GET', url: '/api/chat/sse' })).toBe(false);
     } finally {
       await app.close();
     }
   });
 
-  it('falls back to buffered JSON when SSE is not requested and omits summaries', async () => {
+  it('falls back to buffered JSON for non-streaming requests and omits summaries', async () => {
     const agent = createAgent({
       streamChat: vi.fn(async function* () {
         // streaming should not occur in fallback mode
