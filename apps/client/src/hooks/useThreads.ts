@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ThreadMetadata } from '@cerebrobot/chat-shared';
+import { getJson } from '../lib/api-client.js';
 
 interface UseThreadsResult {
   threads: ThreadMetadata[];
@@ -43,15 +44,8 @@ export function useThreads(userId: string | null, agentId?: string | null): UseT
       if (agentId) {
         params.append('agentId', agentId);
       }
-      const response = await fetch(`/api/threads?${params}`, {
-        signal: controller.signal,
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch threads: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await getJson<{ threads: ThreadMetadata[] }>(`/api/threads?${params}`);
 
       // Validate response structure
       if (!data.threads || !Array.isArray(data.threads)) {

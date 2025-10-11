@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, memo } from 'react';
 import type { ThreadMetadata } from '@cerebrobot/chat-shared';
 
 interface ThreadListItemProps {
@@ -15,8 +15,14 @@ interface ThreadListItemProps {
  * - Last message preview with role indicator ("You: " or "Assistant: ")
  * - Relative timestamp (e.g., "5m ago", "2h ago", "Yesterday")
  * - Message count
+ *
+ * Memoized to prevent re-renders when parent updates but props haven't changed.
  */
-export function ThreadListItem({ thread, agentName, onSelect }: ThreadListItemProps): JSX.Element {
+const ThreadListItemComponent = ({
+  thread,
+  agentName,
+  onSelect,
+}: ThreadListItemProps): JSX.Element => {
   const [isHovered, setIsHovered] = useState(false);
 
   /**
@@ -121,4 +127,10 @@ export function ThreadListItem({ thread, agentName, onSelect }: ThreadListItemPr
       </div>
     </button>
   );
-}
+};
+
+/**
+ * Memoized ThreadListItem component
+ * Only re-renders when thread, agentName, or onSelect changes
+ */
+export const ThreadListItem = memo(ThreadListItemComponent);

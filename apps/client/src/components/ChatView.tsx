@@ -1,7 +1,7 @@
 import { useThread } from '../hooks/useThread.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 
 interface ChatViewProps {
   userId: string;
@@ -59,7 +59,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   }, []); // Run only once on mount - threadId doesn't change for a ChatView instance
 
   // Callback to get active thread ID for message sending
-  const getActiveThreadId = async (): Promise<string | null> => {
+  const getActiveThreadId = useCallback(async (): Promise<string | null> => {
     if (activeThreadId) return activeThreadId;
     if (!threadPromise) return null;
     try {
@@ -67,7 +67,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     } catch {
       return null;
     }
-  };
+  }, [activeThreadId, threadPromise]);
 
   const { messages, isStreaming, error, pendingMessage, handleSend, setPendingMessage, clearChat } =
     useChatMessages({
@@ -76,15 +76,24 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       initialMessages,
     });
 
-  const startNewThread = async (previousThreadId?: string) => {
-    clearChat();
+  const startNewThread = useCallback(
+    async (previousThreadId?: string) => {
+      clearChat();
 
-    try {
-      await createThread(agentId, previousThreadId, undefined, userId);
-    } catch (err) {
-      // Error will be set by the thread hook
+      try {
+        await createThread(agentId, previousThreadId, undefined, userId);
+      } catch (err) {
+        // Error will be set by the thread hook
+      }
+    },
+    [clearChat, createThread, agentId, userId],
+  );
+
+  const handleNewThread = useCallback(() => {
+    if (activeThreadId) {
+      void startNewThread(activeThreadId);
     }
-  };
+  }, [activeThreadId, startNewThread]);
 
   const disableSend = !pendingMessage.trim() || isStreaming;
 
@@ -188,11 +197,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
           <button type="submit" disabled={disableSend}>
             Send
           </button>
-          <button
-            type="button"
-            onClick={() => activeThreadId && void startNewThread(activeThreadId)}
-            disabled={!activeThreadId}
-          >
+          <button type="button" onClick={handleNewThread} disabled={!activeThreadId}>
             New Thread
           </button>
         </div>

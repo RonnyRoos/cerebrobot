@@ -1,4 +1,11 @@
 # TODO
+## Switch to websocket communication protocol
+
+## Decide to send the user follow up messages without them interacting
+
+## Show the user summarizations
+
+## Show the users the content of the brain
 
 # DONE
 ## ✅ Phase 2 – Memory Store Foundations

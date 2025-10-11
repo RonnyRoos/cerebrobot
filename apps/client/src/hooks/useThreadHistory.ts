@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Message } from '@cerebrobot/chat-shared';
+import { getJson } from '../lib/api-client.js';
 
 interface UseThreadHistoryResult {
   messages: Message[];
@@ -35,20 +36,7 @@ export function useThreadHistory(
 
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`/api/threads/${threadId}/messages?userId=${userId}`);
-
-        if (!response.ok) {
-          // 404 is expected for new threads with no messages yet
-          if (response.status === 404) {
-            setMessages([]); // Empty history for new thread
-            return;
-          }
-          throw new Error(
-            `Failed to fetch thread history: ${response.status} ${response.statusText}`,
-          );
-        }
-
-        const data = await response.json();
+        const data = await getJson<{ messages: Message[] }>(`/api/thread/${threadId}/history`);
 
         // Validate response structure
         if (!data.messages || !Array.isArray(data.messages)) {
@@ -57,6 +45,11 @@ export function useThreadHistory(
 
         setMessages(data.messages);
       } catch (err) {
+        // 404 is expected for new threads with no messages yet
+        if (err instanceof Error && err.message.includes('404')) {
+          setMessages([]); // Empty history for new thread
+          return;
+        }
         setError(err instanceof Error ? err : new Error('Unknown error fetching thread history'));
         setMessages([]); // Clear messages on error
       }

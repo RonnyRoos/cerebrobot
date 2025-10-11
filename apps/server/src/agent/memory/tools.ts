@@ -72,7 +72,7 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
         const memoryId = randomUUID();
 
         // Generate embedding
-        const embedding = await generateEmbedding(content, config);
+        const embedding = await generateEmbedding(content, config, logger);
 
         if (!embedding) {
           logger.error('Failed to generate embedding for memory');

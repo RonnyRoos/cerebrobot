@@ -25,9 +25,12 @@ export const LLMConfigSchema = z.object({
 });
 
 /**
- * Memory System Configuration
+ * Memory System Configuration (Agent-level)
+ *
+ * Defined in agent JSON configuration files.
+ * Distinct from SystemMemoryConfigSchema in agent/memory/config.ts.
  */
-export const MemoryConfigSchema = z.object({
+export const AgentMemoryConfigSchema = z.object({
   /** Max recent messages kept verbatim before summarization */
   hotPathLimit: z.number().int().positive('Must be a positive integer'),
 
@@ -79,7 +82,7 @@ export const AgentConfigSchema = z.object({
   llm: LLMConfigSchema,
 
   /** Memory system configuration */
-  memory: MemoryConfigSchema,
+  memory: AgentMemoryConfigSchema,
 });
 
 /**
@@ -99,6 +102,6 @@ export const AgentMetadataSchema = z.object({
  * TypeScript Types (inferred from schemas)
  */
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
-export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
+export type AgentMemoryConfig = z.infer<typeof AgentMemoryConfigSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 export type AgentMetadata = z.infer<typeof AgentMetadataSchema>;

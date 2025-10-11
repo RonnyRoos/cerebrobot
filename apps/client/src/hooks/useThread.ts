@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { ThreadCreateResponseSchema } from '@cerebrobot/chat-shared';
+import { postJson } from '../lib/api-client.js';
 
 /**
  * useThread Hook
@@ -71,22 +72,7 @@ export function useThread(): UseThreadResult {
     }
 
     try {
-      const response = await fetch('/api/thread', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const context = previousThreadId ? ` (resetting from ${previousThreadId})` : '';
-        throw new Error(
-          `Failed to establish thread${context}: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const json = await response.json();
+      const json = await postJson('/api/thread', body);
       const payload = ThreadCreateResponseSchema.parse(json);
       return payload.threadId;
     } catch (err) {

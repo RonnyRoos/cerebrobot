@@ -4,6 +4,7 @@
  * Generates vector embeddings for semantic memory search using DeepInfra.
  */
 
+import type { Logger } from 'pino';
 import OpenAI from 'openai';
 import type { MemoryConfig } from './config.js';
 
@@ -16,11 +17,13 @@ import type { MemoryConfig } from './config.js';
  *
  * @param text - Text to embed
  * @param config - Memory configuration
- * @returns 384-dimensional embedding vector, or null on failure
+ * @param logger - Optional logger for diagnostic messages
+ * @returns 1536-dimensional embedding vector, or null on failure
  */
 export async function generateEmbedding(
   text: string,
   config: MemoryConfig,
+  logger?: Logger,
 ): Promise<number[] | null> {
   try {
     // Use OpenAI SDK directly for full control over request parameters
@@ -39,22 +42,19 @@ export async function generateEmbedding(
     const embedding = response.data[0]?.embedding;
 
     if (!embedding) {
-      console.error('No embedding returned from API');
+      logger?.error('No embedding returned from API');
       return null;
     }
 
     // Log the dimensions we received
-    console.log(
-      `✓ Generated embedding with ${embedding.length} dimensions for model ${config.embeddingModel}`,
+    logger?.debug(
+      { embeddingLength: embedding.length, model: config.embeddingModel },
+      'Generated embedding',
     );
 
     return embedding;
   } catch (error) {
-    console.error('Failed to generate embedding:', error);
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
+    logger?.error({ error }, 'Failed to generate embedding');
     return null;
   }
 }

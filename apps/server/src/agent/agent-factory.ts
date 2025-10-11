@@ -8,11 +8,7 @@
 import type { Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { ChatAgent } from '../chat/chat-agent.js';
-import {
-  discoverAgentConfigs,
-  loadAgentConfig,
-  ENV_FALLBACK_AGENT_ID,
-} from '../config/agent-loader.js';
+import { discoverAgentConfigs, loadAgentConfig } from '../config/agent-loader.js';
 import { createLangGraphChatAgent } from './langgraph-agent.js';
 
 export interface AgentFactoryOptions {
@@ -37,7 +33,7 @@ export class AgentFactory {
    * Lazy loading: Config is loaded on first use of each agentId.
    * Caching: Agent instance is reused for subsequent calls with same agentId.
    *
-   * @param agentId - Optional agent ID. If not provided, uses first available config or .env fallback.
+   * @param agentId - Optional agent ID. If not provided, uses first available config.
    * @returns Chat agent instance
    * @throws Error if config is invalid or not found
    */
@@ -77,29 +73,26 @@ export class AgentFactory {
   }
 
   /**
-   * Get the default agent ID for Phase 1 (first available config or .env fallback).
+   * Get the default agent ID for Phase 1 (first available config).
    *
-   * @returns Agent ID (first available) or ENV_FALLBACK_AGENT_ID for .env fallback
+   * @returns Agent ID (first available)
+   * @throws Error if no agent configs are found
    */
   private async getDefaultAgentId(): Promise<string> {
-    try {
-      const configs = await discoverAgentConfigs(this.options.logger);
+    const configs = await discoverAgentConfigs(this.options.logger);
 
-      if (configs.length === 0) {
-        this.options.logger?.info('No JSON configs found, using .env fallback');
-        return ENV_FALLBACK_AGENT_ID;
-      }
-
-      // Phase 1: Use first available config
-      this.options.logger?.info(
-        { agentId: configs[0].id, agentName: configs[0].name },
-        'Using first available agent config',
+    if (configs.length === 0) {
+      throw new Error(
+        'No agent configurations found. Please create at least one agent config in config/agents/',
       );
-      return configs[0].id;
-    } catch (error) {
-      this.options.logger?.warn({ error }, 'Failed to discover configs, using .env fallback');
-      return ENV_FALLBACK_AGENT_ID;
     }
+
+    // Phase 1: Use first available config
+    this.options.logger?.info(
+      { agentId: configs[0].id, agentName: configs[0].name },
+      'Using first available agent config',
+    );
+    return configs[0].id;
   }
 
   /**
