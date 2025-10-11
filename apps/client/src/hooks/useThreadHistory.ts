@@ -36,7 +36,8 @@ export function useThreadHistory(
 
     const fetchHistory = async () => {
       try {
-        const data = await getJson<{ messages: Message[] }>(`/api/thread/${threadId}/history`);
+        const historyPath = `/api/threads/${threadId}/messages?userId=${encodeURIComponent(userId)}`;
+        const data = await getJson<{ messages: Message[] }>(historyPath);
 
         // Validate response structure
         if (!data.messages || !Array.isArray(data.messages)) {

@@ -1,4 +1,5 @@
 import fastify, { FastifyInstance } from 'fastify';
+import websocket from '@fastify/websocket';
 import pino, { type Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { PrismaClient } from '@prisma/client';
@@ -26,23 +27,33 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
     logger: fastifyLogger,
   });
 
-  registerAgentRoutes(app);
-  registerThreadCreationRoutes(app, options.threadManager);
-  registerUserRoutes(app, { logger });
-  registerChatRoutes(app, {
-    threadManager: options.threadManager,
-    getAgent: options.getAgent,
-    logger,
+  // Register WebSocket plugin first
+  app.register(websocket, {
+    options: {
+      maxPayload: 1_048_576,
+    },
   });
 
-  // Initialize ThreadService with checkpointer and Prisma
-  const prisma = new PrismaClient();
-  const threadService = createThreadService({
-    checkpointer: options.checkpointer,
-    prisma,
-    logger: logger.child({ component: 'thread-service' }),
+  // Register routes after WebSocket plugin to ensure proper plugin ordering
+  app.register(async (fastifyInstance) => {
+    registerAgentRoutes(fastifyInstance);
+    registerThreadCreationRoutes(fastifyInstance, options.threadManager);
+    registerUserRoutes(fastifyInstance, { logger });
+    registerChatRoutes(fastifyInstance, {
+      threadManager: options.threadManager,
+      getAgent: options.getAgent,
+      logger,
+    });
+
+    // Initialize ThreadService with checkpointer and Prisma
+    const prisma = new PrismaClient();
+    const threadService = createThreadService({
+      checkpointer: options.checkpointer,
+      prisma,
+      logger: logger.child({ component: 'thread-service' }),
+    });
+    registerThreadRoutes(fastifyInstance, threadService);
   });
-  registerThreadRoutes(app, threadService);
 
   logger.info('fastify server initialized');
 
