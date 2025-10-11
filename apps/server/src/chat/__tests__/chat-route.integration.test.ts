@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { buildServer } from '../../app.js';
-import type { ChatAgent, AgentStreamEvent, ChatInvocationContext } from '../chat-agent.js';
+import type { ChatAgent, AgentStreamEvent } from '../chat-agent.js';
 import type { ThreadManager } from '../../thread-manager/thread-manager.js';
 
 function createThreadManager(): ThreadManager {
   return {
     issueThread: vi.fn(async () => 'unused'),
-    getThread: vi.fn(async () => ({ id: 'test-thread', agentId: 'my-agent', userId: null })),
+    getThread: vi.fn(async (threadId: string) => ({
+      id: threadId,
+      agentId: 'my-agent',
+      userId: 'test-user',
+    })),
     resetThread: vi.fn(async () => undefined),
   };
 }
@@ -30,7 +34,7 @@ function createAgent(overrides: Partial<ChatAgent> = {}): ChatAgent {
   };
 }
 
-describe('POST /api/chat', () => {
+describe('Chat routes', () => {
   let threadManager: ThreadManager;
 
   beforeEach(() => {
@@ -41,32 +45,8 @@ describe('POST /api/chat', () => {
     vi.restoreAllMocks();
   });
 
-  it('streams tokens over SSE and redacts LangMem summaries', async () => {
-    const events: AgentStreamEvent[] = [
-      { type: 'token', value: 'Hello' },
-      { type: 'token', value: ' world' },
-      {
-        type: 'final',
-        message: 'Hello world',
-        summary: 'summaries stay internal',
-        latencyMs: 1500,
-        tokenUsage: { recentTokens: 12, overflowTokens: 0, budget: 3000, utilisationPct: 0 },
-      },
-    ];
-
-    const agent = createAgent({
-      streamChat: vi.fn(async function* () {
-        for (const event of events) {
-          yield event;
-        }
-      }),
-      completeChat: vi.fn(async () => ({
-        message: 'Hello world',
-        summary: undefined,
-        latencyMs: 1500,
-      })),
-    });
-
+  it('registers only the WebSocket streaming endpoint for chat streaming', async () => {
+    const agent = createAgent();
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const app = buildServer({
       threadManager,
@@ -75,35 +55,16 @@ describe('POST /api/chat', () => {
     });
     await app.ready();
 
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/chat',
-      headers: {
-        accept: 'text/event-stream',
-        'content-type': 'application/json',
-      },
-      payload: {
-        userId: '550e8400-e29b-41d4-a716-446655440000',
-        threadId: 'thread-123',
-        message: 'Hello?',
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.headers['content-type']).toContain('text/event-stream');
-    expect(response.payload).toContain('data: {"value":"Hello"}');
-    expect(response.payload).not.toContain('summary');
-    expect(response.payload).toContain('"tokenUsage"');
-
-    expect(agent.streamChat).toHaveBeenCalledTimes(1);
-    const invocation = vi.mocked(agent.streamChat).mock.calls[0][0] as ChatInvocationContext;
-    expect(invocation.threadId).toBe('thread-123');
-    expect(invocation.message).toBe('Hello?');
-
-    await app.close();
+    try {
+      expect(app.hasRoute({ method: 'GET', url: '/api/chat/ws' })).toBe(true);
+      // Verify no dedicated SSE endpoint exists (SSE functionality was removed)
+      expect(app.hasRoute({ method: 'GET', url: '/api/chat/sse' })).toBe(false);
+    } finally {
+      await app.close();
+    }
   });
 
-  it('falls back to buffered JSON when SSE is not requested and omits summaries', async () => {
+  it('falls back to buffered JSON for non-streaming requests and omits summaries', async () => {
     const agent = createAgent({
       streamChat: vi.fn(async function* () {
         // streaming should not occur in fallback mode

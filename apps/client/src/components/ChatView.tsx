@@ -69,12 +69,21 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     }
   }, [activeThreadId, threadPromise]);
 
-  const { messages, isStreaming, error, pendingMessage, handleSend, setPendingMessage, clearChat } =
-    useChatMessages({
-      userId,
-      getActiveThreadId,
-      initialMessages,
-    });
+  const {
+    messages,
+    isStreaming,
+    error,
+    connectionState,
+    pendingMessage,
+    handleSend,
+    setPendingMessage,
+    onRetry,
+    clearChat,
+  } = useChatMessages({
+    userId,
+    getActiveThreadId,
+    initialMessages,
+  });
 
   const startNewThread = useCallback(
     async (previousThreadId?: string) => {
@@ -95,7 +104,11 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     }
   }, [activeThreadId, startNewThread]);
 
-  const disableSend = !pendingMessage.trim() || isStreaming;
+  const disableSend =
+    !pendingMessage.trim() ||
+    isStreaming ||
+    connectionState === 'connecting' ||
+    connectionState === 'closing';
 
   return (
     <section aria-label="Chat panel">
@@ -160,9 +173,38 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
 
       {/* Show message streaming or thread error */}
       {error && (
-        <div role="alert">
-          <strong>{error.message}</strong>
-          {error.retryable && <span> — You can try again.</span>}
+        <div
+          role="alert"
+          style={{
+            margin: '1rem',
+            padding: '1rem',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '0.5rem',
+          }}
+        >
+          <strong style={{ color: '#991b1b' }}>{error.message}</strong>
+          {error.retryable ? (
+            <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem' }}>
+              <span style={{ color: '#b91c1c' }}>You can try again.</span>
+              <button
+                type="button"
+                onClick={() => onRetry()}
+                disabled={isStreaming}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#3b82f6',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  opacity: isStreaming ? 0.6 : 1,
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 

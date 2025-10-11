@@ -287,4 +287,36 @@ describe('Thread Routes', () => {
       expect(payload.error).toBe('Failed to retrieve thread history');
     });
   });
+
+  describe('GET /api/thread/:threadId/history', () => {
+    it('returns message history when userId is omitted (legacy path)', async () => {
+      const mockHistory: MessageHistoryResponse = {
+        threadId: '55555555-5555-4555-8555-555555555555',
+        messages: [],
+      };
+
+      vi.mocked(mockThreadService.getThreadHistory).mockResolvedValue(mockHistory);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/thread/55555555-5555-4555-8555-555555555555/history',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockThreadService.getThreadHistory).toHaveBeenCalledWith(
+        '55555555-5555-4555-8555-555555555555',
+        undefined,
+      );
+    });
+
+    it('returns 400 when legacy route receives invalid userId query', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/thread/55555555-5555-4555-8555-555555555555/history?userId=not-a-uuid',
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockThreadService.getThreadHistory).not.toHaveBeenCalled();
+    });
+  });
 });

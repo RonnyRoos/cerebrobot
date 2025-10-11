@@ -15,6 +15,7 @@
 - Cerebrobot is a LangGraph-powered chatbot with an inspectable memory graph aimed at single-operator, Docker Compose deployments ([Mission Statement](docs/mission.md)).
 - Phase 1 scope: scaffold the conversational core, expose operator-managed memory read/write, and prove the loop with focused tests ([Mission Statement](docs/mission.md)).
 - Future phases add persistence, public APIs, frontend, and multi-agent extensions—design seams with that roadmap in mind without building them prematurely ([Mission Statement](docs/mission.md)).
+- Chat transport has migrated to WebSockets (`GET /api/chat/ws`); SSE endpoints were removed, and tests rely on `vitest-websocket-mock`/`mock-socket` for client flows.
 
 ## Working cadence for agents
 1. Read the roadmap, tech stack, and style guides before coding; keep them open for cross-checks ([Tech Stack Guardrails](docs/tech-stack.md), [Engineering Best Practices](docs/best-practices.md), [TypeScript Code Style](docs/code-style.md)).
@@ -31,6 +32,7 @@
 ## Testing & QA
 - Mirror CI locally using the `pnpm` scripts referenced in the best practices guide; never merge with failing lint, format, or test runs ([Engineering Best Practices](docs/best-practices.md)).
 - Prioritize deterministic tests around LangGraph nodes, memory persistence, and configuration parsing; add regression tests when fixing bugs ([Engineering Best Practices](docs/best-practices.md)).
+- Prefer WebSocket-powered fixtures in new tests (`vitest-websocket-mock` for React hooks, route presence assertions on the Fastify side) instead of legacy SSE harnesses.
 - When editing memory flows, verify persistence aligns with the Phase 2 plan so future work can extend your implementation ([Mission Statement](docs/mission.md)).
 
 ## Knowledge base for agents
