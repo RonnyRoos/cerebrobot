@@ -18,9 +18,7 @@ import { createUpsertMemoryTool } from './memory/tools.js';
 import { toStringContent, extractLatestAssistantMessage } from './utils/message-utils.js';
 import { formatTokenUsageSnapshot, type TokenUsageSnapshot } from './utils/token-counting.js';
 import { type ConversationState, type MessageStream } from './graph/types.js';
-import {
-  buildConversationGraph,
-} from './graph/conversation-graph.js';
+import { buildConversationGraph } from './graph/conversation-graph.js';
 
 type GraphContext = ReturnType<typeof buildConversationGraph>;
 

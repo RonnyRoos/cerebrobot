@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AIMessage } from '@langchain/core/messages';
+import { MemorySaver } from '@langchain/langgraph';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import type { AgentStreamEvent, ChatInvocationContext } from '../../chat/chat-agent.js';
-import type { ServerConfig } from '../../config.js';
 import type { AgentConfig } from '../../config/agent-config.js';
 
 type InvokeHandler = (args: {
@@ -38,19 +38,6 @@ vi.mock('@langchain/openai', () => ({
   }),
 }));
 
-const baseConfig: ServerConfig = {
-  systemPrompt: 'You are Cerebrobot.',
-  personaTag: '',
-  model: 'gpt-4o-mini',
-  temperature: 0.1,
-  hotpathLimit: 3,
-  hotpathTokenBudget: 200,
-  recentMessageFloor: 2,
-  hotpathMarginPct: 0,
-  port: 3000,
-  persistence: { provider: 'memory' },
-};
-
 const mockAgentConfig: AgentConfig = {
   id: '00000000-0000-0000-0000-000000000000',
   name: 'Test Agent',
@@ -81,22 +68,24 @@ const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvo
   userId: 'user-123', // REQUIRED: userId must be provided
   message: 'Hello?',
   correlationId: 'corr-1',
-  config: baseConfig,
   ...overrides,
 });
 
 describe('LangGraphChatAgent', () => {
+  let checkpointer: MemorySaver;
+
   beforeEach(() => {
     process.env.DEEPINFRA_API_KEY = 'test-key';
     chatInvokeHandlers.length = 0;
     summarizerInvokeHandlers.length = 0;
+    checkpointer = new MemorySaver();
     vi.clearAllMocks();
   });
 
   it('streams chat events and emits a final assistant message', async () => {
     chatInvokeHandlers.push(async () => new AIMessage('Hello world'));
 
-    const agent = new LangGraphChatAgent({ config: baseConfig }, mockAgentConfig);
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
     const iterator = agent.streamChat(createContext());
 
     const finalEvent = await lastEvent(iterator);
@@ -105,13 +94,13 @@ describe('LangGraphChatAgent', () => {
     expect(finalEvent.message).toBe('Hello world');
     expect(finalEvent.latencyMs).toBeGreaterThanOrEqual(0);
     expect(finalEvent.tokenUsage).toBeDefined();
-    expect(finalEvent.tokenUsage?.budget).toBe(baseConfig.hotpathTokenBudget);
+    expect(finalEvent.tokenUsage?.budget).toBe(mockAgentConfig.memory.hotPathTokenBudget);
   });
 
   it('produces buffered output via completeChat', async () => {
     chatInvokeHandlers.push(async () => new AIMessage('Buffered reply'));
 
-    const agent = new LangGraphChatAgent({ config: baseConfig }, mockAgentConfig);
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
 
     const result = await agent.completeChat(createContext({ message: 'Buffered?' }));
 
@@ -122,7 +111,7 @@ describe('LangGraphChatAgent', () => {
   it('resets state for a session', async () => {
     chatInvokeHandlers.push(async () => new AIMessage('reply'));
 
-    const agent = new LangGraphChatAgent({ config: baseConfig }, mockAgentConfig);
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
     await agent.completeChat(createContext());
 
     await agent.reset('thread-1', 'user-123');
