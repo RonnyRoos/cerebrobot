@@ -1,10 +1,11 @@
-import { useThread } from '../hooks/useChatSession.js';
+import { useThread } from '../hooks/useThread.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 
 interface ChatViewProps {
   userId: string;
+  agentId: string;
   threadId: string | null;
   onBack: () => void;
 }
@@ -20,9 +21,13 @@ interface ChatViewProps {
  * - Loads thread history when threadId provided
  * - Converts history messages to DisplayMessage format for useChatMessages
  */
-export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Element {
-  // Load thread history if resuming an existing thread
-  const { messages: historyMessages, error: historyError } = useThreadHistory(threadId, userId);
+export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): JSX.Element {
+  // Load thread history if resuming an existing thread (not 'new' sentinel)
+  const effectiveThreadId = threadId && threadId !== 'new' ? threadId : null;
+  const { messages: historyMessages, error: historyError } = useThreadHistory(
+    effectiveThreadId,
+    userId,
+  );
 
   // Convert history messages to DisplayMessage format
   const initialMessages = useMemo(
@@ -39,22 +44,22 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
   const { threadId: activeThreadId, threadPromise, createThread } = useThread();
 
   // Auto-create thread when component mounts for new conversations
-  // When resuming (threadId provided), reuse existing threadId
+  // When resuming (threadId provided and not 'new' sentinel), reuse existing threadId
   useEffect(() => {
     if (activeThreadId) return; // Skip if we already have an active thread
 
-    if (threadId) {
+    if (threadId && threadId !== 'new') {
       // Reuse existing threadId when resuming conversation
-      void createThread(undefined, threadId);
+      void createThread(agentId, undefined, threadId);
     } else {
-      // Create new thread for new conversation
-      void createThread();
+      // Create new thread for new conversation (threadId is null or 'new')
+      void createThread(agentId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount - threadId doesn't change for a ChatView instance
 
   // Callback to get active thread ID for message sending
-  const getActiveThreadId = async (): Promise<string | null> => {
+  const getActiveThreadId = useCallback(async (): Promise<string | null> => {
     if (activeThreadId) return activeThreadId;
     if (!threadPromise) return null;
     try {
@@ -62,7 +67,7 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
     } catch {
       return null;
     }
-  };
+  }, [activeThreadId, threadPromise]);
 
   const { messages, isStreaming, error, pendingMessage, handleSend, setPendingMessage, clearChat } =
     useChatMessages({
@@ -71,15 +76,24 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
       initialMessages,
     });
 
-  const startNewThread = async (previousThreadId?: string) => {
-    clearChat();
+  const startNewThread = useCallback(
+    async (previousThreadId?: string) => {
+      clearChat();
 
-    try {
-      await createThread(previousThreadId, undefined, userId);
-    } catch (err) {
-      // Error will be set by the thread hook
+      try {
+        await createThread(agentId, previousThreadId, undefined, userId);
+      } catch (err) {
+        // Error will be set by the thread hook
+      }
+    },
+    [clearChat, createThread, agentId, userId],
+  );
+
+  const handleNewThread = useCallback(() => {
+    if (activeThreadId) {
+      void startNewThread(activeThreadId);
     }
-  };
+  }, [activeThreadId, startNewThread]);
 
   const disableSend = !pendingMessage.trim() || isStreaming;
 
@@ -183,11 +197,7 @@ export function ChatView({ userId, threadId, onBack }: ChatViewProps): JSX.Eleme
           <button type="submit" disabled={disableSend}>
             Send
           </button>
-          <button
-            type="button"
-            onClick={() => activeThreadId && void startNewThread(activeThreadId)}
-            disabled={!activeThreadId}
-          >
+          <button type="button" onClick={handleNewThread} disabled={!activeThreadId}>
             New Thread
           </button>
         </div>

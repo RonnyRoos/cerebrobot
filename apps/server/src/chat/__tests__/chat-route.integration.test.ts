@@ -2,27 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { buildServer } from '../../app.js';
 import type { ChatAgent, AgentStreamEvent, ChatInvocationContext } from '../chat-agent.js';
-import type { ServerConfig } from '../../config.js';
-import type { ThreadManager } from '../../session/session-manager.js';
-
-function createServerConfig(): ServerConfig {
-  return {
-    systemPrompt: 'You are Cerebrobot.',
-    personaTag: 'operator',
-    model: 'gpt-4o-mini',
-    temperature: 0.2,
-    hotpathLimit: 16,
-    hotpathTokenBudget: 3000,
-    recentMessageFloor: 4,
-    hotpathMarginPct: 0.1,
-    port: 3000,
-    persistence: { provider: 'memory' },
-  };
-}
+import type { ThreadManager } from '../../thread-manager/thread-manager.js';
 
 function createThreadManager(): ThreadManager {
   return {
     issueThread: vi.fn(async () => 'unused'),
+    getThread: vi.fn(async () => ({ id: 'test-thread', agentId: 'my-agent', userId: null })),
     resetThread: vi.fn(async () => undefined),
   };
 }
@@ -46,11 +31,9 @@ function createAgent(overrides: Partial<ChatAgent> = {}): ChatAgent {
 }
 
 describe('POST /api/chat', () => {
-  let config: ServerConfig;
   let threadManager: ThreadManager;
 
   beforeEach(() => {
-    config = createServerConfig();
     threadManager = createThreadManager();
   });
 
@@ -86,9 +69,8 @@ describe('POST /api/chat', () => {
 
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const app = buildServer({
-      config,
       threadManager,
-      chatAgent: agent,
+      getAgent: async () => agent,
       checkpointer: mockCheckpointer,
     });
     await app.ready();
@@ -117,7 +99,6 @@ describe('POST /api/chat', () => {
     const invocation = vi.mocked(agent.streamChat).mock.calls[0][0] as ChatInvocationContext;
     expect(invocation.threadId).toBe('thread-123');
     expect(invocation.message).toBe('Hello?');
-    expect(invocation.config).toEqual(config);
 
     await app.close();
   });
@@ -136,9 +117,8 @@ describe('POST /api/chat', () => {
 
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const app = buildServer({
-      config,
       threadManager,
-      chatAgent: agent,
+      getAgent: async () => agent,
       checkpointer: mockCheckpointer,
     });
     await app.ready();
@@ -170,8 +150,6 @@ describe('POST /api/chat', () => {
     expect(body.metadata?.tokenUsage).toBeUndefined();
 
     expect(agent.completeChat).toHaveBeenCalledTimes(1);
-    const invocation = vi.mocked(agent.completeChat).mock.calls[0][0] as ChatInvocationContext;
-    expect(invocation.config).toEqual(config);
 
     await app.close();
   });

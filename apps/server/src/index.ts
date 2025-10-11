@@ -2,10 +2,11 @@ import { config as loadEnv } from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pino from 'pino';
+import { PrismaClient } from '@prisma/client';
 import { buildServer } from './app.js';
-import { loadConfigFromEnv } from './config.js';
-import { createLangGraphChatAgent } from './agent/langgraph-agent.js';
-import { createThreadManager } from './session/session-manager.js';
+import { loadInfrastructureConfig } from './config.js';
+import { createAgentFactory } from './agent/agent-factory.js';
+import { createThreadManager } from './thread-manager/thread-manager.js';
 import { createCheckpointSaver } from './agent/checkpointer.js';
 
 export async function bootstrap(): Promise<void> {
@@ -36,31 +37,35 @@ export async function bootstrap(): Promise<void> {
     }
   }
 
-  const config = loadConfigFromEnv();
+  const infrastructureConfig = loadInfrastructureConfig();
   const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
-  // Create shared checkpointer instance
-  const checkpointer = createCheckpointSaver(config);
+  // Create shared Prisma client
+  const prisma = new PrismaClient();
 
-  const chatAgent = createLangGraphChatAgent(
-    config,
-    logger.child({ component: 'chat-agent' }),
+  // Create shared checkpointer instance (only needs persistence config)
+  const checkpointer = createCheckpointSaver(infrastructureConfig);
+
+  // Create agent factory (lazy loading - agents loaded from JSON, not .env)
+  const agentFactory = createAgentFactory({
+    logger: logger.child({ component: 'agent-factory' }),
     checkpointer,
-  );
+  });
+
   const threadManager = createThreadManager({
-    chatAgent,
+    prisma,
+    getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     logger: logger.child({ component: 'thread-manager' }),
   });
 
   const server = buildServer({
     threadManager,
-    chatAgent,
+    getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     checkpointer,
-    config,
     logger: logger.child({ component: 'fastify' }),
   });
 
-  const port = config.port;
+  const port = infrastructureConfig.port;
   const host = process.env.HOST ?? '0.0.0.0';
 
   const shutdown = async (signal: NodeJS.Signals) => {

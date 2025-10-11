@@ -64,7 +64,7 @@ export function useThread(): UseThreadResult {
     }
 
     try {
-      const response = await fetch('/api/session', {
+      const response = await fetch('/api/thread', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
