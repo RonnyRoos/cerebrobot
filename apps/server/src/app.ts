@@ -3,19 +3,18 @@ import pino, { type Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { PrismaClient } from '@prisma/client';
 import type { ChatAgent } from './chat/chat-agent.js';
-import type { ServerConfig } from './config.js';
-import type { ThreadManager } from './session/session-manager.js';
-import { registerSessionRoutes } from './session/routes.js';
+import type { ThreadManager } from './thread-manager/thread-manager.js';
+import { registerThreadRoutes as registerThreadCreationRoutes } from './thread-manager/routes.js';
 import { registerChatRoutes } from './chat/routes.js';
+import { registerAgentRoutes } from './agent/routes.js';
 import { registerUserRoutes } from './user/routes.js';
 import { registerThreadRoutes } from './thread/routes.js';
 import { createThreadService } from './thread/service.js';
 
 export interface BuildServerOptions {
   readonly threadManager: ThreadManager;
-  readonly chatAgent: ChatAgent;
+  readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
   readonly checkpointer: BaseCheckpointSaver;
-  readonly config: ServerConfig;
   readonly logger?: Logger;
 }
 
@@ -27,11 +26,12 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
     logger: fastifyLogger,
   });
 
-  registerSessionRoutes(app, options.threadManager);
+  registerAgentRoutes(app);
+  registerThreadCreationRoutes(app, options.threadManager);
   registerUserRoutes(app, { logger });
   registerChatRoutes(app, {
-    chatAgent: options.chatAgent,
-    config: options.config,
+    threadManager: options.threadManager,
+    getAgent: options.getAgent,
     logger,
   });
 
@@ -44,15 +44,7 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
   });
   registerThreadRoutes(app, threadService);
 
-  logger.info(
-    {
-      model: options.config.model,
-      personaTag: options.config.personaTag,
-      temperature: options.config.temperature,
-      hotpathLimit: options.config.hotpathLimit,
-    },
-    'fastify server initialized',
-  );
+  logger.info('fastify server initialized');
 
   return app;
 }

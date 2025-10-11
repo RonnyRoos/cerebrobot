@@ -31,8 +31,9 @@ import { generateEmbedding } from '../memory/embeddings.js';
 import type { MemoryConfig } from '../memory/config.js';
 import { EMBEDDING_DIMENSIONS } from '../memory/config.js';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
-import { loadConfigFromEnv } from '../../config.js';
+import { loadInfrastructureConfig } from '../../config.js';
 import type { ChatInvocationContext } from '../../chat/chat-agent.js';
+import type { AgentConfig } from '../../config/agent-config.js';
 import { createCheckpointSaver } from '../checkpointer.js';
 import { PostgresCheckpointSaver } from '../postgres-checkpoint.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
@@ -397,6 +398,31 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
 // LangGraph Persistence Integration Tests (2 tests)
 // ============================================================================
 
+const mockAgentConfig: AgentConfig = {
+  id: '00000000-0000-0000-0000-000000000000',
+  name: 'Test Agent',
+  systemPrompt: 'You are Cerebrobot.',
+  personaTag: 'tester',
+  llm: {
+    model: 'gpt-4o-mini',
+    temperature: 0.2,
+    apiKey: 'test-key',
+    apiBase: 'https://api.test.com/v1/openai',
+  },
+  memory: {
+    hotPathLimit: 4,
+    hotPathTokenBudget: 1024,
+    recentMessageFloor: 2,
+    hotPathMarginPct: 0,
+    embeddingModel: 'test-embedding-model',
+    embeddingEndpoint: 'https://api.test.com/v1/openai',
+    similarityThreshold: 0.7,
+    maxTokens: 2048,
+    injectionBudget: 1000,
+    retrievalTimeoutMs: 5000,
+  },
+};
+
 const baseEnv = {
   FASTIFY_PORT: '3030',
   LANGGRAPH_SYSTEM_PROMPT: 'You are Cerebrobot.',
@@ -474,21 +500,21 @@ describe('LangGraph Postgres persistence', () => {
   });
 
   it('persists conversation state across agent instances', async () => {
-    const config = loadConfigFromEnv({ ...baseEnv, LANGGRAPH_PG_URL: pgUrl });
+    const infraConfig = loadInfrastructureConfig({ ...baseEnv, LANGGRAPH_PG_URL: pgUrl });
     const sessionId = `test-session-${Date.now()}`;
     testThreadIds.push(sessionId); // Track for cleanup
 
     chatInvokeHandlers.push(async () => new AIMessage('Persisted reply'));
 
-    const agent = new LangGraphChatAgent({ config });
-    await agent.completeChat(createInvocationContext(sessionId, config));
+    const checkpointer = createCheckpointSaver(infraConfig);
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
+    await agent.completeChat(createInvocationContext(sessionId));
 
-    const checkpointer = createCheckpointSaver(config);
     const tuple = await checkpointer.getTuple({ configurable: { thread_id: sessionId } });
     expect(tuple).toBeDefined();
     expect(tuple?.checkpoint.channel_values).toBeDefined();
 
-    const agentAfterRestart = new LangGraphChatAgent({ config });
+    const agentAfterRestart = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
     const state = await (
       agentAfterRestart as unknown as {
         graphContext: {
@@ -504,9 +530,9 @@ describe('LangGraph Postgres persistence', () => {
     expect(messages?.length ?? 0).toBeGreaterThan(0);
   });
 
-  // NOTE: This test is currently skipped because putWrites may not propagate errors
-  // as expected. This is a known limitation that should be addressed in future work.
-  it.skip('surfaces errors when checkpoint writes fail mid-session', async () => {
+  // NOTE: This test validates that database write errors are properly surfaced
+  // Testing error propagation from putWrites when database connection fails
+  it('surfaces errors when checkpoint writes fail mid-session', async () => {
     const failingClient = {
       langGraphCheckpointWrite: {
         upsert: vi.fn(async () => {
@@ -517,7 +543,17 @@ describe('LangGraph Postgres persistence', () => {
       },
       langGraphCheckpoint: {
         upsert: vi.fn(async () => undefined),
-        findUnique: vi.fn(async () => null),
+        // Mock findUnique to return a checkpoint (so putWrites proceeds to upsert)
+        findUnique: vi.fn(async () => ({
+          id: 'checkpoint-test',
+          threadId: 'connection-loss',
+          checkpointNamespace: '',
+          checkpointId: 'checkpoint-test',
+          parentCheckpointId: null,
+          type: 'checkpoint' as const,
+          checkpoint: Buffer.from('{}'),
+          metadata: Buffer.from('{}'),
+        })),
         findFirst: vi.fn(async () => null),
         findMany: vi.fn(async () => []),
         deleteMany: vi.fn(async () => undefined),
@@ -568,15 +604,11 @@ describe('LangGraph Postgres persistence', () => {
   });
 });
 
-function createInvocationContext(
-  threadId: string,
-  config: ReturnType<typeof loadConfigFromEnv>,
-): ChatInvocationContext {
+function createInvocationContext(threadId: string): ChatInvocationContext {
   return {
     threadId,
     userId: 'test-user-123',
     message: 'Hello persistence?',
     correlationId: `corr-${threadId}`,
-    config,
   };
 }

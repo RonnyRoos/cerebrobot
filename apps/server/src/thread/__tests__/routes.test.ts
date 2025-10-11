@@ -40,6 +40,7 @@ describe('Thread Routes', () => {
         {
           threadId: '11111111-1111-4111-8111-111111111111',
           userId: '22222222-2222-4222-8222-222222222222',
+          agentId: 'agent-123',
           title: 'Test Thread',
           lastMessage: 'This is a test',
           lastMessageRole: 'user',
@@ -70,6 +71,7 @@ describe('Thread Routes', () => {
       expect(payload.total).toBe(1);
       expect(mockThreadService.listThreads).toHaveBeenCalledWith(
         '22222222-2222-4222-8222-222222222222',
+        undefined,
       );
     });
 
@@ -95,6 +97,53 @@ describe('Thread Routes', () => {
       expect(response.statusCode).toBe(400);
       const payload = JSON.parse(response.payload);
       expect(payload.error).toContain('Invalid');
+      expect(mockThreadService.listThreads).not.toHaveBeenCalled();
+    });
+
+    it('returns filtered threads when agentId is provided', async () => {
+      const mockThreads: ThreadMetadata[] = [
+        {
+          threadId: '33333333-3333-4333-8333-333333333333',
+          userId: '22222222-2222-4222-8222-222222222222',
+          agentId: 'agent-456',
+          title: 'Filtered Thread',
+          lastMessage: 'Agent specific message',
+          lastMessageRole: 'assistant',
+          createdAt: new Date('2025-10-08T12:00:00Z'),
+          updatedAt: new Date('2025-10-08T12:30:00Z'),
+          messageCount: 3,
+          isEmpty: false,
+        },
+      ];
+
+      vi.mocked(mockThreadService.listThreads).mockResolvedValue(mockThreads);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/threads?userId=22222222-2222-4222-8222-222222222222&agentId=agent-456',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const payload = JSON.parse(response.payload);
+      expect(payload.threads).toHaveLength(1);
+      expect(payload.threads[0].agentId).toBe('agent-456');
+      expect(payload.total).toBe(1);
+      expect(mockThreadService.listThreads).toHaveBeenCalledWith(
+        '22222222-2222-4222-8222-222222222222',
+        'agent-456',
+      );
+    });
+
+    it('returns 400 when agentId is empty string', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/threads?userId=22222222-2222-4222-8222-222222222222&agentId=',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const payload = JSON.parse(response.payload);
+      expect(payload.error).toBe('Invalid query parameters');
+      expect(payload.details).toBeDefined();
       expect(mockThreadService.listThreads).not.toHaveBeenCalled();
     });
 

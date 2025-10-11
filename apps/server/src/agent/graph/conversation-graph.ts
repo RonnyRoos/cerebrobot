@@ -6,8 +6,6 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { RunnableLambda } from '@langchain/core/runnables';
 import type { Logger } from 'pino';
 import type { BaseStore } from '@cerebrobot/chat-shared';
-import type { ServerConfig } from '../../config.js';
-import { createCheckpointSaver } from '../checkpointer.js';
 import { loadMemoryConfig } from '../memory/index.js';
 import { createRetrieveMemoriesNode } from '../memory/nodes.js';
 import type { createUpsertMemoryTool } from '../memory/tools.js';
@@ -21,7 +19,13 @@ import {
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 
 interface LangGraphChatAgentOptions {
-  readonly config: ServerConfig;
+  readonly systemPrompt: string;
+  readonly personaTag: string;
+  readonly model: string;
+  readonly hotpathLimit: number;
+  readonly hotpathTokenBudget: number;
+  readonly recentMessageFloor: number;
+  readonly hotpathMarginPct: number;
   readonly logger?: Logger;
   readonly checkpointer?: BaseCheckpointSaver;
   readonly memoryStore?: BaseStore;
@@ -33,9 +37,17 @@ function buildConversationGraph(
   chatModel: ChatOpenAI,
   summarizerModel: ChatOpenAI,
 ) {
-  const { config, logger, memoryTools } = options;
-  const hotpathLimit = config.hotpathLimit;
-  const hotpathTokenBudget = config.hotpathTokenBudget;
+  const {
+    systemPrompt,
+    personaTag,
+    model,
+    hotpathLimit,
+    hotpathTokenBudget,
+    recentMessageFloor,
+    hotpathMarginPct,
+    logger,
+    memoryTools,
+  } = options;
 
   // Bind memory tools to chat model if provided
   const modelWithTools =
@@ -54,11 +66,11 @@ function buildConversationGraph(
     const messages = state.messages as ConversationMessages;
     const { recent, overflow, overflowTokenCount, recentTokenCount } = await splitMessagesByBudget(
       messages,
-      config.model,
+      model,
       hotpathTokenBudget,
       hotpathLimit,
-      config.recentMessageFloor,
-      config.hotpathMarginPct,
+      recentMessageFloor,
+      hotpathMarginPct,
     );
 
     if (overflow.length === 0) {
@@ -108,7 +120,7 @@ function buildConversationGraph(
           hotpathLimit,
           trimmedContent: messagesToSummarize.map((message) => toStringContent(message.content)),
           summaryPreview: summaryText,
-          marginPct: config.hotpathMarginPct,
+          marginPct: hotpathMarginPct,
         },
         'langmem hotpath summarized (empty summary)',
       );
@@ -132,7 +144,7 @@ function buildConversationGraph(
         hotpathLimit,
         trimmedContent: messagesToSummarize.map((message) => toStringContent(message.content)),
         summaryText,
-        marginPct: config.hotpathMarginPct,
+        marginPct: hotpathMarginPct,
       },
       'langmem hotpath summarized',
     );
@@ -150,9 +162,9 @@ function buildConversationGraph(
   }
 
   async function callModel(state: ConversationState) {
-    const systemMessages: SystemMessage[] = [new SystemMessage(config.systemPrompt)];
-    if (config.personaTag.trim().length > 0) {
-      systemMessages.push(new SystemMessage(`Persona: ${config.personaTag}`));
+    const systemMessages: SystemMessage[] = [new SystemMessage(systemPrompt)];
+    if (personaTag.trim().length > 0) {
+      systemMessages.push(new SystemMessage(`Persona: ${personaTag}`));
     }
 
     if (state.summary && state.summary.trim().length > 0) {
@@ -238,14 +250,17 @@ function buildConversationGraph(
     workflow.addEdge('summarize', 'callModel').addEdge('callModel', END);
   }
 
-  const checkpointer = options.checkpointer ?? createCheckpointSaver(config);
-  const graph = workflow.compile({ checkpointer });
+  // Checkpointer must be provided by caller
+  if (!options.checkpointer) {
+    throw new Error('Checkpointer is required for conversation graph');
+  }
+
+  const graph = workflow.compile({ checkpointer: options.checkpointer });
 
   return {
     graph,
     chatModel,
     summarizerModel,
-    config,
     hotpathLimit,
     hotpathTokenBudget,
   };

@@ -53,6 +53,7 @@ export {
   ThreadListResponseSchema,
   MessageSchema,
   MessageHistoryResponseSchema,
+  ThreadCreateResponseSchema,
 } from './schemas/thread.js';
 
 export type {
@@ -60,4 +61,10 @@ export type {
   ThreadListResponse,
   Message,
   MessageHistoryResponse,
+  ThreadCreateResponse,
 } from './schemas/thread.js';
+
+// Agent schemas
+export { AgentListItemSchema, AgentListResponseSchema } from './schemas/agent.js';
+
+export type { AgentListItem, AgentListResponse } from './schemas/agent.js';

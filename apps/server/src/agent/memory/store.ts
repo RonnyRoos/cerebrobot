@@ -24,7 +24,7 @@ export class PostgresMemoryStore implements BaseStore {
 
   async put(namespace: string[], key: string, value: MemoryEntry): Promise<void> {
     try {
-      const embedding = await generateEmbedding(value.content, this.config);
+      const embedding = await generateEmbedding(value.content, this.config, this.logger);
 
       if (!embedding) {
         this.logger.error(
@@ -128,7 +128,7 @@ export class PostgresMemoryStore implements BaseStore {
         'Generating query embedding for search',
       );
 
-      const queryEmbedding = await generateEmbedding(query, this.config);
+      const queryEmbedding = await generateEmbedding(query, this.config, this.logger);
 
       if (!queryEmbedding) {
         this.logger.error({ namespace, query }, 'Failed to generate query embedding');

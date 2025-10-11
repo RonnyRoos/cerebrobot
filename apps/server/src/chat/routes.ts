@@ -3,11 +3,11 @@ import type { Logger } from 'pino';
 import { randomUUID } from 'node:crypto';
 import { ChatRequestSchema, ChatResponseSchema } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext, AgentStreamEvent } from './chat-agent.js';
-import type { ServerConfig } from '../config.js';
+import type { ThreadManager } from '../thread-manager/thread-manager.js';
 
 interface RegisterChatRouteOptions {
-  readonly chatAgent: ChatAgent;
-  readonly config: ServerConfig;
+  readonly threadManager: ThreadManager;
+  readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
   readonly logger?: Logger;
 }
 
@@ -35,7 +35,6 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
       userId: parseResult.data.userId,
       message: parseResult.data.message,
       correlationId,
-      config: options.config,
     };
 
     options.logger?.info(
@@ -47,15 +46,28 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
       'incoming chat request',
     );
 
+    // Load thread metadata to get agentId
+    const thread = await options.threadManager.getThread(parseResult.data.threadId);
+    if (!thread) {
+      options.logger?.warn({ threadId: parseResult.data.threadId }, 'Thread not found');
+      return reply.status(404).send({
+        error: 'Thread not found',
+        details: `No thread exists with ID ${parseResult.data.threadId}`,
+      });
+    }
+
     const wantsSSE = String(request.headers.accept || '')
       .split(',')
       .some((value) => value.includes('text/event-stream'));
 
+    // Lazy load agent on-demand using thread's agentId
+    const agent = await options.getAgent(thread.agentId);
+
     if (wantsSSE) {
-      return handleSseResponse(reply, options.chatAgent, context, options.logger);
+      return handleSseResponse(reply, agent, context, options.logger);
     }
 
-    return handleBufferedResponse(reply, options.chatAgent, context, options.logger);
+    return handleBufferedResponse(reply, agent, context, options.logger);
   });
 }
 

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Agent Configuration Template",
+  "description": "Template for creating new agent configuration files. Copy this file, update all fields with your values, and save with a descriptive name (e.g., my-assistant.json).",
+  "type": "object",
+  "required": ["id", "name", "systemPrompt", "personaTag", "llm", "memory"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Generate a new UUID v4 for each agent. Use an online generator or run: node -e \"console.log(crypto.randomUUID())\"",
+      "example": "550e8400-e29b-41d4-a716-446655440000"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable name displayed in the UI",
+      "example": "Flirty Assistant"
+    },
+    "systemPrompt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Core personality prompt sent to the LLM. Define the agent's behavior, tone, and capabilities here.",
+      "example": "You're an overly sexed up AI assistant that makes everything flirty and explicit. Helpful, but in a sexy way."
+    },
+    "personaTag": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tag for persona identification (used for logging and analytics)",
+      "example": "operator"
+    },
+    "llm": {
+      "type": "object",
+      "required": ["model", "temperature", "apiKey", "apiBase"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "LLM model identifier (provider-specific format)",
+          "example": "deepseek-ai/DeepSeek-V3.1-Terminus"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature (0 = deterministic, 2 = very creative)",
+          "example": 0.7
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for your LLM provider (KEEP SECRET - this file is git-ignored)",
+          "example": "your-api-key-here"
+        },
+        "apiBase": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL for the LLM API endpoint (OpenAI-compatible)",
+          "example": "https://api.deepinfra.com/v1/openai"
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "required": [
+        "hotPathLimit",
+        "hotPathTokenBudget",
+        "recentMessageFloor",
+        "hotPathMarginPct",
+        "embeddingModel",
+        "embeddingEndpoint",
+        "similarityThreshold",
+        "maxTokens",
+        "injectionBudget",
+        "retrievalTimeoutMs"
+      ],
+      "properties": {
+        "hotPathLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of recent messages kept verbatim before summarization",
+          "example": 1000
+        },
+        "hotPathTokenBudget": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Token budget for the hot path message window",
+          "example": 1024
+        },
+        "recentMessageFloor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum number of latest messages guaranteed to stay unsummarized",
+          "example": 2
+        },
+        "hotPathMarginPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Headroom within token budget (0.1 = use at most 90%, leaving 10% margin)",
+          "example": 0.3
+        },
+        "embeddingModel": {
+          "type": "string",
+          "description": "Model used for generating embeddings for memory search",
+          "example": "Qwen/Qwen3-Embedding-8B"
+        },
+        "embeddingEndpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "API endpoint for embedding generation",
+          "example": "https://api.deepinfra.com/v1/openai"
+        },
+        "similarityThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum similarity score (0-1) for memory retrieval",
+          "example": 0.5
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum tokens for memory context injection",
+          "example": 2048
+        },
+        "injectionBudget": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Token budget for injected memory context",
+          "example": 1000
+        },
+        "retrievalTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout for memory retrieval operations (milliseconds)",
+          "example": 5000
+        }
+      }
+    }
+  }
+}

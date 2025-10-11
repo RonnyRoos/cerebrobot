@@ -36,9 +36,10 @@ export interface ThreadService {
   /**
    * List all conversation threads for a user
    * @param userId - User ID to filter threads
+   * @param agentId - Optional agent ID to filter threads by specific agent
    * @returns Array of thread metadata sorted by most recent first
    */
-  listThreads(userId: string): Promise<ThreadMetadata[]>;
+  listThreads(userId: string, agentId?: string): Promise<ThreadMetadata[]>;
 
   /**
    * Get complete message history for a specific thread
@@ -62,12 +63,12 @@ class DefaultThreadService implements ThreadService {
 
   constructor(private readonly options: ThreadServiceOptions) {}
 
-  public async listThreads(userId: string): Promise<ThreadMetadata[]> {
+  public async listThreads(userId: string, agentId?: string): Promise<ThreadMetadata[]> {
     const { checkpointer, prisma, logger } = this.options;
 
-    logger?.debug({ userId }, 'Listing threads for user');
+    logger?.debug({ userId, agentId }, 'Listing threads for user');
 
-    // Step 1: Discover all unique thread IDs from checkpoint table
+    // Step 1: Discover all unique thread IDs from checkpoint table and join with Thread table for agentId
     const threadRecords = await prisma.langGraphCheckpoint.findMany({
       select: {
         threadId: true,
@@ -84,7 +85,24 @@ class DefaultThreadService implements ThreadService {
       'Discovered threads from checkpoint table',
     );
 
-    // Step 2: For each thread, get state and filter by userId
+    // Step 2: Fetch Thread metadata (agentId) for all discovered threadIds
+    const threadIds = threadRecords.map((r) => r.threadId);
+    const threadMetadataRecords = await prisma.thread.findMany({
+      where: {
+        id: { in: threadIds },
+      },
+      select: {
+        id: true,
+        agentId: true,
+      },
+    });
+
+    // Create a map for quick lookup: threadId -> agentId
+    const agentIdMap = new Map<string, string>(
+      threadMetadataRecords.map((t: { id: string; agentId: string }) => [t.id, t.agentId]),
+    );
+
+    // Step 3: For each thread, get state and filter by userId
     const threads: ThreadMetadata[] = [];
     const errors: Array<{ threadId: string; error: unknown }> = [];
 
@@ -122,10 +140,30 @@ class DefaultThreadService implements ThreadService {
           continue;
         }
 
-        // Step 2d: Derive thread metadata from state
+        // Step 2d: Get agentId from Thread table
+        const threadAgentId = agentIdMap.get(record.threadId);
+        if (!threadAgentId) {
+          logger?.warn(
+            { threadId: record.threadId },
+            'No agentId found in Thread table - skipping',
+          );
+          continue;
+        }
+
+        // Step 2e: Filter by agentId if specified
+        if (agentId && threadAgentId !== agentId) {
+          logger?.trace(
+            { threadId: record.threadId, threadAgentId, requestedAgentId: agentId },
+            'Skipping thread - agentId mismatch',
+          );
+          continue;
+        }
+
+        // Step 2f: Derive thread metadata from state
         const metadata = this.deriveThreadMetadata(
           record.threadId,
           userId,
+          threadAgentId,
           tuple.checkpoint,
           tuple,
         );
@@ -205,6 +243,7 @@ class DefaultThreadService implements ThreadService {
   private deriveThreadMetadata(
     threadId: string,
     userId: string,
+    agentId: string,
     state: Checkpoint,
     tuple: CheckpointTuple,
   ): ThreadMetadata {
@@ -231,6 +270,7 @@ class DefaultThreadService implements ThreadService {
     return {
       threadId,
       userId,
+      agentId,
       title,
       lastMessage: lastMessageText,
       lastMessageRole: lastMessageRole as 'user' | 'assistant',

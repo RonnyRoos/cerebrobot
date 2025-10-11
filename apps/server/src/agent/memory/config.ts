@@ -7,9 +7,12 @@
 import { z } from 'zod';
 
 /**
- * Memory Configuration Schema
+ * Memory Configuration Schema (System-level)
+ *
+ * Loaded from environment variables for runtime configuration.
+ * Distinct from AgentMemoryConfigSchema in config/agent-config.ts.
  */
-export const MemoryConfigSchema = z.object({
+export const SystemMemoryConfigSchema = z.object({
   /** Enable/disable memory features */
   enabled: z.boolean().default(true),
 
@@ -49,7 +52,7 @@ export const MemoryConfigSchema = z.object({
  */
 export const EMBEDDING_DIMENSIONS = 1536;
 
-export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
+export type MemoryConfig = z.infer<typeof SystemMemoryConfigSchema>;
 
 /**
  * Load memory configuration from environment variables
@@ -77,5 +80,5 @@ export function loadMemoryConfig(): MemoryConfig {
       : undefined,
   };
 
-  return MemoryConfigSchema.parse(rawConfig);
+  return SystemMemoryConfigSchema.parse(rawConfig);
 }

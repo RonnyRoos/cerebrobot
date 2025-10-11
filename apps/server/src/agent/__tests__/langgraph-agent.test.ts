@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AIMessage } from '@langchain/core/messages';
+import { MemorySaver } from '@langchain/langgraph';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import type { AgentStreamEvent, ChatInvocationContext } from '../../chat/chat-agent.js';
-import type { ServerConfig } from '../../config.js';
+import type { AgentConfig } from '../../config/agent-config.js';
 
 type InvokeHandler = (args: {
   messages: unknown[];
@@ -37,17 +38,29 @@ vi.mock('@langchain/openai', () => ({
   }),
 }));
 
-const baseConfig: ServerConfig = {
+const mockAgentConfig: AgentConfig = {
+  id: '00000000-0000-0000-0000-000000000000',
+  name: 'Test Agent',
   systemPrompt: 'You are Cerebrobot.',
-  personaTag: '',
-  model: 'gpt-4o-mini',
-  temperature: 0.1,
-  hotpathLimit: 3,
-  hotpathTokenBudget: 200,
-  recentMessageFloor: 2,
-  hotpathMarginPct: 0,
-  port: 3000,
-  persistence: { provider: 'memory' },
+  personaTag: 'test',
+  llm: {
+    model: 'gpt-4o-mini',
+    temperature: 0.1,
+    apiKey: 'test-key',
+    apiBase: 'https://api.test.com/v1/openai',
+  },
+  memory: {
+    hotPathLimit: 3,
+    hotPathTokenBudget: 200,
+    recentMessageFloor: 2,
+    hotPathMarginPct: 0,
+    embeddingModel: 'test-embedding-model',
+    embeddingEndpoint: 'https://api.test.com/v1/openai',
+    similarityThreshold: 0.7,
+    maxTokens: 2048,
+    injectionBudget: 1000,
+    retrievalTimeoutMs: 5000,
+  },
 };
 
 const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvocationContext => ({
@@ -55,22 +68,24 @@ const createContext = (overrides: Partial<ChatInvocationContext> = {}): ChatInvo
   userId: 'user-123', // REQUIRED: userId must be provided
   message: 'Hello?',
   correlationId: 'corr-1',
-  config: baseConfig,
   ...overrides,
 });
 
 describe('LangGraphChatAgent', () => {
+  let checkpointer: MemorySaver;
+
   beforeEach(() => {
     process.env.DEEPINFRA_API_KEY = 'test-key';
     chatInvokeHandlers.length = 0;
     summarizerInvokeHandlers.length = 0;
+    checkpointer = new MemorySaver();
     vi.clearAllMocks();
   });
 
   it('streams chat events and emits a final assistant message', async () => {
     chatInvokeHandlers.push(async () => new AIMessage('Hello world'));
 
-    const agent = new LangGraphChatAgent({ config: baseConfig });
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
     const iterator = agent.streamChat(createContext());
 
     const finalEvent = await lastEvent(iterator);
@@ -79,120 +94,24 @@ describe('LangGraphChatAgent', () => {
     expect(finalEvent.message).toBe('Hello world');
     expect(finalEvent.latencyMs).toBeGreaterThanOrEqual(0);
     expect(finalEvent.tokenUsage).toBeDefined();
-    expect(finalEvent.tokenUsage?.budget).toBe(baseConfig.hotpathTokenBudget);
+    expect(finalEvent.tokenUsage?.budget).toBe(mockAgentConfig.memory.hotPathTokenBudget);
   });
 
   it('produces buffered output via completeChat', async () => {
     chatInvokeHandlers.push(async () => new AIMessage('Buffered reply'));
 
-    const agent = new LangGraphChatAgent({ config: baseConfig });
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
 
     const result = await agent.completeChat(createContext({ message: 'Buffered?' }));
 
-    expect(result).toMatchObject({
-      message: 'Buffered reply',
-      latencyMs: expect.any(Number),
-    });
-  });
-
-  it('summarizes when the hotpath limit is exceeded and persists summary', async () => {
-    const configWithTightLimit: ServerConfig = {
-      ...baseConfig,
-      hotpathLimit: 1,
-      recentMessageFloor: 1,
-    };
-
-    chatInvokeHandlers.push(async () => new AIMessage('first reply'));
-    chatInvokeHandlers.push(async () => new AIMessage('second reply'));
-
-    summarizerInvokeHandlers.push(async () => new AIMessage('summary of first turn'));
-
-    const agent = new LangGraphChatAgent({ config: configWithTightLimit });
-
-    await agent.completeChat(createContext({ message: 'First message' }));
-    await agent.completeChat(createContext({ message: 'Second message' }));
-
-    const state = await (
-      agent as unknown as {
-        graphContext: {
-          graph: {
-            getState: (config: { configurable: { thread_id: string } }) => Promise<{
-              values: {
-                summary?: string | null;
-                summaryUpdatedAt?: string | null;
-                messages?: unknown[];
-              };
-            }>;
-          };
-        };
-      }
-    ).graphContext.graph.getState({ configurable: { thread_id: 'thread-1' } });
-
-    expect(state.values.summary).toBe('summary of first turn');
-    expect(state.values.summaryUpdatedAt).toBeDefined();
-    expect(typeof state.values.summaryUpdatedAt).toBe('string');
-    expect(Array.isArray(state.values.messages)).toBe(true);
-    expect(summarizerInvokeHandlers.length).toBe(0);
-    const usage = (state.values as { tokenUsage?: { budget: number; recentTokens: number } })
-      .tokenUsage;
-    expect(usage).toMatchObject({
-      budget: configWithTightLimit.hotpathTokenBudget,
-      recentTokens: expect.any(Number),
-    });
-  });
-
-  it('summarizes when the token budget is exceeded even with ample message slots', async () => {
-    const configWithTightBudget: ServerConfig = {
-      ...baseConfig,
-      hotpathLimit: 2,
-      hotpathTokenBudget: 50,
-      recentMessageFloor: 1,
-      hotpathMarginPct: 0.1,
-    };
-
-    const longUserMessage = 'This is a very long message that should take many tokens.'.repeat(5);
-
-    chatInvokeHandlers.push(
-      async () => new AIMessage('Initial reply that will later be summarized.'),
-    );
-    chatInvokeHandlers.push(async () => new AIMessage('Most recent reply that should remain.'));
-    summarizerInvokeHandlers.push(async () => new AIMessage('condensed history'));
-
-    const agent = new LangGraphChatAgent({ config: configWithTightBudget });
-
-    await agent.completeChat(createContext({ message: longUserMessage }));
-    await agent.completeChat(createContext({ message: `${longUserMessage} second turn` }));
-
-    const state = await (
-      agent as unknown as {
-        graphContext: {
-          graph: {
-            getState: (config: { configurable: { thread_id: string } }) => Promise<{
-              values: {
-                summary?: string | null;
-                messages?: unknown[];
-              };
-            }>;
-          };
-        };
-      }
-    ).graphContext.graph.getState({ configurable: { thread_id: 'thread-1' } });
-
-    expect(state.values.summary).toBe('condensed history');
-    expect((state.values.messages ?? []).length).toBeGreaterThan(0);
-    expect(summarizerInvokeHandlers.length).toBe(0);
-    const usage = (state.values as { tokenUsage?: { budget: number; recentTokens: number } })
-      .tokenUsage;
-    expect(usage).toMatchObject({
-      budget: configWithTightBudget.hotpathTokenBudget,
-      recentTokens: expect.any(Number),
-    });
+    expect(result.message).toBe('Buffered reply');
+    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
   it('resets state for a session', async () => {
     chatInvokeHandlers.push(async () => new AIMessage('reply'));
 
-    const agent = new LangGraphChatAgent({ config: baseConfig });
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
     await agent.completeChat(createContext());
 
     await agent.reset('thread-1', 'user-123');

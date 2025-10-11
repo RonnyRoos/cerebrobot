@@ -50,6 +50,7 @@ describe('User Routes', () => {
       const mockUser = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'Alice',
+        deletedAt: null,
         createdAt: new Date('2025-01-01T00:00:00Z'),
       };
 
@@ -78,6 +79,7 @@ describe('User Routes', () => {
       const mockUser = {
         id: '123e4567-e89b-12d3-a456-426614174001',
         name: 'A',
+        deletedAt: null,
         createdAt: new Date(),
       };
 
@@ -99,6 +101,7 @@ describe('User Routes', () => {
       const mockUser = {
         id: '123e4567-e89b-12d3-a456-426614174002',
         name: longName,
+        deletedAt: null,
         createdAt: new Date(),
       };
 
@@ -234,6 +237,7 @@ describe('User Routes', () => {
       const mockUser = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         name: 'Schema Test',
+        deletedAt: null,
         createdAt: new Date('2025-10-07T12:00:00Z'),
       };
 

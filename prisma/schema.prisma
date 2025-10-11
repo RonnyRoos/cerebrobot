@@ -66,3 +66,17 @@ model Memory {
   @@index([namespace, createdAt(sort: Desc)]) // For listing memories by recency
   @@map("memories")
 }
+
+/// Thread metadata (Phase 1.5 - Multi-agent support)
+/// Stores application-level thread metadata for agent selection
+/// LangGraph conversation state stored separately in LangGraphCheckpoint tables
+model Thread {
+  id        String   @id @default(uuid())
+  agentId   String   @map("agent_id") // References config/agents/{agentId}.json
+  userId    String?  @map("user_id") // Optional user association (for future features)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([agentId]) // For querying threads by agent
+  @@index([userId]) // For querying threads by user
+  @@map("threads")
+}
