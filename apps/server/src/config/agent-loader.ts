@@ -231,7 +231,7 @@ export async function loadAgentConfig(agentId: string, logger?: Logger): Promise
 
 /**
  * REMOVED: .env fallback logic
- * 
+ *
  * Agent configs MUST be in JSON files. No fallback to .env.
  * Functions buildEnvFallbackMetadata() and buildEnvFallbackConfig() removed.
  */

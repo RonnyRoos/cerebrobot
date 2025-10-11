@@ -31,7 +31,7 @@ import { generateEmbedding } from '../memory/embeddings.js';
 import type { MemoryConfig } from '../memory/config.js';
 import { EMBEDDING_DIMENSIONS } from '../memory/config.js';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
-import { loadConfigFromEnv } from '../../config.js';
+import { loadInfrastructureConfig } from '../../config.js';
 import type { ChatInvocationContext } from '../../chat/chat-agent.js';
 import type { AgentConfig } from '../../config/agent-config.js';
 import { createCheckpointSaver } from '../checkpointer.js';
@@ -500,21 +500,21 @@ describe('LangGraph Postgres persistence', () => {
   });
 
   it('persists conversation state across agent instances', async () => {
-    const config = loadConfigFromEnv({ ...baseEnv, LANGGRAPH_PG_URL: pgUrl });
+    const infraConfig = loadInfrastructureConfig({ ...baseEnv, LANGGRAPH_PG_URL: pgUrl });
     const sessionId = `test-session-${Date.now()}`;
     testThreadIds.push(sessionId); // Track for cleanup
 
     chatInvokeHandlers.push(async () => new AIMessage('Persisted reply'));
 
-    const agent = new LangGraphChatAgent({ config }, mockAgentConfig);
-    await agent.completeChat(createInvocationContext(sessionId, config));
+    const checkpointer = createCheckpointSaver(infraConfig);
+    const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
+    await agent.completeChat(createInvocationContext(sessionId));
 
-    const checkpointer = createCheckpointSaver(config);
     const tuple = await checkpointer.getTuple({ configurable: { thread_id: sessionId } });
     expect(tuple).toBeDefined();
     expect(tuple?.checkpoint.channel_values).toBeDefined();
 
-    const agentAfterRestart = new LangGraphChatAgent({ config }, mockAgentConfig);
+    const agentAfterRestart = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
     const state = await (
       agentAfterRestart as unknown as {
         graphContext: {
@@ -604,15 +604,11 @@ describe('LangGraph Postgres persistence', () => {
   });
 });
 
-function createInvocationContext(
-  threadId: string,
-  config: ReturnType<typeof loadConfigFromEnv>,
-): ChatInvocationContext {
+function createInvocationContext(threadId: string): ChatInvocationContext {
   return {
     threadId,
     userId: 'test-user-123',
     message: 'Hello persistence?',
     correlationId: `corr-${threadId}`,
-    config,
   };
 }

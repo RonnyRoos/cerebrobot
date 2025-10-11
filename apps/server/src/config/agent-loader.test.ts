@@ -146,37 +146,18 @@ describe('AgentLoader class', () => {
     await expect(loader.discoverAgentConfigs()).rejects.toThrow();
   });
 
-  it('falls back to .env when directory is missing', async () => {
+  it('throws error when directory is missing', async () => {
     // Create loader pointing to non-existent directory
     const missingDirLoader = new AgentLoader({ configDir: '/nonexistent/path' });
 
-    // Set up .env fallback
-    process.env.LANGGRAPH_SYSTEM_PROMPT = 'Test prompt';
-    process.env.LANGGRAPH_PERSONA_TAG = 'test';
-    process.env.LANGCHAIN_MODEL = 'test-model';
-    process.env.DEEPINFRA_API_KEY = 'test-key';
-    process.env.MEMORY_EMBEDDING_MODEL = 'test-embedding';
-
-    const agents = await missingDirLoader.discoverAgentConfigs();
-
-    expect(agents).toHaveLength(1);
-    expect(agents[0].name).toBe('test'); // personaTag becomes name
-    expect(agents[0].id).toBe('00000000-0000-5000-8000-000000000001'); // ENV_FALLBACK_AGENT_ID
+    // Should fail-fast instead of falling back to .env
+    await expect(missingDirLoader.discoverAgentConfigs()).rejects.toThrow('ENOENT');
   });
 
-  it('falls back to .env when directory is empty', async () => {
-    // testDir exists but is empty
-    process.env.LANGGRAPH_SYSTEM_PROMPT = 'Test prompt';
-    process.env.LANGGRAPH_PERSONA_TAG = 'test';
-    process.env.LANGCHAIN_MODEL = 'test-model';
-    process.env.DEEPINFRA_API_KEY = 'test-key';
-    process.env.MEMORY_EMBEDDING_MODEL = 'test-embedding';
-
-    const agents = await loader.discoverAgentConfigs();
-
-    expect(agents).toHaveLength(1);
-    expect(agents[0].name).toBe('test');
-    expect(agents[0].id).toBe('00000000-0000-5000-8000-000000000001');
+  it('throws error when directory is empty', async () => {
+    // testDir exists but is empty - no JSON files
+    // Should fail-fast instead of falling back to .env
+    await expect(loader.discoverAgentConfigs()).rejects.toThrow(/No agent configs found/);
   });
 });
 
