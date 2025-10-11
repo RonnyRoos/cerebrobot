@@ -4,7 +4,7 @@ import type { TokenUsage } from '@cerebrobot/chat-shared';
 /**
  * useChatMessages Hook (340 lines)
  *
- * Encapsulates all message state and SSE streaming logic for ChatView.
+ * Encapsulates all message state and WebSocket streaming logic for ChatView.
  * Exceeds typical file size target (300 lines) but maintains strong cohesion—
  * splitting would separate tightly coupled streaming state management.
  *

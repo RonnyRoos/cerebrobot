@@ -62,7 +62,7 @@ Adopt a dedicated WebSocket endpoint (`GET /api/chat/ws`) for streaming chat res
 - **REST polling** – Rejected: increases latency, resource heavy, and fails streaming requirement.
 
 ## Decision Date
-October 13, 2025
+October 11, 2025
 
 ## Last Updated
-October 13, 2025
+October 11, 2025
