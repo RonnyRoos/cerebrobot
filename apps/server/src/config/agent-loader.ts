@@ -32,13 +32,6 @@ const TEMPLATE_FILE = 'template.json';
  * falls back to reading configuration from environment variables.
  *
  * Format: Uses version 5 UUID structure to indicate it's deterministic.
- * Value chosen to be clearly distinguishable from random UUIDs.
- *
- * DO NOT use this UUID in your agent configuration files.
- * This value is RESERVED for internal use only.
- */
-export const ENV_FALLBACK_AGENT_ID = '00000000-0000-5000-8000-000000000001';
-
 /**
  * Options for AgentLoader constructor
  */

@@ -26,8 +26,9 @@ async function ensureTiktokenModule(): Promise<TiktokenModule | null> {
         encodingForModel: (model: string) => mod.encodingForModel(model as never),
         getEncoding: (name: string) => mod.getEncoding(name as never),
       } as TiktokenModule;
-    } catch (error) {
-      console.warn('js-tiktoken not available; falling back to heuristic token estimation.', error);
+    } catch {
+      // js-tiktoken is optional dependency - fall back to heuristic estimation
+      // This is expected in some environments and not an error condition
       return null;
     }
   })();

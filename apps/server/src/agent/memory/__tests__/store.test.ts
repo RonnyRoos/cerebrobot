@@ -87,7 +87,7 @@ describe('PostgresMemoryStore', () => {
 
       await store.put(namespace, key, value);
 
-      expect(generateEmbedding).toHaveBeenCalledWith(value.content, config);
+      expect(generateEmbedding).toHaveBeenCalledWith(value.content, config, expect.anything());
       expect(prisma.$executeRaw).toHaveBeenCalled();
 
       const callArgs = vi.mocked(prisma.$executeRaw).mock.calls[0];
@@ -235,7 +235,7 @@ describe('PostgresMemoryStore', () => {
 
       const results = await store.search(namespace, query);
 
-      expect(generateEmbedding).toHaveBeenCalledWith(query, config);
+      expect(generateEmbedding).toHaveBeenCalledWith(query, config, expect.anything());
       expect(prisma.$queryRaw).toHaveBeenCalled();
 
       const callArgs = vi.mocked(prisma.$queryRaw).mock.calls[0];
@@ -453,6 +453,7 @@ describe('PostgresMemoryStore', () => {
         expect.objectContaining({
           contentMaxTokens: 2048,
         }),
+        expect.anything(),
       );
     });
   });

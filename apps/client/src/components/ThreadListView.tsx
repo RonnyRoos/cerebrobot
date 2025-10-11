@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useThreads } from '../hooks/useThreads.js';
 import { ThreadListItem } from './ThreadListItem.js';
 import type { AgentListResponse } from '@cerebrobot/chat-shared';
@@ -65,6 +65,10 @@ export function ThreadListView({
     onRefreshReady(refresh);
   }, [refresh, onRefreshReady]);
 
+  const handleReload = useCallback(() => {
+    window.location.reload();
+  }, []);
+
   // Error state (FR-012)
   if (error) {
     return (
@@ -85,7 +89,7 @@ export function ThreadListView({
           <p style={{ color: '#7f1d1d', margin: 0 }}>{error.message}</p>
         </div>
         <button
-          onClick={() => window.location.reload()}
+          onClick={handleReload}
           style={{
             padding: '0.5rem 1rem',
             backgroundColor: '#3b82f6',
