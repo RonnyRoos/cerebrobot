@@ -6,7 +6,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import type { BaseStore } from '@cerebrobot/chat-shared';
-import { loadMemoryConfig } from './config.js';
+import { loadMemoryConfig, type MemoryConfig } from './config.js';
 import { PostgresMemoryStore } from './store.js';
 import type { Logger } from 'pino';
 
@@ -39,11 +39,31 @@ class NoOpStore implements BaseStore {
  * Create a memory store instance
  *
  * @param logger - Pino logger instance
+ * @param configOverride - Optional agent-specific memory config (overrides env vars)
  * @param prisma - Prisma client instance (optional, will create new if not provided)
  * @returns BaseStore implementation (no-op if memory disabled)
  */
-export function createMemoryStore(logger: Logger, prisma?: PrismaClient): BaseStore {
-  const config = loadMemoryConfig();
+export function createMemoryStore(
+  logger: Logger,
+  configOverride?: Partial<MemoryConfig>,
+  prisma?: PrismaClient,
+): BaseStore {
+  // Load base config from env, then apply agent-specific overrides
+  let config: MemoryConfig;
+  try {
+    config = loadMemoryConfig();
+    if (configOverride) {
+      config = { ...config, ...configOverride };
+    }
+  } catch (error) {
+    // If env config fails and we have a full override, use it
+    if (configOverride && isFullMemoryConfig(configOverride)) {
+      config = configOverride as MemoryConfig;
+    } else {
+      logger.warn({ error }, 'Memory system disabled due to configuration error');
+      return new NoOpStore();
+    }
+  }
 
   if (!config.enabled) {
     logger.info('Memory system disabled via configuration');
@@ -61,6 +81,13 @@ export function createMemoryStore(logger: Logger, prisma?: PrismaClient): BaseSt
   );
 
   return new PostgresMemoryStore(prismaClient, config, logger);
+}
+
+/**
+ * Check if config override contains all required fields
+ */
+function isFullMemoryConfig(config: Partial<MemoryConfig>): boolean {
+  return !!(config.apiKey && config.embeddingEndpoint && config.embeddingModel);
 }
 
 // Re-export public interfaces and utilities

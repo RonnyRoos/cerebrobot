@@ -27,7 +27,7 @@
       "type": "string",
       "minLength": 1,
       "description": "Tag for persona identification (used for logging and analytics)",
-      "example": "operator"
+      "example": "assistant"
     },
     "llm": {
       "type": "object",

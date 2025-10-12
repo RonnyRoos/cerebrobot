@@ -50,10 +50,10 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
 
     if (threadId && threadId !== 'new') {
       // Reuse existing threadId when resuming conversation
-      void createThread(agentId, undefined, threadId);
+      void createThread(agentId, undefined, threadId, userId);
     } else {
       // Create new thread for new conversation (threadId is null or 'new')
-      void createThread(agentId);
+      void createThread(agentId, undefined, undefined, userId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount - threadId doesn't change for a ChatView instance
@@ -73,12 +73,15 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     messages,
     isStreaming,
     error,
-    connectionState,
+    cancelledMessage,
+    isConnected,
     pendingMessage,
     handleSend,
     setPendingMessage,
     onRetry,
     clearChat,
+    handleCancel,
+    canCancel,
   } = useChatMessages({
     userId,
     getActiveThreadId,
@@ -104,11 +107,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     }
   }, [activeThreadId, startNewThread]);
 
-  const disableSend =
-    !pendingMessage.trim() ||
-    isStreaming ||
-    connectionState === 'connecting' ||
-    connectionState === 'closing';
+  const disableSend = !pendingMessage.trim() || isStreaming || !isConnected;
 
   return (
     <section aria-label="Chat panel">
@@ -128,6 +127,21 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         >
           ← Back to Threads
         </button>
+      </div>
+
+      {/* Connection status indicator */}
+      <div
+        style={{
+          padding: '0.5rem 1rem',
+          backgroundColor: isConnected ? '#f0fdf4' : '#fef2f2',
+          borderBottom: '1px solid #e5e7eb',
+          fontSize: '0.875rem',
+        }}
+      >
+        <span style={{ marginRight: '0.5rem' }}>{isConnected ? '🟢' : '🔴'}</span>
+        <span style={{ color: isConnected ? '#15803d' : '#991b1b' }}>
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </span>
       </div>
 
       <div className="chat-history" aria-live="polite">
@@ -208,6 +222,45 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         </div>
       )}
 
+      {/* Show cancelled message retry option */}
+      {cancelledMessage && !error && (
+        <div
+          role="status"
+          style={{
+            margin: '1rem',
+            padding: '1rem',
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fde68a',
+            borderRadius: '0.5rem',
+          }}
+        >
+          <strong style={{ color: '#92400e' }}>Message cancelled</strong>
+          <div
+            style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}
+          >
+            <span style={{ color: '#78350f' }}>
+              Your message is ready to edit and resend in the input field above.
+            </span>
+            <button
+              type="button"
+              onClick={() => onRetry()}
+              disabled={isStreaming}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                opacity: isStreaming ? 0.6 : 1,
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -239,6 +292,22 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
           <button type="submit" disabled={disableSend}>
             Send
           </button>
+          {canCancel && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              style={{
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.375rem',
+                padding: '0.5rem 1rem',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          )}
           <button type="button" onClick={handleNewThread} disabled={!activeThreadId}>
             New Thread
           </button>

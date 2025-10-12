@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TokenUsage } from '@cerebrobot/chat-shared';
+import { useThreadConnection } from './useThreadConnection.js';
 
 /**
- * useChatMessages Hook (340 lines)
+ * useChatMessages Hook (Refactored for thread-persistent WebSocket)
  *
- * Encapsulates all message state and WebSocket streaming logic for ChatView.
- * Exceeds typical file size target (300 lines) but maintains strong cohesion—
- * splitting would separate tightly coupled streaming state management.
+ * Manages message state and coordinates with useThreadConnection for WebSocket communication.
+ * Simplified from 397 lines to ~200 lines by delegating WebSocket management to useThreadConnection.
  *
  * Error Handling Philosophy:
  * - Manages internal error state for user-facing display
@@ -29,60 +29,51 @@ interface ErrorState {
   retryable: boolean;
 }
 
+interface CancelledState {
+  userMessage: string;
+  userMessageId: string;
+}
+
 interface UseChatMessagesOptions {
   userId: string | null;
   getActiveThreadId: () => Promise<string | null>;
   initialMessages?: DisplayMessage[];
 }
 
-type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
-
 interface UseChatMessagesResult {
   messages: DisplayMessage[];
   isStreaming: boolean;
   error: ErrorState | null;
-  connectionState: ConnectionState;
+  cancelledMessage: CancelledState | null;
+  isConnected: boolean; // Changed from connectionState to isConnected
   pendingMessage: string;
   handleSend: () => Promise<void>;
   setPendingMessage: (msg: string) => void;
   onRetry: () => void;
   clearChat: () => void;
-}
-
-function createClientRequestId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `req-${Math.random().toString(36).slice(2)}`;
-}
-
-function resolveWebSocketUrl(): string {
-  const envUrl = (import.meta.env?.VITE_WS_URL as string | undefined)?.trim();
-  if (envUrl) {
-    return envUrl;
-  }
-
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname || 'localhost';
-    return `${protocol}//${host}:3030/api/chat/ws`;
-  }
-
-  return 'ws://localhost:3030/api/chat/ws';
+  handleCancel: () => void;
+  canCancel: boolean;
 }
 
 export function useChatMessages(options: UseChatMessagesOptions): UseChatMessagesResult {
   const { userId, getActiveThreadId, initialMessages = [] } = options;
 
+  // State management
   const [messages, setMessages] = useState<DisplayMessage[]>(initialMessages);
   const [pendingMessage, setPendingMessage] = useState('');
   const [error, setErrorInternal] = useState<ErrorState | null>(null);
+  const [cancelledMessage, setCancelledMessage] = useState<CancelledState | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [connectionState, setConnectionState] = useState<ConnectionState>('closed');
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
+  // Thread-persistent WebSocket connection
+  const { sendMessage, cancelMessage, isConnected } = useThreadConnection(activeThreadId);
+
+  // Refs for stable references
   const assistantMessageIdRef = useRef<string | null>(null);
   const errorRef = useRef<ErrorState | null>(null);
+  const currentRequestIdRef = useRef<string | null>(null);
+  const lastUserMessageRef = useRef<{ content: string; id: string } | null>(null);
 
   const setErrorState = (value: ErrorState | null) => {
     errorRef.current = value;
@@ -94,21 +85,30 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
     setMessages(initialMessages);
   }, [initialMessages]);
 
+  // Eagerly establish WebSocket connection when component mounts
+  useEffect(() => {
+    const establishConnection = async () => {
+      const threadId = await getActiveThreadId();
+      if (threadId && threadId !== activeThreadId) {
+        setActiveThreadId(threadId);
+      }
+    };
+    void establishConnection();
+  }, [getActiveThreadId, activeThreadId]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-        setConnectionState('closing');
-        wsRef.current.close(1000, 'Component unmounted');
-      }
-      wsRef.current = null;
-      setConnectionState('closed');
+      // Cleanup is handled by useThreadConnection
+      // Just reset local state
+      setMessages([]);
+      setIsStreaming(false);
+      setErrorState(null);
     };
   }, []);
 
   const handleAssistantError = (err: ErrorState) => {
     setIsStreaming(false);
-    setConnectionState('closed');
     setErrorState(err);
 
     const assistantId = assistantMessageIdRef.current;
@@ -168,9 +168,19 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
       return;
     }
 
-    const activeThreadId = await getActiveThreadId();
+    // Ensure userId is present (required for all chat operations)
+    if (!userId) {
+      setErrorState({
+        message: 'User ID is required. Please set up your user profile first.',
+        retryable: false,
+      });
+      return;
+    }
 
-    if (!activeThreadId) {
+    // Get active thread ID
+    const threadId = await getActiveThreadId();
+
+    if (!threadId) {
       handleAssistantError({
         message:
           'Thread unavailable: No active conversation thread found. Please refresh the page.',
@@ -179,33 +189,55 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
       return;
     }
 
-    const clientRequestId = createClientRequestId();
+    // Update active thread ID if it changed (triggers WebSocket reconnection)
+    if (threadId !== activeThreadId) {
+      setActiveThreadId(threadId);
+      // Wait for connection to establish (up to 5 seconds)
+      const connectionStart = Date.now();
+      const maxWaitMs = 5000;
+      while (!isConnected && Date.now() - connectionStart < maxWaitMs) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      // If still not connected after timeout, fail
+      if (!isConnected) {
+        handleAssistantError({
+          message: 'Failed to establish WebSocket connection. Please try again.',
+          retryable: true,
+        });
+        return;
+      }
+    }
+
+    // Verify we're connected before sending
+    if (!isConnected) {
+      handleAssistantError({
+        message: 'Not connected. Please wait for the connection to establish.',
+        retryable: true,
+      });
+      return;
+    }
+
+    // Auto-cancel any in-flight streaming request (fire-and-forget)
+    if (isStreaming && currentRequestIdRef.current) {
+      cancelMessage(currentRequestIdRef.current);
+      // Don't wait for acknowledgment - server handles race conditions
+      // Old request's tokens won't route to new handlers due to requestId correlation
+    }
+
     const messageToSend = pendingMessage;
-    const assistantMessageId = `assistant-${clientRequestId}`;
+    const userMessageId = `user-${crypto.randomUUID()}`;
+    const assistantMessageId = `assistant-${crypto.randomUUID()}`;
     assistantMessageIdRef.current = assistantMessageId;
 
-    // Ensure userId is present (required for all chat operations)
-    if (!userId) {
-      setErrorState({
-        message: 'User ID is required. Please set up your user profile first.',
-        retryable: false,
-      });
-      setIsStreaming(false);
-      return;
-    }
+    // Track last user message for retry on cancellation
+    lastUserMessageRef.current = { content: messageToSend, id: userMessageId };
 
-    if (
-      connectionState === 'connecting' ||
-      connectionState === 'open' ||
-      connectionState === 'closing'
-    ) {
-      return;
-    }
-
+    // Add user and assistant messages to UI
     setMessages((current) => [
       ...current,
       {
-        id: `user-${clientRequestId}`,
+        id: userMessageId,
         role: 'user',
         content: messageToSend,
         status: 'complete',
@@ -220,177 +252,104 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
 
     setPendingMessage('');
     setIsStreaming(true);
+    setErrorState(null); // Clear any previous errors
+    setCancelledMessage(null); // Clear any previous cancellation state
     setErrorState(null);
 
-    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-      setConnectionState('closing');
-      wsRef.current.close(1000, 'Starting new request');
-    }
+    // Send message via thread-persistent WebSocket
+    const requestId = sendMessage(
+      messageToSend,
+      // onToken callback
+      (token: string) => {
+        appendAssistantToken(assistantMessageId, token);
+      },
+      // onComplete callback
+      (message: string, latencyMs?: number) => {
+        finalizeAssistantMessage(assistantMessageId, message, latencyMs, undefined);
+        assistantMessageIdRef.current = null;
+        currentRequestIdRef.current = null;
+        setIsStreaming(false);
+      },
+      // onError callback
+      (errorMessage: string, retryable: boolean) => {
+        handleAssistantError({
+          message: errorMessage,
+          retryable,
+        });
+        currentRequestIdRef.current = null;
+      },
+      // onCancelled callback
+      () => {
+        // Remove partial streaming message from UI
+        setMessages((current) => current.filter((msg) => msg.id !== assistantMessageId));
+        assistantMessageIdRef.current = null;
+        currentRequestIdRef.current = null;
+        setIsStreaming(false);
 
-    let socket: WebSocket;
-
-    try {
-      const websocketUrl = resolveWebSocketUrl();
-      socket = new WebSocket(websocketUrl);
-      wsRef.current = socket;
-      setConnectionState('connecting');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'WebSocket initialisation failed';
-      handleAssistantError({
-        message: `Could not open WebSocket connection: ${errorMessage}`,
-        retryable: true,
-      });
-      setConnectionState('closed');
-      return;
-    }
-
-    socket.onopen = () => {
-      setConnectionState('open');
-      socket.send(
-        JSON.stringify({
-          threadId: activeThreadId,
-          message: messageToSend,
-          clientRequestId,
-          userId,
-        }),
-      );
-    };
-
-    socket.onmessage = (event: MessageEvent) => {
-      try {
-        const raw =
-          typeof event.data === 'string'
-            ? event.data
-            : event.data instanceof ArrayBuffer
-              ? new TextDecoder().decode(event.data)
-              : String(event.data);
-
-        const payload: {
-          type: 'token' | 'final' | 'error';
-          value?: string;
-          message?: string;
-          latencyMs?: number;
-          tokenUsage?: TokenUsage;
-          retryable?: boolean;
-        } = JSON.parse(raw);
-
-        if (payload.type === 'error') {
-          handleAssistantError({
-            message:
-              typeof payload.message === 'string'
-                ? payload.message
-                : 'Server error occurred while streaming response.',
-            retryable: Boolean(payload.retryable),
+        // Save cancelled state for retry AND immediately repopulate input
+        if (lastUserMessageRef.current) {
+          setCancelledMessage({
+            userMessage: lastUserMessageRef.current.content,
+            userMessageId: lastUserMessageRef.current.id,
           });
-          if (wsRef.current === socket && socket.readyState === WebSocket.OPEN) {
-            setConnectionState('closing');
-            socket.close(payload.retryable ? 1011 : 1000, 'Server signalled error');
-          }
-          return;
+          // Automatically repopulate input field so user can edit/resend
+          setPendingMessage(lastUserMessageRef.current.content);
         }
+      },
+    );
 
-        if (payload.type === 'token' && typeof payload.value === 'string') {
-          appendAssistantToken(assistantMessageId, payload.value);
-          return;
-        }
-
-        if (payload.type === 'final') {
-          finalizeAssistantMessage(
-            assistantMessageId,
-            payload.message ?? '',
-            payload.latencyMs,
-            payload.tokenUsage,
-          );
-          assistantMessageIdRef.current = null;
-          setIsStreaming(false);
-          if (wsRef.current === socket && socket.readyState === WebSocket.OPEN) {
-            setConnectionState('closing');
-            socket.close(1000, 'Stream complete');
-          }
-          return;
-        }
-
-        throw new Error(
-          `Unsupported stream event type: ${String((payload as { type?: unknown }).type)}`,
-        );
-      } catch (err) {
-        handleAssistantError({
-          message: `Failed to process streaming payload: ${err instanceof Error ? err.message : 'Invalid message format'}`,
-          retryable: false,
-        });
-        if (socket.readyState === WebSocket.OPEN) {
-          setConnectionState('closing');
-          socket.close(1002, 'Invalid payload received');
-        }
-      }
-    };
-
-    socket.onclose = (event: CloseEvent) => {
-      if (wsRef.current === socket) {
-        wsRef.current = null;
-      }
-      if (event.code !== 1000 && !event.wasClean && !errorRef.current) {
-        const retryableCodes = new Set([1001, 1006, 1011]);
-        const reason =
-          typeof event.reason === 'string' && event.reason.trim().length > 0
-            ? event.reason
-            : `Connection closed unexpectedly (code ${event.code})`;
-        handleAssistantError({
-          message: reason,
-          retryable: retryableCodes.has(event.code),
-        });
-      }
-      setConnectionState('closed');
-      setIsStreaming(false);
-    };
-
-    socket.onerror = () => {
-      if (wsRef.current === socket) {
-        wsRef.current = null;
-      }
-      if (!errorRef.current) {
-        handleAssistantError({
-          message: 'WebSocket connection error occurred while streaming response.',
-          retryable: true,
-        });
-      }
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-        setConnectionState('closing');
-        socket.close(1011, 'Connection error');
-      }
-    };
+    currentRequestIdRef.current = requestId;
   };
 
   const onRetry = () => {
-    if (!errorRef.current?.retryable) {
+    // Handle retryable errors
+    if (errorRef.current?.retryable) {
+      setErrorState(null);
       return;
     }
-    setErrorState(null);
+
+    // Handle cancelled message retry
+    if (cancelledMessage) {
+      // Remove the orphaned user message from history
+      // (input field is already populated from onCancelled callback)
+      setMessages((current) => current.filter((msg) => msg.id !== cancelledMessage.userMessageId));
+      setCancelledMessage(null);
+    }
   };
 
   const clearChat = () => {
-    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-      setConnectionState('closing');
-      wsRef.current.close(1000, 'Chat cleared');
-    }
-    wsRef.current = null;
-    setConnectionState('closed');
+    // Reset thread connection (will trigger new connection on next message)
+    setActiveThreadId(null);
     assistantMessageIdRef.current = null;
+    currentRequestIdRef.current = null;
+    lastUserMessageRef.current = null;
     setMessages([]);
     setPendingMessage('');
     setErrorState(null);
+    setCancelledMessage(null);
     setIsStreaming(false);
   };
+
+  const handleCancel = () => {
+    if (currentRequestIdRef.current) {
+      cancelMessage(currentRequestIdRef.current);
+    }
+  };
+
+  const canCancel = isStreaming && currentRequestIdRef.current !== null;
 
   return {
     messages,
     isStreaming,
     error,
-    connectionState,
+    cancelledMessage,
+    isConnected,
     pendingMessage,
     handleSend,
     setPendingMessage,
     onRetry,
     clearChat,
+    handleCancel,
+    canCancel,
   };
 }

@@ -68,10 +68,22 @@ export class LangGraphChatAgent implements ChatAgent {
     // Initialize memory system if enabled
     let memoryStore: BaseStore | undefined;
     let memoryTools: ReturnType<typeof createUpsertMemoryTool>[] | undefined;
+    let memoryConfig:
+      | {
+          enabled: boolean;
+          apiKey: string;
+          embeddingEndpoint: string;
+          embeddingModel: string;
+          similarityThreshold: number;
+          contentMaxTokens: number;
+          injectionBudget: number;
+          retrievalTimeoutMs: number;
+        }
+      | undefined;
 
     try {
       // Use agent config for memory (no .env fallback)
-      const memoryConfig = {
+      memoryConfig = {
         enabled: true,
         apiKey: agentConfig.llm.apiKey,
         embeddingEndpoint: agentConfig.memory.embeddingEndpoint,
@@ -83,7 +95,11 @@ export class LangGraphChatAgent implements ChatAgent {
       };
 
       if (memoryConfig.enabled) {
-        memoryStore = createMemoryStore(this.logger ?? (console as unknown as Logger));
+        // Pass agent-specific memory config as override
+        memoryStore = createMemoryStore(
+          this.logger ?? (console as unknown as Logger),
+          memoryConfig,
+        );
 
         memoryTools = [
           createUpsertMemoryTool(
@@ -116,6 +132,7 @@ export class LangGraphChatAgent implements ChatAgent {
         checkpointer: this.checkpointer,
         memoryStore,
         memoryTools,
+        memoryConfig,
       },
       chatModel,
       summarizerModel,
@@ -151,7 +168,7 @@ export class LangGraphChatAgent implements ChatAgent {
         userId: context.userId,
         messages: [new HumanMessage(context.message)],
       },
-      this.createConfig(context.threadId, 'stream', context.userId),
+      this.createConfig(context.threadId, 'stream', context.userId, context.signal),
     )) as MessageStream;
 
     for await (const [message] of stream) {
@@ -174,7 +191,7 @@ export class LangGraphChatAgent implements ChatAgent {
     const latencyMs = Date.now() - startedAt;
 
     const finalState = await this.graphContext.graph.getState(
-      this.createConfig(context.threadId, 'invoke', context.userId),
+      this.createConfig(context.threadId, 'invoke', context.userId, context.signal),
     );
     const usageSnapshot = (finalState.values.tokenUsage as TokenUsageSnapshot | null) ?? null;
     const tokenUsage = formatTokenUsageSnapshot(usageSnapshot);
@@ -220,7 +237,7 @@ export class LangGraphChatAgent implements ChatAgent {
         userId: context.userId,
         messages: [new HumanMessage(context.message)],
       },
-      this.createConfig(context.threadId, 'invoke', context.userId),
+      this.createConfig(context.threadId, 'invoke', context.userId, context.signal),
     )) as ConversationState;
 
     const finalMessage = extractLatestAssistantMessage(state.messages);
@@ -267,6 +284,7 @@ export class LangGraphChatAgent implements ChatAgent {
     threadId: string,
     mode: 'stream' | 'invoke',
     userId: string, // REQUIRED: userId must be provided for all chat operations
+    signal?: AbortSignal,
   ): RunnableConfig {
     const base: RunnableConfig = {
       configurable: {
@@ -274,6 +292,10 @@ export class LangGraphChatAgent implements ChatAgent {
         userId, // Pass userId to tools via config.configurable
       },
     };
+
+    if (signal) {
+      base.signal = signal;
+    }
 
     if (mode === 'stream') {
       return {

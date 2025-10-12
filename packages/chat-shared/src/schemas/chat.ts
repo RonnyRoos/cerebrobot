@@ -50,6 +50,7 @@ export const ChatResponseSchema = z
 export const ChatStreamTokenEventSchema = z
   .object({
     type: z.literal('token'),
+    requestId: NonEmptyString,
     value: z.string(),
   })
   .strict();
@@ -57,6 +58,7 @@ export const ChatStreamTokenEventSchema = z
 export const ChatStreamFinalEventSchema = z
   .object({
     type: z.literal('final'),
+    requestId: NonEmptyString,
     message: z.string(),
     latencyMs: z.number().int().nonnegative().optional(),
     summary: z.string().optional(),
@@ -66,16 +68,29 @@ export const ChatStreamFinalEventSchema = z
 
 export const ChatStreamErrorEventSchema = ChatErrorSchema.extend({
   type: z.literal('error'),
+  requestId: NonEmptyString,
 }).strict();
+
+export const ChatStreamCancelledEventSchema = z
+  .object({
+    type: z.literal('cancelled'),
+    requestId: NonEmptyString,
+  })
+  .strict();
 
 export const ChatStreamEventSchema = z.union([
   ChatStreamTokenEventSchema,
   ChatStreamFinalEventSchema,
   ChatStreamErrorEventSchema,
+  ChatStreamCancelledEventSchema,
 ]);
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 export type ChatError = z.infer<typeof ChatErrorSchema>;
 export type ChatStreamEvent = z.infer<typeof ChatStreamEventSchema>;
+export type ChatStreamTokenEvent = z.infer<typeof ChatStreamTokenEventSchema>;
+export type ChatStreamFinalEvent = z.infer<typeof ChatStreamFinalEventSchema>;
+export type ChatStreamErrorEvent = z.infer<typeof ChatStreamErrorEventSchema>;
+export type ChatStreamCancelledEvent = z.infer<typeof ChatStreamCancelledEventSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;

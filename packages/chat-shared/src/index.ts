@@ -5,6 +5,7 @@ export {
   ChatStreamTokenEventSchema,
   ChatStreamFinalEventSchema,
   ChatStreamErrorEventSchema,
+  ChatStreamCancelledEventSchema,
   ChatErrorSchema,
   ChatResponseMetadataSchema,
 } from './schemas/chat.js';
@@ -14,8 +15,24 @@ export type {
   ChatResponse,
   ChatError,
   ChatStreamEvent,
+  ChatStreamTokenEvent,
+  ChatStreamFinalEvent,
+  ChatStreamErrorEvent,
+  ChatStreamCancelledEvent,
   TokenUsage,
 } from './schemas/chat.js';
+
+// Connection schemas
+export {
+  ChatMessageSchema,
+  CancellationSignalSchema,
+  ClientMessageSchema,
+} from './schemas/connection.js';
+
+export type { ChatMessage, CancellationSignal, ClientMessage } from './schemas/connection.js';
+
+// Connection types
+export type { ConnectionState, RequestStatus, ConnectionInfo } from './types/connection.js';
 
 // User schemas
 export { CreateUserRequestSchema, CreateUserResponseSchema } from './schemas/user.js';
@@ -68,3 +85,10 @@ export type {
 export { AgentListItemSchema, AgentListResponseSchema } from './schemas/agent.js';
 
 export type { AgentListItem, AgentListResponse } from './schemas/agent.js';
+
+// WebSocket constants
+export {
+  WS_CLOSE_CODES,
+  WS_CLOSE_CODE_DESCRIPTIONS,
+  CONNECTION_LIMITS,
+} from './constants/websocket.js';

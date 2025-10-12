@@ -66,9 +66,15 @@ export function useThread(): UseThreadResult {
   ): Promise<string> => {
     // Build request body - agentId is required
     const body: { agentId: string; previousThreadId?: string; userId?: string } = { agentId };
+
+    // Add userId if provided (for both new threads and resets)
+    if (userId) {
+      body.userId = userId;
+    }
+
+    // Add previousThreadId only if both it and userId are provided (for reset flow)
     if (previousThreadId && userId) {
       body.previousThreadId = previousThreadId;
-      body.userId = userId;
     }
 
     try {

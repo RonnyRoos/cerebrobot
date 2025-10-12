@@ -11,6 +11,7 @@ import { registerAgentRoutes } from './agent/routes.js';
 import { registerUserRoutes } from './user/routes.js';
 import { registerThreadRoutes } from './thread/routes.js';
 import { createThreadService } from './thread/service.js';
+import { ConnectionManager } from './chat/connection-manager.js';
 
 export interface BuildServerOptions {
   readonly threadManager: ThreadManager;
@@ -39,12 +40,18 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
 
   // Register routes after WebSocket plugin to ensure proper plugin ordering
   app.register(async (fastifyInstance) => {
+    // Create ConnectionManager for thread-persistent WebSocket connections
+    const connectionManager = new ConnectionManager(
+      logger.child({ component: 'connection-manager' }),
+    );
+
     registerAgentRoutes(fastifyInstance);
     registerThreadCreationRoutes(fastifyInstance, options.threadManager);
     registerUserRoutes(fastifyInstance, { logger });
     registerChatRoutes(fastifyInstance, {
       threadManager: options.threadManager,
       getAgent: options.getAgent,
+      connectionManager,
       logger,
     });
 

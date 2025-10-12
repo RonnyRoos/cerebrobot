@@ -66,13 +66,29 @@ export type MemorySearchResult = z.infer<typeof MemorySearchResultSchema>;
  */
 export const UpsertMemoryInputSchema = z.object({
   /** Memory content to store (required) */
-  content: z.string().min(1).max(8192),
+  content: z
+    .string()
+    .min(1)
+    .max(8192)
+    .describe(
+      'The memory content to store as a clear, concise statement. Examples: "User has blue eyes", "User prefers dark mode", "User works as a software engineer"',
+    ),
 
   /** Optional metadata as JSON object */
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe(
+      'Optional metadata as key-value pairs (e.g., {"category": "personal", "importance": "high"})',
+    ),
 
   /** Optional key; auto-generated UUID if not provided */
-  key: z.string().optional(),
+  key: z
+    .string()
+    .optional()
+    .describe(
+      'Optional unique identifier for the memory. Use to update an existing memory. If omitted, a new memory is created with an auto-generated key.',
+    ),
 });
 
 export type UpsertMemoryInput = z.infer<typeof UpsertMemoryInputSchema>;
@@ -109,15 +125,17 @@ export interface StoreSearchOptions {
 }
 
 /**
- * Base Store Interface
+ * BaseStore Interface
  *
  * Defines the contract for memory storage operations.
  */
 export interface BaseStore {
   /**
    * Store a memory entry
+   *
+   * @param signal - Optional AbortSignal for cancellation support
    */
-  put(namespace: string[], key: string, value: MemoryEntry): Promise<void>;
+  put(namespace: string[], key: string, value: MemoryEntry, signal?: AbortSignal): Promise<void>;
 
   /**
    * Retrieve a memory entry by key
@@ -126,11 +144,14 @@ export interface BaseStore {
 
   /**
    * Search memories by semantic similarity
+   *
+   * @param signal - Optional AbortSignal for cancellation support
    */
   search(
     namespace: string[],
     query: string,
     options?: StoreSearchOptions,
+    signal?: AbortSignal,
   ): Promise<MemorySearchResult[]>;
 
   /**

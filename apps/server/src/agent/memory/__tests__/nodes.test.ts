@@ -70,6 +70,7 @@ describe('Memory Nodes', () => {
         ['memories', 'user-456'],
         'What should I eat?',
         { threshold: 0.7 },
+        undefined, // signal parameter
       );
 
       expect(result.retrievedMemories).toHaveLength(1);
@@ -97,6 +98,7 @@ describe('Memory Nodes', () => {
         ['memories', 'user-456'],
         'test',
         expect.any(Object),
+        undefined, // signal parameter
       );
 
       vi.mocked(mockStore.search).mockClear();

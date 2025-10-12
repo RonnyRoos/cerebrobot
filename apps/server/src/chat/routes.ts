@@ -2,21 +2,25 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { RawData, WebSocket } from 'ws';
 import type { Logger } from 'pino';
 import { randomUUID } from 'node:crypto';
-import { ChatRequestSchema, ChatResponseSchema } from '@cerebrobot/chat-shared';
+import {
+  ChatRequestSchema,
+  ChatResponseSchema,
+  ClientMessageSchema,
+  type ClientMessage,
+  type ChatStreamCancelledEvent,
+  WS_CLOSE_CODES,
+  WS_CLOSE_CODE_DESCRIPTIONS,
+} from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext, AgentStreamEvent } from './chat-agent.js';
 import type { ThreadManager } from '../thread-manager/thread-manager.js';
+import { ConnectionManager } from './connection-manager.js';
 
 const MAX_MESSAGE_BYTES = 1_048_576;
-const CLOSE_CODE_DESCRIPTIONS: Record<number, string> = {
-  1000: 'normal_closure',
-  1001: 'going_away',
-  1006: 'abnormal_closure',
-  1011: 'internal_error',
-};
 
 interface RegisterChatRouteOptions {
   readonly threadManager: ThreadManager;
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
+  readonly connectionManager: ConnectionManager;
   readonly logger?: Logger;
 }
 
@@ -70,31 +74,164 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
     return handleBufferedResponse(reply, agent, context, options.logger);
   });
 
-  app.get('/api/chat/ws', { websocket: true }, (socket: WebSocket) => {
+  app.get('/api/chat/ws', { websocket: true }, (socket: WebSocket, request) => {
+    // Extract threadId from query parameters
+    const queryParams = new URL(request.url ?? '', 'http://localhost').searchParams;
+    const threadId = queryParams.get('threadId');
+
+    if (!threadId) {
+      options.logger?.warn({ url: request.url }, 'WebSocket connection missing threadId');
+      socket.close(WS_CLOSE_CODES.POLICY_VIOLATION, 'Missing threadId query parameter');
+      return;
+    }
+
     const connectionId = randomUUID();
-    const correlationId = randomUUID();
 
-    options.logger?.info(
-      {
-        connectionId,
-        correlationId,
-      },
-      'websocket_connection_established',
-    );
+    // Register connection with ConnectionManager
+    options.connectionManager.register(connectionId, threadId, socket);
 
+    options.logger?.info({ connectionId, threadId }, 'websocket_connection_established_persistent');
+
+    /**
+     * Handle cancellation request
+     */
+    const handleCancellation = (connectionId: string, requestId: string) => {
+      const cancelled = options.connectionManager.abort(connectionId, requestId);
+
+      if (cancelled) {
+        // Send cancellation acknowledgment directly
+        const cancelledEvent: ChatStreamCancelledEvent = {
+          type: 'cancelled',
+          requestId,
+        };
+        socket.send(JSON.stringify(cancelledEvent));
+        options.logger?.info({ connectionId, requestId }, 'Request cancelled successfully');
+      } else {
+        // Race condition: request already completed or doesn't exist
+        options.logger?.debug(
+          { connectionId, requestId },
+          'Cancellation requested but request already complete or not found',
+        );
+      }
+    };
+
+    /**
+     * Handle incoming chat message
+     */
+    const handleChatMessage = async (connectionId: string, message: ClientMessage) => {
+      if (message.type !== 'message') {
+        return; // Only handle 'message' type here; 'cancel' handled separately
+      }
+
+      const { requestId, content, threadId: msgThreadId } = message;
+
+      // Validate message threadId matches connection threadId
+      if (msgThreadId !== threadId) {
+        options.logger?.error(
+          { connectionId, requestId, expectedThreadId: threadId, receivedThreadId: msgThreadId },
+          'Thread ID mismatch',
+        );
+        socket.close(WS_CLOSE_CODES.POLICY_VIOLATION, 'Thread ID mismatch');
+        return;
+      }
+
+      try {
+        // Get thread metadata and validate
+        const thread = await options.threadManager.getThread(threadId);
+        if (!thread) {
+          sendWebsocketError(
+            socket,
+            requestId,
+            'Thread not found',
+            false,
+            WS_CLOSE_CODES.POLICY_VIOLATION,
+          );
+          return;
+        }
+
+        // Lazy load agent on-demand using thread's agentId
+        const agent = await options.getAgent(thread.agentId);
+
+        // TODO: Extract userId from somewhere (session, JWT, etc.)
+        // For now, using a placeholder. This will be fixed in auth implementation.
+        const userId = thread.userId ?? 'unknown-user';
+
+        // Create AbortController for this request
+        const abortController = new AbortController();
+
+        // Register active request with ConnectionManager
+        options.connectionManager.setActiveRequest(connectionId, requestId, abortController);
+
+        const context: ChatInvocationContext = {
+          threadId,
+          userId,
+          message: content,
+          correlationId: randomUUID(), // Server-side correlation
+          requestId, // Client-provided request ID
+          signal: abortController.signal,
+        };
+
+        options.logger?.info(
+          { connectionId, requestId, threadId, messageLength: content.length },
+          'websocket_chat_message_processing',
+        );
+
+        try {
+          for await (const event of agent.streamChat(context)) {
+            // Check if aborted
+            if (abortController.signal.aborted) {
+              options.logger?.info({ connectionId, requestId }, 'Stream aborted');
+              break;
+            }
+
+            if (event.type === 'error') {
+              sendWebsocketError(
+                socket,
+                requestId,
+                event.message,
+                event.retryable,
+                event.retryable ? WS_CLOSE_CODES.INTERNAL_ERROR : WS_CLOSE_CODES.NORMAL_CLOSURE,
+              );
+              options.logger?.error(
+                { connectionId, requestId, retryable: event.retryable },
+                'websocket_error',
+              );
+              return;
+            }
+
+            sendWebsocketEvent(socket, event, requestId, connectionId, options.logger);
+          }
+
+          options.logger?.info({ connectionId, requestId }, 'websocket_stream_completed');
+        } catch (error) {
+          // Check if error is due to abort
+          if (error instanceof Error && error.name === 'AbortError') {
+            options.logger?.info({ connectionId, requestId }, 'Stream cancelled by abort signal');
+            // Don't send error event for cancellation - client already knows
+            return;
+          }
+
+          throw error; // Re-throw other errors
+        } finally {
+          // Clear active request from ConnectionManager
+          options.connectionManager.clearActiveRequest(connectionId);
+        }
+      } catch (error) {
+        handleWebsocketError(socket, error, {
+          logger: options.logger,
+          connectionId,
+          requestId,
+        });
+      }
+    };
+
+    /**
+     * Message handler - routes based on message type
+     */
     const handleMessage = async (rawData: RawData) => {
       try {
         const payload = normaliseRawData(rawData);
         const payloadSize = Buffer.byteLength(payload);
-
-        options.logger?.debug(
-          {
-            connectionId,
-            correlationId,
-            payloadSize,
-          },
-          'websocket_message_received',
-        );
 
         if (payloadSize > MAX_MESSAGE_BYTES) {
           throw new PayloadTooLargeError(payloadSize);
@@ -105,117 +242,54 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
           rawPayload = JSON.parse(payload);
         } catch (parseError) {
           throw new ChatValidationError(
-            'Invalid chat request payload',
+            'Invalid message payload',
             parseError instanceof Error ? parseError.message : parseError,
           );
         }
 
-        const parseResult = ChatRequestSchema.safeParse(rawPayload);
+        // Parse as ClientMessage (type: 'message' | 'cancel')
+        const parseResult = ClientMessageSchema.safeParse(rawPayload);
         if (!parseResult.success) {
           throw new ChatValidationError(parseResult.error.message, parseResult.error.issues);
         }
 
-        options.logger?.info(
-          {
-            connectionId,
-            correlationId,
-            threadId: parseResult.data.threadId,
-            userId: parseResult.data.userId,
-            messageLength: parseResult.data.message.length,
-          },
-          'websocket_chat_request_validated',
-        );
+        const clientMessage = parseResult.data;
 
-        const thread = await options.threadManager.getThread(parseResult.data.threadId);
-        if (!thread) {
-          throw new ThreadNotFoundError(parseResult.data.threadId);
-        }
-
-        const agent = await options.getAgent(thread.agentId);
-        const context: ChatInvocationContext = {
-          threadId: parseResult.data.threadId,
-          userId: parseResult.data.userId,
-          message: parseResult.data.message,
-          correlationId,
-        };
-
-        try {
-          for await (const event of agent.streamChat(context)) {
-            if (event.type === 'error') {
-              sendWebsocketError(
-                socket,
-                event.message,
-                event.retryable,
-                event.retryable ? 1011 : 1000,
-              );
-
-              options.logger?.error(
-                {
-                  correlationId,
-                  connectionId,
-                  retryable: event.retryable,
-                },
-                'websocket_error',
-              );
-              return;
-            }
-
-            sendWebsocketEvent(socket, event, correlationId, connectionId, options.logger);
-          }
-        } catch (error) {
-          throw new AgentStreamFailureError(error);
-        }
-
-        options.logger?.info(
-          {
-            correlationId,
-            connectionId,
-          },
-          'websocket_stream_completed',
-        );
-
-        if (socket.readyState === socket.OPEN) {
-          socket.close(1000, 'Stream complete');
+        // Route based on message type
+        if (clientMessage.type === 'message') {
+          await handleChatMessage(connectionId, clientMessage);
+        } else if (clientMessage.type === 'cancel') {
+          handleCancellation(connectionId, clientMessage.requestId);
         }
       } catch (error) {
         handleWebsocketError(socket, error, {
           logger: options.logger,
-          correlationId,
           connectionId,
         });
       }
     };
 
-    socket.once('message', (rawData: RawData) => {
+    // Handle multiple messages over the persistent connection
+    socket.on('message', (rawData: RawData) => {
       void handleMessage(rawData);
     });
 
     socket.on('error', (error: Error) => {
-      options.logger?.error(
-        {
-          err: error,
-          connectionId,
-          correlationId,
-        },
-        'websocket_connection_error',
-      );
+      options.logger?.error({ err: error, connectionId, threadId }, 'websocket_connection_error');
     });
 
     socket.on('close', (code: number, reasonBuffer: Buffer) => {
-      const interpreted = CLOSE_CODE_DESCRIPTIONS[code] ?? 'unknown';
+      const interpreted = WS_CLOSE_CODE_DESCRIPTIONS[code] ?? 'unknown';
       const reason =
         reasonBuffer instanceof Buffer && reasonBuffer.length > 0
           ? reasonBuffer.toString('utf8')
           : '';
 
+      // Unregister connection from ConnectionManager
+      options.connectionManager.unregister(connectionId);
+
       options.logger?.info(
-        {
-          connectionId,
-          correlationId,
-          closeCode: code,
-          closeReason: interpreted,
-          closeMessage: reason,
-        },
+        { connectionId, threadId, closeCode: code, closeReason: interpreted, closeMessage: reason },
         'websocket_connection_closed',
       );
     });
@@ -267,7 +341,7 @@ function appLogError(reply: FastifyReply, error: unknown): void {
 function sendWebsocketEvent(
   socket: WebSocket,
   event: AgentStreamEvent,
-  correlationId: string,
+  requestId: string,
   connectionId: string,
   logger?: Logger,
 ): void {
@@ -276,13 +350,14 @@ function sendWebsocketEvent(
       socket.send(
         JSON.stringify({
           type: 'token',
+          requestId,
           value: event.value,
         }),
       );
       // Token events logged at debug level to reduce noise
       logger?.debug(
         {
-          correlationId,
+          requestId,
           connectionId,
         },
         'websocket_token_sent',
@@ -292,6 +367,7 @@ function sendWebsocketEvent(
       socket.send(
         JSON.stringify({
           type: 'final',
+          requestId,
           message: event.message,
           latencyMs: event.latencyMs,
           tokenUsage: event.tokenUsage,
@@ -299,7 +375,7 @@ function sendWebsocketEvent(
       );
       logger?.info(
         {
-          correlationId,
+          requestId,
           connectionId,
           latencyMs: event.latencyMs,
           messageLength: event.message.length,
@@ -333,8 +409,9 @@ function normaliseRawData(rawData: RawData): string {
 
 interface WebsocketErrorContext {
   readonly logger?: Logger;
-  readonly correlationId: string;
   readonly connectionId: string;
+  readonly requestId?: string; // Optional for thread-persistent connections
+  readonly correlationId?: string; // Optional for backward compatibility
 }
 
 function handleWebsocketError(
@@ -342,19 +419,20 @@ function handleWebsocketError(
   error: unknown,
   context: WebsocketErrorContext,
 ): void {
-  const { logger, correlationId, connectionId } = context;
+  const { logger, connectionId, requestId, correlationId } = context;
 
   if (error instanceof PayloadTooLargeError) {
     logger?.warn(
       {
         correlationId,
         connectionId,
+        requestId,
         payloadSize: error.payloadSize,
         maxSize: MAX_MESSAGE_BYTES,
       },
       'websocket_payload_too_large',
     );
-    sendWebsocketError(socket, error.message, false, 1000);
+    sendWebsocketError(socket, requestId, error.message, false, WS_CLOSE_CODES.NORMAL_CLOSURE);
     return;
   }
 
@@ -363,11 +441,12 @@ function handleWebsocketError(
       {
         correlationId,
         connectionId,
+        requestId,
         issues: error.issues,
       },
       'websocket_validation_failed',
     );
-    sendWebsocketError(socket, error.message, false, 1000);
+    sendWebsocketError(socket, requestId, error.message, false, WS_CLOSE_CODES.NORMAL_CLOSURE);
     return;
   }
 
@@ -376,11 +455,12 @@ function handleWebsocketError(
       {
         correlationId,
         connectionId,
+        requestId,
         threadId: error.threadId,
       },
       'websocket_thread_not_found',
     );
-    sendWebsocketError(socket, error.message, false, 1000);
+    sendWebsocketError(socket, requestId, error.message, false, WS_CLOSE_CODES.NORMAL_CLOSURE);
     return;
   }
 
@@ -389,11 +469,12 @@ function handleWebsocketError(
       {
         correlationId,
         connectionId,
+        requestId,
         err: error.cause,
       },
       'websocket_agent_stream_failed',
     );
-    sendWebsocketError(socket, error.message, true, 1011);
+    sendWebsocketError(socket, requestId, error.message, true, WS_CLOSE_CODES.INTERNAL_ERROR);
     return;
   }
 
@@ -402,30 +483,38 @@ function handleWebsocketError(
     {
       correlationId,
       connectionId,
+      requestId,
       err: error,
     },
     'websocket_unexpected_error',
   );
-  sendWebsocketError(socket, message, true, 1011);
+  sendWebsocketError(socket, requestId, message, true, WS_CLOSE_CODES.INTERNAL_ERROR);
 }
 
 function sendWebsocketError(
   socket: WebSocket,
+  requestId: string | undefined,
   message: string,
   retryable: boolean,
-  closeCode: number,
+  closeCode?: number,
 ): void {
   if (socket.readyState === socket.OPEN) {
-    socket.send(
-      JSON.stringify({
-        type: 'error',
-        message,
-        retryable,
-      }),
-    );
+    const errorEvent: Record<string, unknown> = {
+      type: 'error',
+      message,
+      retryable,
+    };
+
+    // Include requestId if provided (thread-persistent connections)
+    if (requestId) {
+      errorEvent.requestId = requestId;
+    }
+
+    socket.send(JSON.stringify(errorEvent));
   }
 
-  if (socket.readyState === socket.OPEN || socket.readyState === socket.CLOSING) {
+  // Only close if closeCode provided (thread-persistent connections may not want to close)
+  if (closeCode && (socket.readyState === socket.OPEN || socket.readyState === socket.CLOSING)) {
     socket.close(closeCode, retryable ? 'retryable_error' : 'non_retryable_error');
   }
 }
