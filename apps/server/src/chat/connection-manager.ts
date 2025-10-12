@@ -171,9 +171,12 @@ export class ConnectionManager {
 
     const clearedRequestId = state.activeRequestId;
 
+    // Capture reference before state changes to avoid race condition
+    const controller = state.abortController;
+
     // Defensive cleanup: ensure AbortController is aborted
-    if (state.abortController && !state.abortController.signal.aborted) {
-      state.abortController.abort();
+    if (controller && !controller.signal.aborted) {
+      controller.abort();
     }
 
     state.activeRequestId = undefined;
@@ -207,8 +210,10 @@ export class ConnectionManager {
       return false;
     }
 
-    if (state.abortController) {
-      state.abortController.abort();
+    // Capture reference before state changes to avoid race condition
+    const controller = state.abortController;
+    if (controller) {
+      controller.abort();
       this.logger.info({ connectionId, requestId, threadId: state.threadId }, 'Request aborted');
       return true;
     }

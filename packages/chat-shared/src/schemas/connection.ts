@@ -20,7 +20,10 @@ export const CancellationSignalSchema = z
   })
   .strict();
 
-export const ClientMessageSchema = z.union([ChatMessageSchema, CancellationSignalSchema]);
+export const ClientMessageSchema = z.discriminatedUnion('type', [
+  ChatMessageSchema,
+  CancellationSignalSchema,
+]);
 
 // Type exports
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;

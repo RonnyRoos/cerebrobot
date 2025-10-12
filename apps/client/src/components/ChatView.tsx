@@ -239,7 +239,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
             style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}
           >
             <span style={{ color: '#78350f' }}>
-              Your message is ready to edit and resend below.
+              Your message is ready to edit and resend in the input field above.
             </span>
             <button
               type="button"

@@ -22,9 +22,20 @@ export class PostgresMemoryStore implements BaseStore {
     private readonly logger: Logger,
   ) {}
 
-  async put(namespace: string[], key: string, value: MemoryEntry): Promise<void> {
+  async put(
+    namespace: string[],
+    key: string,
+    value: MemoryEntry,
+    signal?: AbortSignal,
+  ): Promise<void> {
     try {
+      // Check if operation was aborted before starting
+      signal?.throwIfAborted();
+
       const embedding = await generateEmbedding(value.content, this.config, this.logger);
+
+      // Check again after expensive embedding operation
+      signal?.throwIfAborted();
 
       if (!embedding) {
         this.logger.error(
@@ -57,6 +68,12 @@ export class PostgresMemoryStore implements BaseStore {
 
       this.logger.info({ namespace, key, memoryId: value.id }, 'Memory stored successfully');
     } catch (error) {
+      // Don't log AbortError as actual errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        this.logger.debug({ namespace, key }, 'Memory storage aborted');
+        throw error;
+      }
+
       this.logger.error({ error, namespace, key }, 'Failed to store memory');
       // If embedding generation failed, skip storage gracefully
       if (error instanceof Error && error.message.includes('Embedding')) {
@@ -118,17 +135,24 @@ export class PostgresMemoryStore implements BaseStore {
     namespace: string[],
     query: string,
     options?: StoreSearchOptions,
+    signal?: AbortSignal,
   ): Promise<MemorySearchResult[]> {
     const threshold = options?.threshold ?? this.config.similarityThreshold;
     const limit = options?.limit;
 
     try {
+      // Check if operation was aborted before starting
+      signal?.throwIfAborted();
+
       this.logger.debug(
         { namespace, query: query.substring(0, 100) },
         'Generating query embedding for search',
       );
 
       const queryEmbedding = await generateEmbedding(query, this.config, this.logger);
+
+      // Check again after expensive embedding operation
+      signal?.throwIfAborted();
 
       if (!queryEmbedding) {
         this.logger.error({ namespace, query }, 'Failed to generate query embedding');
@@ -211,6 +235,12 @@ export class PostgresMemoryStore implements BaseStore {
         similarity: row.similarity,
       }));
     } catch (error) {
+      // Don't log AbortError as actual errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        this.logger.debug({ namespace, query }, 'Memory search aborted');
+        return [];
+      }
+
       this.logger.error({ error, namespace, query }, 'Memory search failed');
       return [];
     }

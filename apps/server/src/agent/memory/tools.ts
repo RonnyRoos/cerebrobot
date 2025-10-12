@@ -88,17 +88,22 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
           };
         }
 
-        // Store memory
-        await store.put(namespace, memoryKey, {
-          id: memoryId,
+        // Store memory (pass signal from runnableConfig)
+        await store.put(
           namespace,
-          key: memoryKey,
-          content,
-          metadata,
-          embedding,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+          memoryKey,
+          {
+            id: memoryId,
+            namespace,
+            key: memoryKey,
+            content,
+            metadata,
+            embedding,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          runnableConfig?.signal,
+        );
 
         logger.info(
           { memoryId, namespace, key: memoryKey, contentLength: content.length },

@@ -125,15 +125,17 @@ export interface StoreSearchOptions {
 }
 
 /**
- * Base Store Interface
+ * BaseStore Interface
  *
  * Defines the contract for memory storage operations.
  */
 export interface BaseStore {
   /**
    * Store a memory entry
+   *
+   * @param signal - Optional AbortSignal for cancellation support
    */
-  put(namespace: string[], key: string, value: MemoryEntry): Promise<void>;
+  put(namespace: string[], key: string, value: MemoryEntry, signal?: AbortSignal): Promise<void>;
 
   /**
    * Retrieve a memory entry by key
@@ -142,11 +144,14 @@ export interface BaseStore {
 
   /**
    * Search memories by semantic similarity
+   *
+   * @param signal - Optional AbortSignal for cancellation support
    */
   search(
     namespace: string[],
     query: string,
     options?: StoreSearchOptions,
+    signal?: AbortSignal,
   ): Promise<MemorySearchResult[]>;
 
   /**

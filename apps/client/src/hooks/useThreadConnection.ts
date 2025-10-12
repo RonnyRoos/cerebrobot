@@ -10,6 +10,7 @@ interface ResponseHandler {
   onComplete?: (message: string, latencyMs?: number) => void;
   onError?: (error: string, retryable: boolean) => void;
   onCancelled?: () => void;
+  timeoutId?: ReturnType<typeof setTimeout>; // Timeout ID for cleanup
 }
 
 /**
@@ -66,6 +67,15 @@ export function useThreadConnection(threadId: string | null) {
       return;
     }
 
+    // Helper to cleanup handler and clear timeout
+    const cleanupHandler = (requestId: string) => {
+      const handler = inflightRequestsRef.current.get(requestId);
+      if (handler?.timeoutId) {
+        clearTimeout(handler.timeoutId);
+      }
+      inflightRequestsRef.current.delete(requestId);
+    };
+
     const wsUrl = resolveWebSocketUrl();
     const url = `${wsUrl}?threadId=${encodeURIComponent(threadId)}`;
 
@@ -119,17 +129,17 @@ export function useThreadConnection(threadId: string | null) {
 
           case 'final':
             handler.onComplete?.(serverEvent.message, serverEvent.latencyMs);
-            inflightRequestsRef.current.delete(requestId);
+            cleanupHandler(requestId);
             break;
 
           case 'error':
             handler.onError?.(serverEvent.message, serverEvent.retryable ?? false);
-            inflightRequestsRef.current.delete(requestId);
+            cleanupHandler(requestId);
             break;
 
           case 'cancelled':
             handler.onCancelled?.();
-            inflightRequestsRef.current.delete(requestId);
+            cleanupHandler(requestId);
             break;
 
           default:
@@ -155,7 +165,6 @@ export function useThreadConnection(threadId: string | null) {
       inflightRequestsRef.current.clear();
       wsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
   /**
@@ -190,12 +199,23 @@ export function useThreadConnection(threadId: string | null) {
     // Generate requestId using crypto.randomUUID()
     const requestId = crypto.randomUUID();
 
-    // Register response handler
+    // Set 60-second timeout to auto-cleanup if server hangs
+    const timeoutId = setTimeout(() => {
+      const handler = inflightRequestsRef.current.get(requestId);
+      if (handler) {
+        console.warn('[useThreadConnection] Request timed out', { requestId, threadId });
+        inflightRequestsRef.current.delete(requestId);
+        handler.onError?.('Request timed out - server did not respond', true);
+      }
+    }, 60000); // 60 seconds
+
+    // Register response handler (with timeout ID for cleanup)
     inflightRequestsRef.current.set(requestId, {
       onToken,
       onComplete,
       onError,
       onCancelled,
+      timeoutId, // Add timeout ID for cleanup
     });
 
     // Send message to server
@@ -211,6 +231,7 @@ export function useThreadConnection(threadId: string | null) {
       console.log('[useThreadConnection] Message sent', { requestId, threadId });
     } catch (error) {
       console.error('[useThreadConnection] Failed to send message', { error, requestId });
+      clearTimeout(timeoutId); // Clear timeout on send failure
       inflightRequestsRef.current.delete(requestId);
       onError('Failed to send message', true);
       return '';

@@ -6,6 +6,7 @@
 
 import { SystemMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import type { BaseStore } from '@cerebrobot/chat-shared';
 import { buildUserNamespace } from '@cerebrobot/chat-shared';
 import type { MemoryConfig } from './config.js';
@@ -28,7 +29,10 @@ interface MemoryState {
  * Searches for relevant memories based on latest user message and injects them into context.
  */
 export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfig, logger: Logger) {
-  return async (state: MemoryState): Promise<Partial<MemoryState>> => {
+  return async (
+    state: MemoryState,
+    runnableConfig?: RunnableConfig,
+  ): Promise<Partial<MemoryState>> => {
     try {
       // Extract userId - REQUIRED (no fallback to sessionId to avoid namespace mismatches)
       if (!state.userId) {
@@ -55,11 +59,19 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
       const query =
         typeof lastMessage.content === 'string' ? lastMessage.content : String(lastMessage.content);
 
+      // Check if aborted before expensive operation
+      runnableConfig?.signal?.throwIfAborted();
+
       // Search for relevant memories
       const searchResults = await Promise.race([
-        store.search(namespace, query, {
-          threshold: config.similarityThreshold,
-        }),
+        store.search(
+          namespace,
+          query,
+          {
+            threshold: config.similarityThreshold,
+          },
+          runnableConfig?.signal,
+        ),
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error('Memory retrieval timeout')),
@@ -130,6 +142,12 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
         messages: [systemMessage],
       };
     } catch (error) {
+      // Handle aborted requests gracefully (don't log as error)
+      if (error instanceof Error && error.name === 'AbortError') {
+        logger.debug('Memory retrieval aborted - request cancelled');
+        return { retrievedMemories: [] };
+      }
+
       // Graceful degradation - log error but don't block conversation
       logger.error(
         {

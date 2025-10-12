@@ -280,6 +280,36 @@ Replaced all magic numbers (1000, 1008, 1011) across 8 locations in server route
 - ✅ Docker Compose up for 35+ hours
 - ✅ No errors in logs
 
+## Known Limitations
+
+### userId Extraction from Thread (Phase 1.5 Constraint)
+
+**Location**: `apps/server/src/chat/routes.ts:125`
+
+**Issue**: Thread creation currently uses a placeholder userId extraction:
+```typescript
+const userId = thread.userId ?? 'unknown-user';
+```
+
+**Impact**: 
+- If `thread.userId` is `null` in the database, memory operations will tag memories under `'unknown-user'` namespace instead of the actual user identifier.
+- LangGraph checkpoints may associate conversation state with incorrect user context.
+- This creates a data integrity risk where memories could be cross-contaminated between users if the userId field is not properly populated during thread creation.
+
+**Mitigation**:
+- **Single-user deployment assumption**: Phase 1.5 targets single-operator, hobby-scale deployments behind reverse proxy authentication. In this context, all threads belong to the same operator, so namespace collision is not a concern.
+- **Database schema enforces userId**: The `Thread` model has `userId` as a required field (`String @db.VarChar(255)`), so `null` values should not occur under normal operation.
+- **Future work**: Multi-user deployments (Phase 4+) will require proper authentication middleware to extract userId from session/JWT before thread retrieval, eliminating the fallback path entirely.
+
+**Remediation Plan**:
+1. Short-term: Document limitation in this ADR (current status ✅)
+2. Mid-term: Add validation in thread creation routes to reject threads without userId
+3. Long-term: Authentication middleware extracts userId from request context (Phase 4)
+
+**Acceptance Criteria**: 
+- This limitation is acceptable for Phase 1.5 single-user deployments.
+- Multi-user support must resolve this before production release (tracked in Phase 4 planning).
+
 ## References
 
 - **Feature Spec**: `specs/006-migrate-to-thread/spec.md`
