@@ -51,7 +51,7 @@ Convert your current `.env` settings to JSON format:
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "name": "My Custom Assistant",
-  "systemPrompt": "You are a helpful, professional AI assistant...",
+  "systemPrompt": "You are a helpful, professional AI assistant. You provide clear, accurate information and assist users with their tasks efficiently. Maintain a friendly but professional tone.",
   "personaTag": "assistant",
   "llm": {
     "model": "deepseek-ai/DeepSeek-V3.1-Terminus",
