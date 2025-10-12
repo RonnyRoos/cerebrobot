@@ -6,7 +6,7 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { RunnableLambda } from '@langchain/core/runnables';
 import type { Logger } from 'pino';
 import type { BaseStore } from '@cerebrobot/chat-shared';
-import { loadMemoryConfig } from '../memory/index.js';
+import type { MemoryConfig } from '../memory/index.js';
 import { createRetrieveMemoriesNode } from '../memory/nodes.js';
 import type { createUpsertMemoryTool } from '../memory/tools.js';
 import { toStringContent } from '../utils/message-utils.js';
@@ -30,6 +30,7 @@ interface LangGraphChatAgentOptions {
   readonly checkpointer?: BaseCheckpointSaver;
   readonly memoryStore?: BaseStore;
   readonly memoryTools?: ReturnType<typeof createUpsertMemoryTool>[]; // LangChain tools
+  readonly memoryConfig?: MemoryConfig;
 }
 
 function buildConversationGraph(
@@ -226,7 +227,9 @@ function buildConversationGraph(
   // Add memory nodes if memory store is available
   if (options.memoryStore && logger && memoryTools && memoryTools.length > 0) {
     try {
-      const memoryConfig = loadMemoryConfig();
+      if (!options.memoryConfig) {
+        throw new Error('Memory config is required when memory store is enabled');
+      }
 
       // Official LangGraph pattern: use ToolNode for tool execution
       const toolNode = new ToolNode(memoryTools);
@@ -234,7 +237,7 @@ function buildConversationGraph(
       workflow
         .addNode(
           'retrieveMemories',
-          createRetrieveMemoriesNode(options.memoryStore, memoryConfig, logger),
+          createRetrieveMemoriesNode(options.memoryStore, options.memoryConfig, logger),
         )
         .addNode('tools', toolNode) // ToolNode executes tools and creates ToolMessages
         .addEdge('summarize', 'retrieveMemories')
