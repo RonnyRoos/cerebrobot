@@ -8,13 +8,14 @@ import { SystemMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type { BaseStore } from '@cerebrobot/chat-shared';
-import { buildUserNamespace } from '@cerebrobot/chat-shared';
+import { buildAgentMemoryNamespace } from '@cerebrobot/chat-shared';
 import type { MemoryConfig } from './config.js';
 import type { Logger } from 'pino';
 
 interface MemoryState {
   messages: BaseMessage[];
   userId?: string;
+  agentId?: string;
   threadId: string;
   retrievedMemories?: Array<{
     id: string;
@@ -34,7 +35,17 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
     runnableConfig?: RunnableConfig,
   ): Promise<Partial<MemoryState>> => {
     try {
-      // Extract userId - REQUIRED (no fallback to sessionId to avoid namespace mismatches)
+      // Extract identifiers - REQUIRED (no fallback to sessionId to avoid namespace mismatches)
+      if (!state.agentId) {
+        const error = new Error(
+          'agentId is required for memory retrieval but was not found in state',
+        );
+        logger.error(
+          { threadId: state.threadId, error: error.message },
+          'CRITICAL: No agentId in state - memory operations impossible',
+        );
+        throw error;
+      }
       if (!state.userId) {
         const error = new Error(
           'userId is required for memory retrieval but was not found in state',
@@ -45,15 +56,15 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
         );
         throw error;
       }
-      const namespace = buildUserNamespace(state.userId);
+      const namespace = buildAgentMemoryNamespace(state.agentId, state.userId);
 
       // Get the latest user message for query
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
 
       if (!lastMessage || lastMessage._getType() !== 'human') {
-        logger.debug('No user message found for memory retrieval');
-        return {};
+        logger.debug({ threadId: state.threadId }, 'No user message found for memory retrieval');
+        return { retrievedMemories: [] };
       }
 
       const query =
@@ -110,7 +121,7 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
       }
 
       if (selectedMemories.length === 0) {
-        logger.debug('No memories fit within injection budget');
+        logger.debug({ namespace }, 'No memories fit within injection budget');
         return { retrievedMemories: [] };
       }
 
@@ -129,6 +140,8 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
       logger.info(
         {
           namespace,
+          agentId: state.agentId,
+          userId: state.userId,
           query: query.substring(0, 100),
           memoriesFound: searchResults.length,
           memoriesInjected: selectedMemories.length,
@@ -144,7 +157,7 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
     } catch (error) {
       // Handle aborted requests gracefully (don't log as error)
       if (error instanceof Error && error.name === 'AbortError') {
-        logger.debug('Memory retrieval aborted - request cancelled');
+        logger.debug({ threadId: state.threadId }, 'Memory retrieval aborted - request cancelled');
         return { retrievedMemories: [] };
       }
 

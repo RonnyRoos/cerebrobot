@@ -19,8 +19,8 @@ export const MemoryEntrySchema = z.object({
   /** Unique identifier (UUID) */
   id: z.string().uuid(),
 
-  /** Namespace tuple for organizational scoping (e.g., ["memories", "user123"]) */
-  namespace: z.array(z.string().min(1)).min(2),
+  /** Namespace tuple for organizational scoping (e.g., ["memories", "agent123", "user456"]) */
+  namespace: z.array(z.string().min(1)).min(3),
 
   /** Unique key within the namespace */
   key: z.string().min(1),
@@ -198,8 +198,8 @@ export function validateMemoryContent(content: string, maxTokens: number = 2048)
  * @throws Error if namespace is invalid
  */
 export function validateNamespace(namespace: string[]): void {
-  if (namespace.length < 2) {
-    throw new Error('Namespace must have at least 2 elements (type + identifier)');
+  if (namespace.length < 3) {
+    throw new Error('Namespace must have at least 3 elements (type + agent + identifier)');
   }
 
   if (namespace.some((part) => !part.trim())) {
@@ -208,14 +208,15 @@ export function validateNamespace(namespace: string[]): void {
 }
 
 /**
- * Build user-scoped namespace
+ * Build agent-scoped namespace for user memories
  *
+ * @param agentId - Agent identifier
  * @param userId - User identifier
- * @returns Namespace tuple ["memories", userId]
+ * @returns Namespace tuple ["memories", agentId, userId]
  */
-export function buildUserNamespace(userId: string): string[] {
-  validateNamespace(['memories', userId]); // Validate before returning
-  return ['memories', userId];
+export function buildAgentMemoryNamespace(agentId: string, userId: string): string[] {
+  validateNamespace(['memories', agentId, userId]);
+  return ['memories', agentId, userId];
 }
 
 // ============================================================================

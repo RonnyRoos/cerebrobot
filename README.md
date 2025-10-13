@@ -126,6 +126,8 @@ Agent configs are stored in `config/agents/*.json`. Each file defines a complete
 | `memory.injectionBudget` | number | Token budget for injected memory | Positive integer |
 | `memory.retrievalTimeoutMs` | number | Timeout for memory retrieval (ms) | Positive integer |
 
+> **Upgrade note:** Memory namespaces now include the agent identifier: `['memories', <agentId>, <userId>]`. When upgrading a development environment from earlier builds, either export/import previous memories or reset the `memories` table (for example, `TRUNCATE memories`) before deploying updated binaries. Plan a bespoke migration for production installs where data retention matters.
+
 ### Multi-Agent Setup
 
 **To add a new agent:**

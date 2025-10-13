@@ -48,12 +48,13 @@ describe('Memory Nodes', () => {
         messages: [new HumanMessage('What should I eat?')],
         threadId: 'thread-123',
         userId: 'user-456',
+        agentId: 'agent-123',
       };
 
       const mockResults = [
         {
           id: 'mem-1',
-          namespace: ['memories', 'user-456'],
+          namespace: ['memories', 'agent-123', 'user-456'],
           key: 'diet',
           content: 'User is vegetarian',
           similarity: 0.95,
@@ -67,11 +68,12 @@ describe('Memory Nodes', () => {
       const result = await retrieveMemories(state);
 
       expect(mockStore.search).toHaveBeenCalledWith(
-        ['memories', 'user-456'],
+        ['memories', 'agent-123', 'user-456'],
         'What should I eat?',
         { threshold: 0.7 },
         undefined, // signal parameter
       );
+      expect(mockStore.search).toHaveBeenCalledTimes(1);
 
       expect(result.retrievedMemories).toHaveLength(1);
       expect(result.retrievedMemories?.[0]).toMatchObject({
@@ -92,10 +94,11 @@ describe('Memory Nodes', () => {
         messages: [new HumanMessage('test')],
         threadId: 'thread-123',
         userId: 'user-456',
+        agentId: 'agent-123',
       });
 
       expect(mockStore.search).toHaveBeenCalledWith(
-        ['memories', 'user-456'],
+        ['memories', 'agent-123', 'user-456'],
         'test',
         expect.any(Object),
         undefined, // signal parameter
@@ -107,10 +110,24 @@ describe('Memory Nodes', () => {
       const resultWithoutUser = await retrieveMemories({
         messages: [new HumanMessage('test')],
         threadId: 'thread-789',
+        agentId: 'agent-123',
       });
 
       // Should return empty and not call store (userId validation happens in try-catch)
       expect(resultWithoutUser.retrievedMemories).toEqual([]);
+      expect(mockStore.search).not.toHaveBeenCalled();
+    });
+
+    it('requires agentId in state and skips retrieval when missing', async () => {
+      const retrieveMemories = createRetrieveMemoriesNode(mockStore, config, logger);
+
+      const resultWithoutAgent = await retrieveMemories({
+        messages: [new HumanMessage('test')],
+        threadId: 'thread-123',
+        userId: 'user-456',
+      });
+
+      expect(resultWithoutAgent.retrievedMemories).toEqual([]);
       expect(mockStore.search).not.toHaveBeenCalled();
     });
 
@@ -120,6 +137,8 @@ describe('Memory Nodes', () => {
       const state = {
         messages: [new AIMessage('Hello!')], // AI message, not human
         threadId: 'thread-123',
+        agentId: 'agent-123',
+        userId: 'user-456',
       };
 
       const result = await retrieveMemories(state);
@@ -137,6 +156,7 @@ describe('Memory Nodes', () => {
         messages: [new HumanMessage('test query')],
         threadId: 'thread-123',
         userId: 'user-456',
+        agentId: 'agent-123',
       };
 
       const result = await retrieveMemories(state);
@@ -152,6 +172,7 @@ describe('Memory Nodes', () => {
         messages: [new HumanMessage('test')],
         threadId: 'thread-123',
         userId: 'user-456',
+        agentId: 'agent-123',
       };
 
       // Create memories that exceed budget (1000 tokens = ~4000 chars)
@@ -159,7 +180,7 @@ describe('Memory Nodes', () => {
       const mockResults = [
         {
           id: 'mem-1',
-          namespace: ['memories', 'user-456'],
+          namespace: ['memories', 'agent-123', 'user-456'],
           key: 'key1',
           content: largeContent,
           similarity: 0.95,
@@ -168,7 +189,7 @@ describe('Memory Nodes', () => {
         },
         {
           id: 'mem-2',
-          namespace: ['memories', 'user-456'],
+          namespace: ['memories', 'agent-123', 'user-456'],
           key: 'key2',
           content: largeContent,
           similarity: 0.85,
@@ -193,12 +214,13 @@ describe('Memory Nodes', () => {
         messages: [new HumanMessage('test')],
         threadId: 'thread-123',
         userId: 'user-456',
+        agentId: 'agent-123',
       };
 
       const mockResults = [
         {
           id: 'mem-1',
-          namespace: ['memories', 'user-456'],
+          namespace: ['memories', 'agent-123', 'user-456'],
           key: 'key1',
           content: 'User likes pizza',
           similarity: 0.95,

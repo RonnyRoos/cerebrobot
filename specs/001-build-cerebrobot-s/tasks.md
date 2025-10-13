@@ -68,7 +68,7 @@ description: "Implementation tasks for Long-Term Memory Layer with LangGraph Sto
 
 - [x] **T009**: Create memory schemas in `packages/chat-shared/src/schemas/memory.ts`
   - Export `MemoryEntrySchema`, `UpsertMemoryInputSchema`, `MemorySearchResultSchema`
-  - Export validation utilities: `validateMemoryContent`, `validateNamespace`, `buildUserNamespace`
+  - Export validation utilities: `validateMemoryContent`, `validateNamespace`, `buildAgentMemoryNamespace`
 
 - [x] **T010**: Export user and memory schemas from `packages/chat-shared/src/index.ts`
 

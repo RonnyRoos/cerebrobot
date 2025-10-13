@@ -13,6 +13,7 @@ const ConversationAnnotation = Annotation.Root({
     budget: number;
   } | null>(),
   // Long-term memory fields
+  agentId: Annotation<string | undefined>(),
   userId: Annotation<string | undefined>(),
   retrievedMemories: Annotation<MemorySearchResult[] | undefined>(),
   memoryOperations: Annotation<UpsertMemoryInput[] | undefined>(),

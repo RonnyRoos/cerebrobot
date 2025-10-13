@@ -157,7 +157,7 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
   });
 
   it('persists memory to Postgres and retrieves it', async () => {
-    const namespace = ['test', 'user-integration-1'];
+    const namespace = ['memories', 'agent-integration', 'user-integration-1'];
     const key = 'test-memory-1';
     const memory: MemoryEntry = {
       id: '00000000-0000-0000-0000-000000000001',
@@ -182,7 +182,7 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
   });
 
   it('updates existing memory on conflict', async () => {
-    const namespace = ['test', 'user-integration-2'];
+    const namespace = ['memories', 'agent-integration', 'user-integration-2'];
     const key = 'test-memory-2';
 
     // Insert initial memory
@@ -217,7 +217,7 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
   });
 
   it('performs pgvector semantic search with similarity threshold', async () => {
-    const namespace = ['test', 'user-integration-3'];
+    const namespace = ['memories', 'agent-integration', 'user-integration-3'];
 
     // Insert multiple memories with deterministic embeddings
     const memories: MemoryEntry[] = [
@@ -321,7 +321,7 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
   });
 
   it('deletes memory successfully', async () => {
-    const namespace = ['test', 'user-integration-delete'];
+    const namespace = ['memories', 'agent-integration', 'user-integration-delete'];
     const key = 'deletable-memory';
 
     const memory: MemoryEntry = {
@@ -349,7 +349,7 @@ describe('PostgresMemoryStore Integration (Real Database)', () => {
   });
 
   it('lists all keys in namespace', async () => {
-    const namespace = ['test', 'user-integration-list'];
+    const namespace = ['memories', 'agent-integration', 'user-integration-list'];
 
     const memories: MemoryEntry[] = [
       {

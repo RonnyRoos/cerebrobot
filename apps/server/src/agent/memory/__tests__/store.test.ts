@@ -69,7 +69,7 @@ describe('PostgresMemoryStore', () => {
 
   describe('put()', () => {
     it('creates a new memory with embedding', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const key = 'preference-diet';
       const value: MemoryEntry = {
         id: 'mem-1',
@@ -102,7 +102,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('updates existing memory on conflict (upsert)', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const key = 'preference-diet';
       const value: MemoryEntry = {
         id: 'mem-2',
@@ -126,7 +126,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('skips storage if embedding generation fails', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const key = 'test-key';
       const value: MemoryEntry = {
         id: 'mem-3',
@@ -148,7 +148,7 @@ describe('PostgresMemoryStore', () => {
 
   describe('get()', () => {
     it('retrieves memory by namespace and key', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const key = 'preference-diet';
       const mockResult = [
         {
@@ -189,7 +189,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('returns null when memory not found', async () => {
-      const namespace = ['memories', 'user-456'];
+      const namespace = ['memories', 'agent-test', 'user-456'];
       const key = 'nonexistent';
 
       vi.mocked(prisma.$queryRaw).mockResolvedValue([]);
@@ -202,7 +202,7 @@ describe('PostgresMemoryStore', () => {
 
   describe('search()', () => {
     it('returns memories above similarity threshold', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const query = 'What are my dietary preferences?';
       const mockEmbedding = [0.15, 0.25, 0.35];
       const mockResults = [
@@ -255,7 +255,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('orders results by similarity score (highest first)', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const query = 'food preferences';
       const mockResults = [
         {
@@ -292,7 +292,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('respects custom threshold option', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const query = 'test query';
       const customThreshold = 0.85;
 
@@ -306,7 +306,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('returns empty array if embedding generation fails', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const query = 'test query';
 
       vi.mocked(generateEmbedding).mockResolvedValue(null);
@@ -320,7 +320,7 @@ describe('PostgresMemoryStore', () => {
 
   describe('delete()', () => {
     it('deletes memory by namespace and key', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const key = 'preference-diet';
 
       vi.mocked(prisma.memory.delete).mockResolvedValue(undefined as never);
@@ -340,7 +340,7 @@ describe('PostgresMemoryStore', () => {
 
   describe('list()', () => {
     it('lists all keys in namespace', async () => {
-      const namespace = ['memories', 'user-123'];
+      const namespace = ['memories', 'agent-test', 'user-123'];
       const mockResults = [{ key: 'pref-diet' }, { key: 'pref-allergen' }, { key: 'pref-hobby' }];
 
       vi.mocked(prisma.$queryRaw).mockResolvedValue(mockResults);
@@ -359,7 +359,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('returns empty array for namespace with no memories', async () => {
-      const namespace = ['memories', 'user-empty'];
+      const namespace = ['memories', 'agent-test', 'user-empty'];
 
       vi.mocked(prisma.$queryRaw).mockResolvedValue([]);
 
@@ -371,7 +371,7 @@ describe('PostgresMemoryStore', () => {
 
   describe('Edge Cases', () => {
     it('handles embedding generation failure gracefully', async () => {
-      const namespace = ['memories', 'user-edge'];
+      const namespace = ['memories', 'agent-test', 'user-edge'];
       const key = 'failing-embedding';
       const memory: MemoryEntry = {
         id: crypto.randomUUID(),
@@ -393,7 +393,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('returns empty array when no memories meet similarity threshold', async () => {
-      const namespace = ['memories', 'user-threshold'];
+      const namespace = ['memories', 'agent-test', 'user-threshold'];
 
       vi.mocked(generateEmbedding).mockResolvedValueOnce(new Array(1536).fill(0));
       vi.mocked(prisma.$queryRaw).mockResolvedValue([]);
@@ -431,7 +431,7 @@ describe('PostgresMemoryStore', () => {
     });
 
     it('handles very long content within token limits', async () => {
-      const namespace = ['memories', 'user-long'];
+      const namespace = ['memories', 'agent-test', 'user-long'];
       const key = 'long-content';
       const longContent = 'word '.repeat(500); // ~2500 chars
       const memory: MemoryEntry = {

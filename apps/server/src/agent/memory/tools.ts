@@ -10,7 +10,7 @@ import type { BaseStore } from '@cerebrobot/chat-shared';
 import {
   UpsertMemoryInputSchema,
   validateMemoryContent,
-  buildUserNamespace,
+  buildAgentMemoryNamespace,
 } from '@cerebrobot/chat-shared';
 import { generateEmbedding, type MemoryConfig } from './index.js';
 import type { Logger } from 'pino';
@@ -26,7 +26,14 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
     async (input, runnableConfig) => {
       try {
         // Log raw input for debugging
-        logger.info({ input, userId: runnableConfig?.configurable?.userId }, 'upsertMemory called');
+        logger.info(
+          {
+            input,
+            userId: runnableConfig?.configurable?.userId,
+            agentId: runnableConfig?.configurable?.agentId,
+          },
+          'upsertMemory called',
+        );
 
         // Validate and parse input
         const parseResult = UpsertMemoryInputSchema.safeParse(input);
@@ -61,6 +68,7 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
 
         // Get user identifier from config.configurable (passed at graph invocation)
         const userId = runnableConfig?.configurable?.userId as string | undefined;
+        const agentId = runnableConfig?.configurable?.agentId as string | undefined;
         if (!userId) {
           const errorMsg =
             'CRITICAL: userId not found in config.configurable - memory operations require userId';
@@ -72,7 +80,18 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
           };
         }
 
-        const namespace = buildUserNamespace(userId);
+        if (!agentId) {
+          const errorMsg =
+            'CRITICAL: agentId not found in config.configurable - memory operations require agentId';
+          logger.error({ config: runnableConfig }, errorMsg);
+          return {
+            success: false,
+            memoryId: '',
+            message: errorMsg,
+          };
+        }
+
+        const namespace = buildAgentMemoryNamespace(agentId, userId);
         const memoryKey = key ?? randomUUID();
         const memoryId = randomUUID();
 
@@ -106,7 +125,14 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
         );
 
         logger.info(
-          { memoryId, namespace, key: memoryKey, contentLength: content.length },
+          {
+            memoryId,
+            namespace,
+            key: memoryKey,
+            contentLength: content.length,
+            agentId,
+            userId,
+          },
           'Memory stored successfully',
         );
 

@@ -47,7 +47,7 @@ export {
   UpsertMemoryOutputSchema,
   validateMemoryContent,
   validateNamespace,
-  buildUserNamespace,
+  buildAgentMemoryNamespace,
   MEMORY_CONSTANTS,
   MemoryError,
   MemoryValidationError,
