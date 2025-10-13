@@ -283,8 +283,8 @@ export function validateMemoryContent(content: string, maxTokens: number = 2048)
  * @throws Error if namespace is invalid
  */
 export function validateNamespace(namespace: string[]): void {
-  if (namespace.length < 2) {
-    throw new Error("Namespace must have at least 2 elements (type + identifier)");
+  if (namespace.length < 3) {
+    throw new Error("Namespace must have at least 3 elements (type + agent + identifier)");
   }
   
   if (namespace.some(part => !part.trim())) {
@@ -293,14 +293,15 @@ export function validateNamespace(namespace: string[]): void {
 }
 
 /**
- * Build user-scoped namespace
+ * Build agent/user-scoped namespace
  * 
+ * @param agentId - Agent identifier
  * @param userId - User identifier
- * @returns Namespace tuple ["memories", userId]
+ * @returns Namespace tuple ["memories", agentId, userId]
  */
-export function buildUserNamespace(userId: string): string[] {
-  validateNamespace(["memories", userId]); // Validate before returning
-  return ["memories", userId];
+export function buildAgentMemoryNamespace(agentId: string, userId: string): string[] {
+  validateNamespace(["memories", agentId, userId]); // Validate before returning
+  return ["memories", agentId, userId];
 }
 
 // ============================================================================

@@ -152,13 +152,14 @@ curl -X POST http://localhost:3000/api/users \
 
 ### 2. Enable Memory in a Session
 
-Memory operates within **namespaces** scoped by user ID:
+Memory operates within **namespaces** scoped by agent + user identifier:
 
 ```typescript
-import { buildUserNamespace } from "@/agent/memory/contracts";
+import { buildAgentMemoryNamespace } from "@/agent/memory/contracts";
 
+const agentId = "agent_789xyz";
 const userId = "user_abc123";
-const namespace = buildUserNamespace(userId); // ["memories", "user_abc123"]
+const namespace = buildAgentMemoryNamespace(agentId, userId); // ["memories", "agent_789xyz", "user_abc123"]
 ```
 
 ### 3. Store a Memory Programmatically
