@@ -26,6 +26,7 @@ export class LangGraphChatAgent implements ChatAgent {
   private readonly graphContext: GraphContext;
   private readonly logger?: Logger;
   private readonly checkpointer?: BaseCheckpointSaver;
+  private readonly agentId: string;
 
   constructor(
     agentConfig: AgentConfig, // Agent config from JSON
@@ -34,6 +35,7 @@ export class LangGraphChatAgent implements ChatAgent {
   ) {
     this.logger = logger;
     this.checkpointer = checkpointer;
+    this.agentId = agentConfig.id;
 
     // Use agent config directly - no environment variable fallbacks
     const apiKey = agentConfig.llm.apiKey;
@@ -144,7 +146,7 @@ export class LangGraphChatAgent implements ChatAgent {
     if (!context.userId) {
       const error = new Error('userId is required for all chat operations but was not provided');
       this.logger?.error(
-        { threadId: context.threadId, correlationId: context.correlationId },
+        { threadId: context.threadId, correlationId: context.correlationId, agentId: this.agentId },
         error.message,
       );
       throw error;
@@ -158,6 +160,7 @@ export class LangGraphChatAgent implements ChatAgent {
         threadId: context.threadId,
         userId: context.userId,
         correlationId: context.correlationId,
+        agentId: this.agentId,
       },
       'invoking langgraph chat agent (stream)',
     );
@@ -166,6 +169,7 @@ export class LangGraphChatAgent implements ChatAgent {
       {
         threadId: context.threadId,
         userId: context.userId,
+        agentId: this.agentId,
         messages: [new HumanMessage(context.message)],
       },
       this.createConfig(context.threadId, 'stream', context.userId, context.signal),
@@ -203,6 +207,7 @@ export class LangGraphChatAgent implements ChatAgent {
         latencyMs,
         messageLength: accumulated.length,
         tokenUsage,
+        agentId: this.agentId,
       },
       'langgraph chat agent completed response (stream)',
     );
@@ -215,7 +220,7 @@ export class LangGraphChatAgent implements ChatAgent {
     if (!context.userId) {
       const error = new Error('userId is required for all chat operations but was not provided');
       this.logger?.error(
-        { threadId: context.threadId, correlationId: context.correlationId },
+        { threadId: context.threadId, correlationId: context.correlationId, agentId: this.agentId },
         error.message,
       );
       throw error;
@@ -227,6 +232,7 @@ export class LangGraphChatAgent implements ChatAgent {
         threadId: context.threadId,
         userId: context.userId,
         correlationId: context.correlationId,
+        agentId: this.agentId,
       },
       'invoking langgraph chat agent (complete)',
     );
@@ -235,6 +241,7 @@ export class LangGraphChatAgent implements ChatAgent {
       {
         threadId: context.threadId,
         userId: context.userId,
+        agentId: this.agentId,
         messages: [new HumanMessage(context.message)],
       },
       this.createConfig(context.threadId, 'invoke', context.userId, context.signal),
@@ -251,6 +258,7 @@ export class LangGraphChatAgent implements ChatAgent {
         latencyMs,
         messageLength: finalMessage.length,
         tokenUsage,
+        agentId: this.agentId,
       },
       'langgraph chat agent completed response (complete)',
     );
@@ -277,7 +285,7 @@ export class LangGraphChatAgent implements ChatAgent {
       tokenUsage: null,
     });
 
-    this.logger?.info({ threadId }, 'langgraph state reset for thread');
+    this.logger?.info({ threadId, agentId: this.agentId }, 'langgraph state reset for thread');
   }
 
   private createConfig(
@@ -290,6 +298,7 @@ export class LangGraphChatAgent implements ChatAgent {
       configurable: {
         thread_id: threadId,
         userId, // Pass userId to tools via config.configurable
+        agentId: this.agentId,
       },
     };
 

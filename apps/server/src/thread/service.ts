@@ -150,7 +150,21 @@ class DefaultThreadService implements ThreadService {
           continue;
         }
 
-        // Step 2e: Filter by agentId if specified
+        // Step 2e: Validate agentId consistency between checkpoint and thread metadata
+        const checkpointAgentId = channelValues.agentId as string | undefined;
+        if (checkpointAgentId && checkpointAgentId !== threadAgentId) {
+          logger?.warn(
+            {
+              threadId: record.threadId,
+              checkpointAgentId,
+              metadataAgentId: threadAgentId,
+            },
+            'Skipping thread - agentId mismatch between state and metadata',
+          );
+          continue;
+        }
+
+        // Step 2f: Filter by agentId if specified
         if (agentId && threadAgentId !== agentId) {
           logger?.trace(
             { threadId: record.threadId, threadAgentId, requestedAgentId: agentId },
@@ -159,7 +173,7 @@ class DefaultThreadService implements ThreadService {
           continue;
         }
 
-        // Step 2f: Derive thread metadata from state
+        // Step 2g: Derive thread metadata from state
         const metadata = this.deriveThreadMetadata(
           record.threadId,
           userId,
@@ -226,6 +240,18 @@ class DefaultThreadService implements ThreadService {
     const checkpointUserId = channelValues.userId;
     if (userId && checkpointUserId !== userId) {
       throw new Error(`Unauthorized: User ${userId} cannot access thread ${threadId}`);
+    }
+
+    const checkpointAgentId = channelValues.agentId as string | undefined;
+    const threadRecord = await this.options.prisma.thread.findUnique({
+      where: { id: threadId },
+      select: { agentId: true },
+    });
+
+    if (threadRecord && checkpointAgentId && checkpointAgentId !== threadRecord.agentId) {
+      throw new Error(
+        `Agent mismatch: thread ${threadId} expected agent ${threadRecord.agentId} but checkpoint recorded ${checkpointAgentId}`,
+      );
     }
 
     // Step 4: Extract messages from state
