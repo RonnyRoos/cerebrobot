@@ -612,3 +612,293 @@ function createInvocationContext(threadId: string): ChatInvocationContext {
     correlationId: `corr-${threadId}`,
   };
 }
+
+// ============================================================================
+// Events & Effects Tables Validation (Task T026)
+// ============================================================================
+
+describe('Events & Effects Tables (Real Database)', () => {
+  let prisma: PrismaClient;
+
+  beforeAll(async () => {
+    prisma = new PrismaClient();
+    await prisma.$connect();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await prisma.$executeRaw`DELETE FROM effects WHERE session_key LIKE 'test-validation:%'`;
+    await prisma.$executeRaw`DELETE FROM events WHERE session_key LIKE 'test-validation:%'`;
+  });
+
+  afterEach(async () => {
+    // Clean up test data after each test to avoid contaminating other tests
+    await prisma.$executeRaw`DELETE FROM effects WHERE session_key LIKE 'test-validation:%'`;
+    await prisma.$executeRaw`DELETE FROM events WHERE session_key LIKE 'test-validation:%'`;
+  });
+
+  describe('events table', () => {
+    it('should exist with correct structure', async () => {
+      // Query table information from information_schema
+      const tableInfo = await prisma.$queryRaw<Array<{ column_name: string; data_type: string }>>`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'events' 
+        ORDER BY ordinal_position
+      `;
+
+      const columnNames = tableInfo.map((col) => col.column_name);
+
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('session_key');
+      expect(columnNames).toContain('seq');
+      expect(columnNames).toContain('type');
+      expect(columnNames).toContain('payload');
+      expect(columnNames).toContain('created_at');
+    });
+
+    it('should enforce unique constraint on (session_key, seq)', async () => {
+      const sessionKey = 'test-validation:agent1:thread1';
+
+      // Insert first event
+      await prisma.$executeRaw`
+        INSERT INTO events (id, session_key, seq, type, payload, created_at)
+        VALUES (gen_random_uuid(), ${sessionKey}, 1, 'user_message', '{"text":"test"}', NOW())
+      `;
+
+      // Attempt to insert duplicate (same session_key + seq)
+      await expect(
+        prisma.$executeRaw`
+          INSERT INTO events (id, session_key, seq, type, payload, created_at)
+          VALUES (gen_random_uuid(), ${sessionKey}, 1, 'user_message', '{"text":"test2"}', NOW())
+        `,
+      ).rejects.toThrow(/already exists|unique constraint/i);
+    });
+
+    it('should allow same seq across different sessions', async () => {
+      const session1 = 'test-validation:agent1:thread1';
+      const session2 = 'test-validation:agent1:thread2';
+
+      // Insert event with seq=1 in session1
+      await prisma.$executeRaw`
+        INSERT INTO events (id, session_key, seq, type, payload, created_at)
+        VALUES (gen_random_uuid(), ${session1}, 1, 'user_message', '{"text":"test1"}', NOW())
+      `;
+
+      // Insert event with seq=1 in session2 (should succeed)
+      await prisma.$executeRaw`
+        INSERT INTO events (id, session_key, seq, type, payload, created_at)
+        VALUES (gen_random_uuid(), ${session2}, 1, 'user_message', '{"text":"test2"}', NOW())
+      `;
+
+      const count = await prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*) as count FROM events 
+        WHERE session_key IN (${session1}, ${session2})
+      `;
+
+      expect(Number(count[0].count)).toBe(2);
+    });
+
+    it('should have index on (session_key, seq)', async () => {
+      // Query indexes from pg_indexes
+      const indexes = await prisma.$queryRaw<Array<{ indexname: string; indexdef: string }>>`
+        SELECT indexname, indexdef 
+        FROM pg_indexes 
+        WHERE tablename = 'events' AND schemaname = 'public'
+      `;
+
+      const hasSessionSeqIndex = indexes.some(
+        (idx) =>
+          idx.indexdef.includes('session_key') &&
+          idx.indexdef.includes('seq') &&
+          (idx.indexdef.includes('UNIQUE') || idx.indexname.includes('session_key')),
+      );
+
+      expect(hasSessionSeqIndex).toBe(true);
+    });
+  });
+
+  describe('effects table', () => {
+    it('should exist with correct structure', async () => {
+      const tableInfo = await prisma.$queryRaw<Array<{ column_name: string; data_type: string }>>`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'effects' 
+        ORDER BY ordinal_position
+      `;
+
+      const columnNames = tableInfo.map((col) => col.column_name);
+
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('session_key');
+      expect(columnNames).toContain('checkpoint_id');
+      expect(columnNames).toContain('type');
+      expect(columnNames).toContain('payload');
+      expect(columnNames).toContain('dedupe_key');
+      expect(columnNames).toContain('status');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+      expect(columnNames).toContain('attempt_count');
+      expect(columnNames).toContain('last_attempt_at');
+    });
+
+    it('should enforce unique constraint on dedupe_key', async () => {
+      const sessionKey = 'test-validation:agent1:thread1';
+      const dedupeKey = 'test-dedupe-key-' + Date.now();
+
+      // Insert first effect
+      await prisma.$executeRaw`
+        INSERT INTO effects (
+          id, session_key, checkpoint_id, type, payload, dedupe_key, 
+          status, created_at, updated_at, attempt_count
+        ) VALUES (
+          gen_random_uuid(), ${sessionKey}, 'checkpoint-1', 'send_message',
+          '{"content":"test","requestId":"req1","isFinal":true}', ${dedupeKey},
+          'pending', NOW(), NOW(), 0
+        )
+      `;
+
+      // Attempt to insert duplicate dedupe_key
+      await expect(
+        prisma.$executeRaw`
+          INSERT INTO effects (
+            id, session_key, checkpoint_id, type, payload, dedupe_key,
+            status, created_at, updated_at, attempt_count
+          ) VALUES (
+            gen_random_uuid(), ${sessionKey}, 'checkpoint-2', 'send_message',
+            '{"content":"test2","requestId":"req2","isFinal":true}', ${dedupeKey},
+            'pending', NOW(), NOW(), 0
+          )
+        `,
+      ).rejects.toThrow(/already exists|unique constraint|duplicate key/i);
+    });
+
+    it('should have index on status and created_at', async () => {
+      const indexes = await prisma.$queryRaw<Array<{ indexname: string; indexdef: string }>>`
+        SELECT indexname, indexdef 
+        FROM pg_indexes 
+        WHERE tablename = 'effects' AND schemaname = 'public'
+      `;
+
+      const hasStatusCreatedIndex = indexes.some(
+        (idx) => idx.indexdef.includes('status') && idx.indexdef.includes('created_at'),
+      );
+
+      expect(hasStatusCreatedIndex).toBe(true);
+    });
+
+    it('should have index on session_key', async () => {
+      const indexes = await prisma.$queryRaw<Array<{ indexname: string; indexdef: string }>>`
+        SELECT indexname, indexdef 
+        FROM pg_indexes 
+        WHERE tablename = 'effects' AND schemaname = 'public'
+      `;
+
+      const hasSessionKeyIndex = indexes.some((idx) => idx.indexdef.includes('session_key'));
+
+      expect(hasSessionKeyIndex).toBe(true);
+    });
+
+    it('should support effect lifecycle state transitions', async () => {
+      const sessionKey = 'test-validation:agent1:thread1';
+      const dedupeKey = 'lifecycle-test-' + Date.now();
+
+      // Insert pending effect
+      const result = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO effects (
+          id, session_key, checkpoint_id, type, payload, dedupe_key,
+          status, created_at, updated_at, attempt_count
+        ) VALUES (
+          gen_random_uuid(), ${sessionKey}, 'checkpoint-1', 'send_message',
+          '{"content":"test","requestId":"req1","isFinal":true}', ${dedupeKey},
+          'pending', NOW(), NOW(), 0
+        )
+        RETURNING id
+      `;
+
+      const effectId = result[0].id;
+
+      // Update to executing
+      await prisma.$executeRaw`
+        UPDATE effects 
+        SET status = 'executing', attempt_count = attempt_count + 1, last_attempt_at = NOW()
+        WHERE id = ${effectId}::uuid
+      `;
+
+      // Update to completed
+      await prisma.$executeRaw`
+        UPDATE effects 
+        SET status = 'completed', updated_at = NOW()
+        WHERE id = ${effectId}::uuid
+      `;
+
+      // Verify final state
+      const final = await prisma.$queryRaw<
+        Array<{ status: string; attempt_count: number; last_attempt_at: Date | null }>
+      >`
+        SELECT status, attempt_count, last_attempt_at 
+        FROM effects 
+        WHERE id = ${effectId}::uuid
+      `;
+
+      expect(final[0].status).toBe('completed');
+      expect(final[0].attempt_count).toBe(1);
+      expect(final[0].last_attempt_at).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('integration', () => {
+    it('should support complete event→effect flow', async () => {
+      const sessionKey = 'test-validation:agent1:thread1';
+
+      // Create event (user message)
+      const eventResult = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO events (id, session_key, seq, type, payload, created_at)
+        VALUES (gen_random_uuid(), ${sessionKey}, 1, 'user_message', '{"text":"Hello"}', NOW())
+        RETURNING id
+      `;
+
+      const eventId = eventResult[0].id;
+      expect(eventId).toBeDefined();
+
+      // Create corresponding effect (agent response)
+      const dedupeKey = `${sessionKey}:checkpoint-1:0`;
+      const effectResult = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO effects (
+          id, session_key, checkpoint_id, type, payload, dedupe_key,
+          status, created_at, updated_at, attempt_count
+        ) VALUES (
+          gen_random_uuid(), ${sessionKey}, 'checkpoint-1', 'send_message',
+          '{"content":"Hi there!","requestId":"req1","isFinal":true}', ${dedupeKey},
+          'pending', NOW(), NOW(), 0
+        )
+        RETURNING id
+      `;
+
+      const effectId = effectResult[0].id;
+      expect(effectId).toBeDefined();
+
+      // Verify both exist and are linked by session_key
+      const linked = await prisma.$queryRaw<
+        Array<{ event_id: string; event_type: string; effect_id: string; effect_type: string }>
+      >`
+        SELECT 
+          e.id as event_id, 
+          e.type as event_type,
+          ef.id as effect_id,
+          ef.type as effect_type
+        FROM events e
+        JOIN effects ef ON e.session_key = ef.session_key
+        WHERE e.id = ${eventId}::uuid AND ef.id = ${effectId}::uuid
+      `;
+
+      expect(linked.length).toBe(1);
+      expect(linked[0].event_type).toBe('user_message');
+      expect(linked[0].effect_type).toBe('send_message');
+    });
+  });
+});

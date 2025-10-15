@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { randomUUID } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { OutboxStore } from '../../events/effects/OutboxStore.js';
 import { generateDedupeKey } from '../../events/types/effects.schema.js';
@@ -19,15 +20,14 @@ const SESSION_2 = 'user2:agent2:thread2' as SessionKey;
 
 describe('OutboxStore', () => {
   beforeEach(async () => {
-    // Clean up test data
-    await prisma.effect.deleteMany({
-      where: {
-        sessionKey: { in: [SESSION_1, SESSION_2] },
-      },
-    });
+    // Clean up ALL test data (including any leftover from other tests or postgres-validation)
+    // This ensures test isolation
+    await prisma.effect.deleteMany({});
+    await prisma.event.deleteMany({});
   });
 
   afterAll(async () => {
+    // Clean up test data
     await prisma.effect.deleteMany({
       where: {
         sessionKey: { in: [SESSION_1, SESSION_2] },
@@ -41,14 +41,14 @@ describe('OutboxStore', () => {
       const dedupeKey = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
       });
 
       const effect = await outboxStore.create({
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
         dedupeKey,
       });
 
@@ -56,7 +56,9 @@ describe('OutboxStore', () => {
       expect(effect.session_key).toBe(SESSION_1);
       expect(effect.checkpoint_id).toBe('checkpoint-1');
       expect(effect.type).toBe('send_message');
-      expect(effect.payload).toEqual({ content: 'Hello' });
+      expect(effect.payload.content).toBe('Hello');
+      expect(effect.payload.requestId).toBeDefined();
+      expect(effect.payload.isFinal).toBe(true);
       expect(effect.dedupe_key).toBe(dedupeKey);
       expect(effect.status).toBe('pending');
       expect(effect.created_at).toBeInstanceOf(Date);
@@ -67,14 +69,14 @@ describe('OutboxStore', () => {
       const dedupeKey = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
       });
 
       await outboxStore.create({
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
         dedupeKey,
       });
 
@@ -84,7 +86,7 @@ describe('OutboxStore', () => {
           sessionKey: SESSION_1,
           checkpointId: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'Hello' },
+          payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
           dedupeKey,
         }),
       ).rejects.toThrow();
@@ -94,20 +96,20 @@ describe('OutboxStore', () => {
       const dedupeKey1 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Message 1' },
+        payload: { content: 'Message 1', requestId: randomUUID(), isFinal: true },
       });
 
       const dedupeKey2 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Message 2' },
+        payload: { content: 'Message 2', requestId: randomUUID(), isFinal: true },
       });
 
       const effect1 = await outboxStore.create({
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Message 1' },
+        payload: { content: 'Message 1', requestId: randomUUID(), isFinal: true },
         dedupeKey: dedupeKey1,
       });
 
@@ -115,7 +117,7 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Message 2' },
+        payload: { content: 'Message 2', requestId: randomUUID(), isFinal: true },
         dedupeKey: dedupeKey2,
       });
 
@@ -130,11 +132,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'First' },
+        payload: { content: 'First', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'First' },
+          payload: { content: 'First', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -145,11 +147,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-2',
         type: 'send_message',
-        payload: { content: 'Second' },
+        payload: { content: 'Second', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-2',
           type: 'send_message',
-          payload: { content: 'Second' },
+          payload: { content: 'Second', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -165,11 +167,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Session 1' },
+        payload: { content: 'Session 1', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'Session 1' },
+          payload: { content: 'Session 1', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -177,11 +179,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_2,
         checkpointId: 'checkpoint-2',
         type: 'send_message',
-        payload: { content: 'Session 2' },
+        payload: { content: 'Session 2', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-2',
           type: 'send_message',
-          payload: { content: 'Session 2' },
+          payload: { content: 'Session 2', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -190,8 +192,8 @@ describe('OutboxStore', () => {
 
       expect(session1Pending).toHaveLength(1);
       expect(session2Pending).toHaveLength(1);
-      expect(session1Pending[0].payload).toEqual({ content: 'Session 1' });
-      expect(session2Pending[0].payload).toEqual({ content: 'Session 2' });
+      expect(session1Pending[0].payload.content).toBe('Session 1');
+      expect(session2Pending[0].payload.content).toBe('Session 2');
     });
 
     it('should respect limit parameter', async () => {
@@ -200,11 +202,11 @@ describe('OutboxStore', () => {
           sessionKey: SESSION_1,
           checkpointId: `checkpoint-${i}`,
           type: 'send_message',
-          payload: { content: `Message ${i}` },
+          payload: { content: `Message ${i}`, requestId: randomUUID(), isFinal: true },
           dedupeKey: generateDedupeKey({
             checkpoint_id: `checkpoint-${i}`,
             type: 'send_message',
-            payload: { content: `Message ${i}` },
+            payload: { content: `Message ${i}`, requestId: randomUUID(), isFinal: true },
           }),
         });
       }
@@ -218,11 +220,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Test' },
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'Test' },
+          payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -239,11 +241,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Test' },
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'Test' },
+          payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -258,11 +260,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Test' },
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'Test' },
+          payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -279,11 +281,11 @@ describe('OutboxStore', () => {
         sessionKey: SESSION_1,
         checkpointId: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Test' },
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         dedupeKey: generateDedupeKey({
           checkpoint_id: 'checkpoint-1',
           type: 'send_message',
-          payload: { content: 'Test' },
+          payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
         }),
       });
 
@@ -299,16 +301,18 @@ describe('OutboxStore', () => {
 
   describe('deduplication', () => {
     it('should generate same dedupe_key for identical effects', () => {
+      const requestId = randomUUID(); // Use same requestId for both
+
       const key1 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId, isFinal: true },
       });
 
       const key2 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId, isFinal: true },
       });
 
       expect(key1).toBe(key2);
@@ -318,13 +322,13 @@ describe('OutboxStore', () => {
       const key1 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
       });
 
       const key2 = generateDedupeKey({
         checkpoint_id: 'checkpoint-2',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
       });
 
       expect(key1).not.toBe(key2);
@@ -334,16 +338,171 @@ describe('OutboxStore', () => {
       const key1 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Hello' },
+        payload: { content: 'Hello', requestId: randomUUID(), isFinal: true },
       });
 
       const key2 = generateDedupeKey({
         checkpoint_id: 'checkpoint-1',
         type: 'send_message',
-        payload: { content: 'Goodbye' },
+        payload: { content: 'Goodbye', requestId: randomUUID(), isFinal: true },
       });
 
       expect(key1).not.toBe(key2);
+    });
+  });
+
+  describe('Deduplication Edge Cases (User Story 4)', () => {
+    it('should prevent duplicate effect execution when status is completed', async () => {
+      const dedupeKey = generateDedupeKey({
+        checkpoint_id: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        sequence: 0,
+      });
+
+      // Create and complete first effect
+      const effect1 = await outboxStore.create({
+        sessionKey: SESSION_1,
+        checkpointId: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        dedupeKey,
+      });
+
+      await outboxStore.updateStatus(effect1.id, 'completed');
+
+      // Verify completed effects not returned in pending query
+      const pending = await outboxStore.getPending();
+      expect(pending.find((e) => e.dedupe_key === dedupeKey)).toBeUndefined();
+    });
+
+    it('should prevent duplicate effect execution when status is failed', async () => {
+      const dedupeKey = generateDedupeKey({
+        checkpoint_id: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        sequence: 0,
+      });
+
+      // Create and mark as failed
+      const effect1 = await outboxStore.create({
+        sessionKey: SESSION_1,
+        checkpointId: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        dedupeKey,
+      });
+
+      await outboxStore.updateStatus(effect1.id, 'failed');
+
+      // Verify failed effects not returned in pending query
+      const pending = await outboxStore.getPending();
+      expect(pending.find((e) => e.dedupe_key === dedupeKey)).toBeUndefined();
+    });
+
+    it('should allow retry of pending effects (not deduplicated)', async () => {
+      const dedupeKey = generateDedupeKey({
+        checkpoint_id: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        sequence: 0,
+      });
+
+      // Create effect in pending state
+      const effect = await outboxStore.create({
+        sessionKey: SESSION_1,
+        checkpointId: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        dedupeKey,
+      });
+
+      // Effect should appear in pending queue
+      const pending1 = await outboxStore.getPending();
+      expect(pending1.find((e) => e.id === effect.id)).toBeDefined();
+
+      // Mark as executing
+      await outboxStore.updateStatus(effect.id, 'executing');
+
+      // Should not appear in pending queue while executing
+      const pending2 = await outboxStore.getPending();
+      expect(pending2.find((e) => e.id === effect.id)).toBeUndefined();
+
+      // Revert to pending (simulating WebSocket failure)
+      await outboxStore.updateStatus(effect.id, 'pending');
+
+      // Should reappear in pending queue for retry
+      const pending3 = await outboxStore.getPending();
+      expect(pending3.find((e) => e.id === effect.id)).toBeDefined();
+    });
+
+    it('should handle sequence numbers in deduplication correctly', async () => {
+      // Same checkpoint/payload but different sequence = different effects
+      const dedupe1 = generateDedupeKey({
+        checkpoint_id: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Token', requestId: randomUUID(), isFinal: true },
+        sequence: 0,
+      });
+
+      const dedupe2 = generateDedupeKey({
+        checkpoint_id: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Token', requestId: randomUUID(), isFinal: true },
+        sequence: 1,
+      });
+
+      // Different sequence numbers should generate different dedupe keys
+      expect(dedupe1).not.toBe(dedupe2);
+
+      // Both effects should be creatable (no collision)
+      const effect1 = await outboxStore.create({
+        sessionKey: SESSION_1,
+        checkpointId: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Token', requestId: randomUUID(), isFinal: false },
+        dedupeKey: dedupe1,
+      });
+
+      const effect2 = await outboxStore.create({
+        sessionKey: SESSION_1,
+        checkpointId: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Token', requestId: randomUUID(), isFinal: true },
+        dedupeKey: dedupe2,
+      });
+
+      expect(effect1.id).not.toBe(effect2.id);
+      expect(effect1.dedupe_key).not.toBe(effect2.dedupe_key);
+    });
+
+    it('should enforce database unique constraint on dedupe_key', async () => {
+      const dedupeKey = generateDedupeKey({
+        checkpoint_id: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        sequence: 0,
+      });
+
+      // Create first effect
+      await outboxStore.create({
+        sessionKey: SESSION_1,
+        checkpointId: 'checkpoint-1',
+        type: 'send_message',
+        payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+        dedupeKey,
+      });
+
+      // Attempt to create duplicate (same dedupe_key)
+      await expect(
+        outboxStore.create({
+          sessionKey: SESSION_1,
+          checkpointId: 'checkpoint-1',
+          type: 'send_message',
+          payload: { content: 'Test', requestId: randomUUID(), isFinal: true },
+          dedupeKey,
+        }),
+      ).rejects.toThrow(); // Prisma will throw unique constraint violation
     });
   });
 });
