@@ -63,7 +63,7 @@
 - [X] T015 [P] [US1] Implement SessionProcessor in `apps/server/src/events/session/SessionProcessor.ts` (orchestrates: load checkpoint → invoke graph → collect tokens → generate effects → commit transaction atomically, depends on T010/T011 stores)
 - [X] T016 [P] [US1] Implement EffectRunner in `apps/server/src/events/effects/EffectRunner.ts` (background worker polling OutboxStore at EFFECT_POLL_INTERVAL_MS from env, executes send_message effects via WebSocket, updates status, preserves token streaming, depends on T011)
 - [X] T017 [US1] Create exports in `apps/server/src/events/index.ts` (export EventQueue, EventStore, OutboxStore, SessionProcessor, EffectRunner, all types)
-- [ ] T018 [US1] Modify `apps/server/src/routes/chat.ts` WebSocket route (replace direct agent.streamChat() calls with event creation via EventQueue.enqueue())
+- [X] T018 [US1] Modify `apps/server/src/routes/chat.ts` WebSocket route (replace direct agent.streamChat() calls with event creation via EventQueue.enqueue())
 - [ ] T019 [P] [US1] Unit test for EventQueue in `apps/server/src/__tests__/events/EventQueue.test.ts` (test sequential processing per SESSION_KEY, concurrent processing across sessions, deterministic)
 - [ ] T020 [P] [US1] Unit test for SessionProcessor in `apps/server/src/__tests__/events/SessionProcessor.test.ts` (test event → graph → effects flow, mock LangGraph agent, deterministic)
 - [ ] T021 [P] [US1] Unit test for EffectRunner in `apps/server/src/__tests__/events/EffectRunner.test.ts` (test effect polling, WebSocket delivery, status updates, deterministic with mock WebSocket)
