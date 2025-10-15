@@ -5,7 +5,13 @@
 
 import { PrismaClient } from '@prisma/client';
 import type { SessionKey } from '../types/events.schema.js';
-import type { CreateEffect, Effect, EffectStatus, EffectType, SendMessagePayload } from './types.js';
+import type {
+  CreateEffect,
+  Effect,
+  EffectStatus,
+  EffectType,
+  SendMessagePayload,
+} from './types.js';
 import { randomUUID } from 'crypto';
 
 // Type for Prisma Effect model result

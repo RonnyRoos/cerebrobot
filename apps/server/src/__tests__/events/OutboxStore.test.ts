@@ -86,7 +86,7 @@ describe('OutboxStore', () => {
           type: 'send_message',
           payload: { content: 'Hello' },
           dedupeKey,
-        })
+        }),
       ).rejects.toThrow();
     });
 

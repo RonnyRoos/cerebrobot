@@ -3,7 +3,12 @@
  * Derived from Zod schemas in effects.schema.ts
  */
 
-import type { EffectType, EffectStatus, SendMessagePayload, Effect } from '../types/effects.schema.js';
+import type {
+  EffectType,
+  EffectStatus,
+  SendMessagePayload,
+  Effect,
+} from '../types/effects.schema.js';
 import type { SessionKey } from '../types/events.schema.js';
 
 // Re-export schema types

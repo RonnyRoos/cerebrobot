@@ -1,6 +1,6 @@
 /**
  * Effect Schemas for 008-migrate-to-events-effects
- * 
+ *
  * Defines send_message effect type only.
  * Spec 009 will extend with schedule_timer type.
  */
@@ -43,7 +43,7 @@ export type Effect = z.infer<typeof EffectSchema>;
 export function createSendMessageEffect(
   sessionKey: z.infer<typeof SessionKeySchema>,
   checkpointId: string,
-  content: string
+  content: string,
 ) {
   const effect = {
     session_key: sessionKey,
@@ -51,9 +51,9 @@ export function createSendMessageEffect(
     type: 'send_message' as const,
     payload: { content },
   };
-  
+
   const dedupeKey = generateDedupeKey(effect);
-  
+
   return { ...effect, dedupe_key: dedupeKey };
 }
 

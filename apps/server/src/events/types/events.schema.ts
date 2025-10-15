@@ -1,6 +1,6 @@
 /**
  * Event Schemas for 008-migrate-to-events-effects
- * 
+ *
  * Defines user_message event type only.
  * Spec 009 will extend with timer and tool_result types.
  */
@@ -8,7 +8,8 @@
 import { z } from 'zod';
 
 // Session Key branded type
-export const SessionKeySchema = z.string()
+export const SessionKeySchema = z
+  .string()
   .regex(/^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$/, 'Invalid SESSION_KEY format')
   .brand<'SessionKey'>();
 
@@ -38,11 +39,7 @@ export const EventSchema = z.object({
 export type Event = z.infer<typeof EventSchema>;
 
 // Event creation helper
-export function createUserMessageEvent(
-  sessionKey: SessionKey,
-  seq: number,
-  text: string
-) {
+export function createUserMessageEvent(sessionKey: SessionKey, seq: number, text: string) {
   return {
     session_key: sessionKey,
     seq,

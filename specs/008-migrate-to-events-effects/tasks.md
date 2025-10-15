@@ -59,10 +59,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Implement EventQueue in `apps/server/src/events/events/EventQueue.ts` (in-process Map<SESSION_KEY, Queue<Event>> structure, enqueue/process methods, sequential processing per session, read EVENT_QUEUE_PROCESS_INTERVAL_MS from env)
-- [ ] T015 [P] [US1] Implement SessionProcessor in `apps/server/src/events/session/SessionProcessor.ts` (orchestrates: load checkpoint → invoke graph → collect tokens → generate effects → commit transaction atomically, depends on T010/T011 stores)
-- [ ] T016 [P] [US1] Implement EffectRunner in `apps/server/src/events/effects/EffectRunner.ts` (background worker polling OutboxStore at EFFECT_POLL_INTERVAL_MS from env, executes send_message effects via WebSocket, updates status, preserves token streaming, depends on T011)
-- [ ] T017 [US1] Create exports in `apps/server/src/events/index.ts` (export EventQueue, EventStore, OutboxStore, SessionProcessor, EffectRunner, all types)
+- [X] T014 [P] [US1] Implement EventQueue in `apps/server/src/events/events/EventQueue.ts` (in-process Map<SESSION_KEY, Queue<Event>> structure, enqueue/process methods, sequential processing per session, read EVENT_QUEUE_PROCESS_INTERVAL_MS from env)
+- [X] T015 [P] [US1] Implement SessionProcessor in `apps/server/src/events/session/SessionProcessor.ts` (orchestrates: load checkpoint → invoke graph → collect tokens → generate effects → commit transaction atomically, depends on T010/T011 stores)
+- [X] T016 [P] [US1] Implement EffectRunner in `apps/server/src/events/effects/EffectRunner.ts` (background worker polling OutboxStore at EFFECT_POLL_INTERVAL_MS from env, executes send_message effects via WebSocket, updates status, preserves token streaming, depends on T011)
+- [X] T017 [US1] Create exports in `apps/server/src/events/index.ts` (export EventQueue, EventStore, OutboxStore, SessionProcessor, EffectRunner, all types)
 - [ ] T018 [US1] Modify `apps/server/src/routes/chat.ts` WebSocket route (replace direct agent.streamChat() calls with event creation via EventQueue.enqueue())
 - [ ] T019 [P] [US1] Unit test for EventQueue in `apps/server/src/__tests__/events/EventQueue.test.ts` (test sequential processing per SESSION_KEY, concurrent processing across sessions, deterministic)
 - [ ] T020 [P] [US1] Unit test for SessionProcessor in `apps/server/src/__tests__/events/SessionProcessor.test.ts` (test event → graph → effects flow, mock LangGraph agent, deterministic)

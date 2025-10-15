@@ -67,7 +67,7 @@ describe('EventStore', () => {
           seq: 1,
           type: 'user_message',
           payload: { text: 'Duplicate' },
-        })
+        }),
       ).rejects.toThrow();
     });
   });
@@ -177,40 +177,40 @@ describe('EventStore', () => {
   describe('SESSION_KEY validation', () => {
     it('should reject SESSION_KEY with missing colon separators', async () => {
       const invalidKey = 'user1agent1thread1' as SessionKey;
-      
+
       await expect(
         eventStore.create({
           sessionKey: invalidKey,
           seq: 1,
           type: 'user_message',
           payload: { text: 'Test' },
-        })
+        }),
       ).rejects.toThrow();
     });
 
     it('should reject SESSION_KEY with empty components', async () => {
       const invalidKey = 'user1::thread1' as SessionKey;
-      
+
       await expect(
         eventStore.create({
           sessionKey: invalidKey,
           seq: 1,
           type: 'user_message',
           payload: { text: 'Test' },
-        })
+        }),
       ).rejects.toThrow();
     });
 
     it('should reject SESSION_KEY with special characters', async () => {
       const invalidKey = 'user@1:agent#1:thread$1' as SessionKey;
-      
+
       await expect(
         eventStore.create({
           sessionKey: invalidKey,
           seq: 1,
           type: 'user_message',
           payload: { text: 'Test' },
-        })
+        }),
       ).rejects.toThrow();
     });
   });

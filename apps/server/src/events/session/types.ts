@@ -4,7 +4,10 @@
  */
 
 import { z } from 'zod';
-import { SessionKeySchema, parseSessionKey as schemaParseSessionKey } from '../types/events.schema.js';
+import {
+  SessionKeySchema,
+  parseSessionKey as schemaParseSessionKey,
+} from '../types/events.schema.js';
 
 // Re-export SESSION_KEY from schema
 export type SessionKey = z.infer<typeof SessionKeySchema>;
