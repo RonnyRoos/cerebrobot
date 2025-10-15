@@ -24,12 +24,12 @@
 **Purpose**: Project initialization and database schema
 
 - [X] T001 Add Prisma models for events and effects in `prisma/schema.prisma` (Event model with events table mapping, Effect model with effects table mapping)
-- [ ] T002 Run Prisma migration: `pnpm prisma migrate dev --name add_events_effects_tables`
-- [ ] T003 Run Prisma client generation: `pnpm prisma generate`
-- [ ] T004 [P] Create Events & Effects subsystem directory structure in `apps/server/src/events/` with subdirectories: `events/`, `effects/`, `session/`
-- [ ] T005 [P] Copy contract schema from `specs/008-migrate-to-events-effects/contracts/events.schema.ts` to `apps/server/src/events/types/events.schema.ts`
-- [ ] T006 [P] Copy contract schema from `specs/008-migrate-to-events-effects/contracts/effects.schema.ts` to `apps/server/src/events/types/effects.schema.ts`
-- [ ] T006a [P] Add polling interval configuration to `apps/server/.env` and `.env.example` (EFFECT_POLL_INTERVAL_MS=500, EVENT_QUEUE_PROCESS_INTERVAL_MS=50)
+- [X] T002 Run Prisma migration: `pnpm prisma migrate dev --name add_events_effects_tables`
+- [X] T003 Run Prisma client generation: `pnpm prisma generate`
+- [X] T004 [P] Create Events & Effects subsystem directory structure in `apps/server/src/events/` with subdirectories: `events/`, `effects/`, `session/`
+- [X] T005 [P] Copy contract schema from `specs/008-migrate-to-events-effects/contracts/events.schema.ts` to `apps/server/src/events/types/events.schema.ts`
+- [X] T006 [P] Copy contract schema from `specs/008-migrate-to-events-effects/contracts/effects.schema.ts` to `apps/server/src/events/types/effects.schema.ts`
+- [X] T006a [P] Add polling interval configuration to `apps/server/.env` and `.env.example` (EFFECT_POLL_INTERVAL_MS=500, EVENT_QUEUE_PROCESS_INTERVAL_MS=50)
 
 ---
 
@@ -39,13 +39,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 [P] Create Event TypeScript types in `apps/server/src/events/events/types.ts` (Event, CreateEvent, EventType types derived from Zod schemas)
-- [ ] T008 [P] Create Effect TypeScript types in `apps/server/src/events/effects/types.ts` (Effect, CreateEffect, EffectType, EffectStatus types derived from Zod schemas)
-- [ ] T009 [P] Create SESSION_KEY types in `apps/server/src/events/session/types.ts` (SessionKey branded type, parseSessionKey helper, SessionProcessorConfig)
-- [ ] T010 Implement EventStore in `apps/server/src/events/events/EventStore.ts` (create, getNextSeq, findBySession methods with PostgreSQL via Prisma)
-- [ ] T011 Implement OutboxStore in `apps/server/src/events/effects/OutboxStore.ts` (create, getPending, updateStatus methods with PostgreSQL via Prisma, dedupe_key generation)
-- [ ] T012 [P] Unit tests for EventStore in `apps/server/src/__tests__/events/EventStore.test.ts` (test sequence generation, session isolation, SESSION_KEY validation rejects invalid formats like missing colons/empty components/special chars, deterministic with fixed inputs)
-- [ ] T013 [P] Unit tests for OutboxStore in `apps/server/src/__tests__/events/OutboxStore.test.ts` (test deduplication, status transitions, deterministic with fixed inputs)
+- [X] T007 [P] Create Event TypeScript types in `apps/server/src/events/events/types.ts` (Event, CreateEvent, EventType types derived from Zod schemas)
+- [X] T008 [P] Create Effect TypeScript types in `apps/server/src/events/effects/types.ts` (Effect, CreateEffect, EffectType, EffectStatus types derived from Zod schemas)
+- [X] T009 [P] Create SESSION_KEY types in `apps/server/src/events/session/types.ts` (SessionKey branded type, parseSessionKey helper, SessionProcessorConfig)
+- [X] T010 Implement EventStore in `apps/server/src/events/events/EventStore.ts` (create, getNextSeq, findBySession methods with PostgreSQL via Prisma)
+- [X] T011 Implement OutboxStore in `apps/server/src/events/effects/OutboxStore.ts` (create, getPending, updateStatus methods with PostgreSQL via Prisma, dedupe_key generation)
+- [X] T012 [P] Unit tests for EventStore in `apps/server/src/__tests__/events/EventStore.test.ts` (test sequence generation, session isolation, SESSION_KEY validation rejects invalid formats like missing colons/empty components/special chars, deterministic with fixed inputs)
+- [X] T013 [P] Unit tests for OutboxStore in `apps/server/src/__tests__/events/OutboxStore.test.ts` (test deduplication, status transitions, deterministic with fixed inputs)
 
 **Checkpoint**: Foundation ready - EventStore and OutboxStore provide database access layer for all user stories
 
