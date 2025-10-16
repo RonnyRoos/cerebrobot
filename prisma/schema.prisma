@@ -80,3 +80,37 @@ model Thread {
   @@index([userId]) // For querying threads by user
   @@map("threads")
 }
+
+/// Events & Effects Architecture (Spec 008)
+/// Event: Immutable user message input
+model Event {
+  id         String   @id @default(uuid()) @db.Uuid
+  sessionKey String   @map("session_key")
+  seq        Int
+  type       String   // 'user_message' (spec 008), extensible for spec 009
+  payload    Json     // { text: string } for user_message
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([sessionKey, seq])
+  @@index([sessionKey, seq])
+  @@map("events")
+}
+
+/// Effect: Agent response awaiting delivery (transactional outbox pattern)
+model Effect {
+  id            String    @id @default(uuid()) @db.Uuid
+  sessionKey    String    @map("session_key")
+  checkpointId  String    @map("checkpoint_id")
+  type          String    // 'send_message' (spec 008), extensible for spec 009
+  payload       Json      // { content: string } for send_message
+  dedupeKey     String    @unique @map("dedupe_key")
+  status        String    @default("pending") // pending|executing|completed|failed
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  attemptCount  Int       @default(0) @map("attempt_count")
+  lastAttemptAt DateTime? @map("last_attempt_at") @db.Timestamptz
+
+  @@index([status, createdAt], map: "idx_effects_status_created")
+  @@index([sessionKey])
+  @@map("effects")
+}

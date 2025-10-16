@@ -14,6 +14,8 @@ import {
 import type { ChatAgent, ChatInvocationContext, AgentStreamEvent } from './chat-agent.js';
 import type { ThreadManager } from '../thread-manager/thread-manager.js';
 import { ConnectionManager } from './connection-manager.js';
+import type { EventStore, EventQueue, EffectRunner } from '../events/index.js';
+import { SessionKeySchema } from '../events/index.js';
 
 const MAX_MESSAGE_BYTES = 1_048_576;
 
@@ -21,6 +23,9 @@ interface RegisterChatRouteOptions {
   readonly threadManager: ThreadManager;
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
   readonly connectionManager: ConnectionManager;
+  readonly eventStore: EventStore;
+  readonly eventQueue: EventQueue;
+  readonly effectRunner: EffectRunner;
   readonly logger?: Logger;
 }
 
@@ -116,7 +121,7 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
     };
 
     /**
-     * Handle incoming chat message
+     * Handle incoming chat message via Events & Effects architecture (spec 008)
      */
     const handleChatMessage = async (connectionId: string, message: ClientMessage) => {
       if (message.type !== 'message') {
@@ -149,73 +154,56 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
           return;
         }
 
-        // Lazy load agent on-demand using thread's agentId
-        const agent = await options.getAgent(thread.agentId);
-
-        // TODO: Extract userId from somewhere (session, JWT, etc.)
-        // For now, using a placeholder. This will be fixed in auth implementation.
         const userId = thread.userId ?? 'unknown-user';
+        const agentId = thread.agentId;
 
-        // Create AbortController for this request
-        const abortController = new AbortController();
+        // Construct and validate SESSION_KEY: userId:agentId:threadId
+        const sessionKey = SessionKeySchema.parse(`${userId}:${agentId}:${threadId}`);
 
-        // Register active request with ConnectionManager
-        options.connectionManager.setActiveRequest(connectionId, requestId, abortController);
+        // User Story 2: Deliver any pending effects from previous disconnection
+        // This ensures reconnection delivers queued messages before processing new ones
+        try {
+          await options.effectRunner.pollForSession(sessionKey);
+          options.logger?.debug(
+            { connectionId, requestId, sessionKey },
+            'Reconnection delivery check complete',
+          );
+        } catch (pollError) {
+          // Don't block new message processing if reconnection delivery fails
+          options.logger?.warn(
+            { connectionId, requestId, sessionKey, error: pollError },
+            'Error during reconnection delivery, continuing with new message',
+          );
+        }
 
-        const context: ChatInvocationContext = {
-          threadId,
-          userId,
-          message: content,
-          correlationId: randomUUID(), // Server-side correlation
-          requestId, // Client-provided request ID
-          signal: abortController.signal,
+        // Get next sequence number for this session
+        const nextSeq = await options.eventStore.getNextSeq(sessionKey);
+
+        // Create user_message event
+        const event = {
+          sessionKey,
+          seq: nextSeq,
+          type: 'user_message' as const,
+          payload: { text: content, requestId },
         };
 
+        // Persist event to database
+        const createdEvent = await options.eventStore.create(event);
+
         options.logger?.info(
-          { connectionId, requestId, threadId, messageLength: content.length },
-          'websocket_chat_message_processing',
+          { connectionId, requestId, sessionKey, eventId: createdEvent.id, seq: nextSeq },
+          'Event created, enqueueing for processing',
         );
 
-        try {
-          for await (const event of agent.streamChat(context)) {
-            // Check if aborted
-            if (abortController.signal.aborted) {
-              options.logger?.info({ connectionId, requestId }, 'Stream aborted');
-              break;
-            }
+        // Enqueue event for processing (non-blocking)
+        // SessionProcessor will handle it asynchronously
+        // EffectRunner will deliver the response via WebSocket
+        void options.eventQueue.enqueue(createdEvent);
 
-            if (event.type === 'error') {
-              sendWebsocketError(
-                socket,
-                requestId,
-                event.message,
-                event.retryable,
-                event.retryable ? WS_CLOSE_CODES.INTERNAL_ERROR : WS_CLOSE_CODES.NORMAL_CLOSURE,
-              );
-              options.logger?.error(
-                { connectionId, requestId, retryable: event.retryable },
-                'websocket_error',
-              );
-              return;
-            }
-
-            sendWebsocketEvent(socket, event, requestId, connectionId, options.logger);
-          }
-
-          options.logger?.info({ connectionId, requestId }, 'websocket_stream_completed');
-        } catch (error) {
-          // Check if error is due to abort
-          if (error instanceof Error && error.name === 'AbortError') {
-            options.logger?.info({ connectionId, requestId }, 'Stream cancelled by abort signal');
-            // Don't send error event for cancellation - client already knows
-            return;
-          }
-
-          throw error; // Re-throw other errors
-        } finally {
-          // Clear active request from ConnectionManager
-          options.connectionManager.clearActiveRequest(connectionId);
-        }
+        options.logger?.info(
+          { connectionId, requestId, sessionKey, eventId: createdEvent.id },
+          'Event enqueued successfully',
+        );
       } catch (error) {
         handleWebsocketError(socket, error, {
           logger: options.logger,
@@ -338,6 +326,11 @@ function appLogError(reply: FastifyReply, error: unknown): void {
   reply.log.error({ err: error }, 'chat agent failure');
 }
 
+/**
+ * @deprecated No longer used - WebSocket delivery now handled by EffectRunner (spec 008)
+ * Kept for reference during migration
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function sendWebsocketEvent(
   socket: WebSocket,
   event: AgentStreamEvent,

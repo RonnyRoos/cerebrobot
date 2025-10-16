@@ -162,6 +162,7 @@ export function useThreadConnection(threadId: string | null) {
       }
 
       // Refs are stable across renders - safe to access in cleanup
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- refs are intentionally stable and don't need to be in dependency array
       inflightRequestsRef.current.clear();
       wsRef.current = null;
     };
