@@ -141,12 +141,15 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
 
         if (isFinal) {
           // This is the final effect - send completion event
+          // Calculate latency from effect creation timestamp
+          const latencyMs = Date.now() - new Date(effect.created_at).getTime();
+
           socket.send(
             JSON.stringify({
               type: 'final',
               requestId,
               message: content,
-              latencyMs: 0, // TODO: Calculate from timestamps
+              latencyMs,
               tokenUsage: undefined,
             }),
           );

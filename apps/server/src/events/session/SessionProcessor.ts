@@ -132,7 +132,8 @@ export class SessionProcessor {
           }
 
           // Create ONE effect with the complete message
-          // This is for reconnection scenarios where WebSocket wasn't active
+          // If WebSocket was active, mark as 'completed' (already delivered)
+          // If no WebSocket, mark as 'pending' (needs async delivery on reconnection)
           const effect = createSendMessageEffect(
             event.session_key,
             checkpointId,
@@ -148,6 +149,7 @@ export class SessionProcessor {
             type: effect.type,
             payload: effect.payload,
             dedupeKey: effect.dedupe_key,
+            status: activeSocket ? 'completed' : 'pending', // Set status based on delivery
           });
 
           this.logger?.debug(

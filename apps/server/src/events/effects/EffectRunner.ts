@@ -142,10 +142,6 @@ export class EffectRunner {
    * Updates status: pending → executing → completed/failed
    */
   private async executeEffect(effect: Effect): Promise<void> {
-    this.logger?.info(
-      { effectId: effect.id, type: effect.type, status: effect.status },
-      'EffectRunner: executeEffect called [INFO LEVEL]',
-    );
     this.logger?.debug(
       { effectId: effect.id, type: effect.type, status: effect.status },
       'EffectRunner: executeEffect called',

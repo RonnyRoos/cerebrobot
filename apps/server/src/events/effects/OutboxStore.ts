@@ -37,7 +37,7 @@ export class OutboxStore {
    * Deduplication enforced by unique constraint on dedupe_key
    * @returns Created effect or throws if duplicate
    */
-  async create(effect: CreateEffect): Promise<Effect> {
+  async create(effect: CreateEffect & { status?: EffectStatus }): Promise<Effect> {
     const created = await this.prisma.effect.create({
       data: {
         id: randomUUID(),
@@ -46,7 +46,7 @@ export class OutboxStore {
         type: effect.type,
         payload: effect.payload, // Prisma accepts plain objects for Json type
         dedupeKey: effect.dedupeKey,
-        status: 'pending',
+        status: effect.status ?? 'pending', // Allow caller to specify status
         attemptCount: 0,
       },
     });

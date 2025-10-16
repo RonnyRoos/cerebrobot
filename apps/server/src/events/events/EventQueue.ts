@@ -10,6 +10,8 @@ interface QueuedEvent {
   event: Event;
   resolve: (result: void) => void;
   reject: (error: Error) => void;
+  attemptCount?: number; // Track retry attempts
+  lastError?: Error; // Track last error for logging
 }
 
 /**
@@ -17,6 +19,7 @@ interface QueuedEvent {
  * - Each SESSION_KEY has its own FIFO queue
  * - Events processed sequentially per session
  * - Concurrent processing across different sessions
+ * - Failed events retried up to MAX_RETRY_ATTEMPTS with exponential backoff
  */
 export class EventQueue {
   private queues: Map<SessionKey, QueuedEvent[]> = new Map();
@@ -24,6 +27,8 @@ export class EventQueue {
   private processor: ((event: Event) => Promise<void>) | null = null;
   private interval: NodeJS.Timeout | null = null;
   private intervalMs: number;
+  private static readonly MAX_RETRY_ATTEMPTS = 3; // Max retries before giving up
+  private static readonly RETRY_DELAY_MS = 1000; // Base delay for exponential backoff
 
   constructor(intervalMs = 50) {
     this.intervalMs = intervalMs;
@@ -36,7 +41,7 @@ export class EventQueue {
   async enqueue(event: Event): Promise<void> {
     return new Promise((resolve, reject) => {
       const queue = this.queues.get(event.session_key) ?? [];
-      queue.push({ event, resolve, reject });
+      queue.push({ event, resolve, reject, attemptCount: 0 });
       this.queues.set(event.session_key, queue);
     });
   }
@@ -109,7 +114,33 @@ export class EventQueue {
               await this.processor(queued.event);
               queued.resolve();
             } catch (error) {
-              queued.reject(error as Error);
+              const attemptCount = (queued.attemptCount ?? 0) + 1;
+              const err = error as Error;
+
+              if (attemptCount < EventQueue.MAX_RETRY_ATTEMPTS) {
+                // Retry with exponential backoff
+                const delayMs = EventQueue.RETRY_DELAY_MS * Math.pow(2, attemptCount - 1);
+
+                // Re-enqueue with updated attempt count after delay
+                setTimeout(() => {
+                  const retryQueue = this.queues.get(sessionKey) ?? [];
+                  retryQueue.push({
+                    event: queued.event,
+                    resolve: queued.resolve,
+                    reject: queued.reject,
+                    attemptCount,
+                    lastError: err,
+                  });
+                  this.queues.set(sessionKey, retryQueue);
+                }, delayMs);
+              } else {
+                // Max retries exceeded, reject permanently
+                queued.reject(
+                  new Error(
+                    `Event processing failed after ${EventQueue.MAX_RETRY_ATTEMPTS} attempts: ${err.message}`,
+                  ),
+                );
+              }
             }
           }
         } finally {
