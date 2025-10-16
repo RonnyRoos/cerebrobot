@@ -68,10 +68,11 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
     const getDefaultAgent = async () => options.getAgent();
     const defaultAgent = await getDefaultAgent();
 
-    // Create SessionProcessor
+    // Create SessionProcessor with access to ConnectionManager for direct streaming
     const sessionProcessor = new SessionProcessor(
       defaultAgent,
       outboxStore,
+      connectionManager,
       {
         graphTimeoutMs: 30000,
         debug: false,
@@ -100,66 +101,76 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
 
     // Start EffectRunner with delivery handler
     effectRunner.start(async (effect: Effect) => {
-      // Parse SESSION_KEY to get threadId
-      const { threadId } = parseSessionKey(effect.session_key);
-
-      // Find active WebSocket connection for this thread
-      const connectionIds = connectionManager.getConnectionsByThread(threadId);
-      if (connectionIds.length === 0) {
-        logger.debug(
-          { sessionKey: effect.session_key, threadId },
-          'No active WebSocket for effect delivery, will retry on reconnection',
-        );
-        return false;
-      }
-
-      // Get the most recent connection (last in array)
-      const connectionId = connectionIds[connectionIds.length - 1];
-      const connection = connectionManager.get(connectionId);
-      if (!connection) {
-        return false;
-      }
-
-      // Send effect content as streaming tokens
-      const { content } = effect.payload;
-      const socket = connection.socket;
+      logger.info(
+        { effectId: effect.id, sessionKey: effect.session_key },
+        '🔥🔥🔥 DELIVERY HANDLER IN APP.TS CALLED 🔥🔥🔥',
+      );
 
       try {
-        // Chunk content for streaming delivery
-        const chunkSize = 10; // characters per chunk
-        for (let i = 0; i < content.length; i += chunkSize) {
-          const chunk = content.slice(i, i + chunkSize);
+        // Parse SESSION_KEY to get threadId
+        const { threadId } = parseSessionKey(effect.session_key);
+        logger.info({ effectId: effect.id, threadId }, '✅ Parsed threadId');
+
+        // Find active WebSocket connection for this thread
+        const connectionIds = connectionManager.getConnectionsByThread(threadId);
+        logger.info(
+          { threadId, connectionIds, connectionCount: connectionIds.length },
+          '✅ Connection lookup result',
+        );
+
+        if (connectionIds.length === 0) {
+          logger.info(
+            { sessionKey: effect.session_key, threadId },
+            '❌ No active WebSocket for effect delivery',
+          );
+          return false;
+        }
+
+        // Get the most recent connection (last in array)
+        const connectionId = connectionIds[connectionIds.length - 1];
+        const connection = connectionManager.get(connectionId);
+        if (!connection) {
+          logger.info({ connectionId }, '❌ Connection not found in manager');
+          return false;
+        }
+
+        logger.info({ effectId: effect.id, connectionId }, '✅ Got connection, about to send');
+
+        const { content, requestId, isFinal } = effect.payload;
+        const socket = connection.socket;
+
+        if (isFinal) {
+          // This is the final effect - send completion event
+          socket.send(
+            JSON.stringify({
+              type: 'final',
+              requestId,
+              message: content,
+              latencyMs: 0, // TODO: Calculate from timestamps
+              tokenUsage: undefined,
+            }),
+          );
+          logger.info({ effectId: effect.id, requestId }, '✅ Final effect delivered');
+        } else {
+          // Regular token effect
           socket.send(
             JSON.stringify({
               type: 'token',
-              requestId: effect.id,
-              value: chunk,
+              requestId,
+              value: content,
             }),
           );
-          // Small delay to simulate streaming
-          await new Promise((resolve) => setTimeout(resolve, 10));
         }
 
-        // Send final event
-        socket.send(
-          JSON.stringify({
-            type: 'final',
-            requestId: effect.id,
-            message: content,
-            latencyMs: 0, // TODO: Calculate from effect timestamps
-            tokenUsage: undefined,
-          }),
-        );
-
-        logger.debug(
+        logger.info(
           { effectId: effect.id, sessionKey: effect.session_key, contentLength: content.length },
-          'Effect delivered successfully',
+          '✅ Effect delivered successfully',
         );
         return true;
       } catch (error) {
         logger.error(
           { effectId: effect.id, sessionKey: effect.session_key, error },
-          'Failed to deliver effect',
+          '❌ Failed to deliver effect',
         );
         return false;
       }
@@ -174,6 +185,7 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
       connectionManager,
       eventStore,
       eventQueue,
+      effectRunner,
       logger,
     });
 

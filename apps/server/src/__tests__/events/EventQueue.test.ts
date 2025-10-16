@@ -26,7 +26,7 @@ describe('EventQueue', () => {
     session_key: sessionKey as typeof SESSION_KEY_A,
     seq,
     type: 'user_message',
-    payload: { text },
+    payload: { text, requestId: crypto.randomUUID() },
     created_at: new Date(),
   });
 

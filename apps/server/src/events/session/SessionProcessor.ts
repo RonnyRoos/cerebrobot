@@ -10,21 +10,25 @@ import type { SessionProcessorConfig } from './types.js';
 import { parseSessionKey } from './types.js';
 import { createSendMessageEffect } from '../types/effects.schema.js';
 import type { Logger } from 'pino';
+import type { ConnectionManager } from '../../chat/connection-manager.js';
 
 export class SessionProcessor {
   private readonly agent: ChatAgent;
   private readonly outboxStore: OutboxStore;
+  private readonly connectionManager: ConnectionManager;
   private readonly config: SessionProcessorConfig;
   private readonly logger?: Logger;
 
   constructor(
     agent: ChatAgent,
     outboxStore: OutboxStore,
+    connectionManager: ConnectionManager,
     config: SessionProcessorConfig = {},
     logger?: Logger,
   ) {
     this.agent = agent;
     this.outboxStore = outboxStore;
+    this.connectionManager = connectionManager;
     this.config = config;
     this.logger = logger;
   }
@@ -65,6 +69,9 @@ export class SessionProcessor {
     const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
     try {
+      // Declare checkpointId variable
+      let checkpointId: string | null = null;
+
       // Stream the agent's response
       const stream = this.agent.streamChat({
         threadId,
@@ -74,64 +81,87 @@ export class SessionProcessor {
         signal: abortController.signal,
       });
 
-      const effects: Array<ReturnType<typeof createSendMessageEffect>> = [];
+      // Get active WebSocket connection for direct streaming
+      const connectionIds = this.connectionManager.getConnectionsByThread(threadId);
+      const hasActiveConnection = connectionIds.length > 0;
+      let activeSocket = null;
 
-      let checkpointId: string | null = null;
+      if (hasActiveConnection) {
+        const connectionId = connectionIds[connectionIds.length - 1];
+        const connection = this.connectionManager.get(connectionId);
+        activeSocket = connection?.socket;
+      }
+
       let accumulated = '';
+      let latencyMs = 0;
 
-      // Process stream and collect effects
+      // Process stream and send tokens directly to WebSocket
       for await (const chunk of stream) {
         if (chunk.type === 'token') {
           accumulated += chunk.value;
 
-          // Generate effect for this token
-          // Note: We'll get checkpointId after streaming completes
-          // For now, we use a temporary placeholder
+          // Stream token directly to WebSocket if connected
+          if (activeSocket) {
+            activeSocket.send(
+              JSON.stringify({
+                type: 'token',
+                requestId: event.payload.requestId,
+                value: chunk.value,
+              }),
+            );
+          }
+        } else if (chunk.type === 'final') {
+          // Capture final metadata
+          const finalMessage = accumulated || chunk.message;
+          latencyMs = chunk.latencyMs ?? 0;
+
+          // Assign checkpointId before using it
+          checkpointId = `${threadId}:${event.seq}`;
+
+          // Send final event to WebSocket if connected
+          if (activeSocket) {
+            activeSocket.send(
+              JSON.stringify({
+                type: 'final',
+                requestId: event.payload.requestId,
+                message: finalMessage,
+                latencyMs,
+                tokenUsage: chunk.tokenUsage,
+              }),
+            );
+          }
+
+          // Create ONE effect with the complete message
+          // This is for reconnection scenarios where WebSocket wasn't active
           const effect = createSendMessageEffect(
             event.session_key,
-            'PENDING', // Will be updated with actual checkpointId
-            chunk.value,
+            checkpointId,
+            finalMessage,
+            event.payload.requestId,
+            0, // Single effect, no sequence needed
+            true, // Mark as final
           );
 
-          effects.push(effect);
-        } else if (chunk.type === 'final') {
-          // Final message may contain the full response if no tokens were streamed
-          if (effects.length === 0 && chunk.message) {
-            const effect = createSendMessageEffect(event.session_key, 'PENDING', chunk.message);
-            effects.push(effect);
-          }
+          await this.outboxStore.create({
+            sessionKey: effect.session_key,
+            checkpointId: effect.checkpoint_id,
+            type: effect.type,
+            payload: effect.payload,
+            dedupeKey: effect.dedupe_key,
+          });
 
           this.logger?.debug(
             {
               sessionKey: event.session_key,
-              effectCount: effects.length,
-              messageLength: accumulated.length || chunk.message.length,
-              latencyMs: chunk.latencyMs,
+              messageLength: finalMessage.length,
+              latencyMs,
             },
-            'Stream completed',
+            'Stream completed, effect created',
           );
         } else if (chunk.type === 'error') {
           throw new Error(`Agent error: ${chunk.message}`);
         }
       }
-
-      // Get the checkpoint ID from the graph state
-      // Note: In the current architecture, we don't have direct access to the checkpoint ID
-      // from the stream. We'll need to modify this once we integrate with the actual graph.
-      // For now, we'll use a deterministic checkpoint ID based on the event.
-      checkpointId = `${threadId}:${event.seq}`;
-
-      // Update all effects with the actual checkpoint ID and convert to CreateEffect format
-      const finalEffects = effects.map((effect) => ({
-        sessionKey: effect.session_key,
-        checkpointId: checkpointId!,
-        type: effect.type as 'send_message',
-        payload: effect.payload,
-        dedupeKey: effect.dedupe_key,
-      }));
-
-      // Atomically save all effects to the outbox
-      await Promise.all(finalEffects.map((effect) => this.outboxStore.create(effect)));
 
       const processingTime = Date.now() - startTime;
 
@@ -139,7 +169,6 @@ export class SessionProcessor {
         {
           sessionKey: event.session_key,
           eventId: event.id,
-          effectCount: finalEffects.length,
           checkpointId,
           processingTimeMs: processingTime,
         },

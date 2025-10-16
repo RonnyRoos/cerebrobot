@@ -14,7 +14,7 @@ import {
 import type { ChatAgent, ChatInvocationContext, AgentStreamEvent } from './chat-agent.js';
 import type { ThreadManager } from '../thread-manager/thread-manager.js';
 import { ConnectionManager } from './connection-manager.js';
-import type { EventStore, EventQueue } from '../events/index.js';
+import type { EventStore, EventQueue, EffectRunner } from '../events/index.js';
 import { SessionKeySchema } from '../events/index.js';
 
 const MAX_MESSAGE_BYTES = 1_048_576;
@@ -25,6 +25,7 @@ interface RegisterChatRouteOptions {
   readonly connectionManager: ConnectionManager;
   readonly eventStore: EventStore;
   readonly eventQueue: EventQueue;
+  readonly effectRunner: EffectRunner;
   readonly logger?: Logger;
 }
 
@@ -159,6 +160,22 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
         // Construct and validate SESSION_KEY: userId:agentId:threadId
         const sessionKey = SessionKeySchema.parse(`${userId}:${agentId}:${threadId}`);
 
+        // User Story 2: Deliver any pending effects from previous disconnection
+        // This ensures reconnection delivers queued messages before processing new ones
+        try {
+          await options.effectRunner.pollForSession(sessionKey);
+          options.logger?.debug(
+            { connectionId, requestId, sessionKey },
+            'Reconnection delivery check complete',
+          );
+        } catch (pollError) {
+          // Don't block new message processing if reconnection delivery fails
+          options.logger?.warn(
+            { connectionId, requestId, sessionKey, error: pollError },
+            'Error during reconnection delivery, continuing with new message',
+          );
+        }
+
         // Get next sequence number for this session
         const nextSeq = await options.eventStore.getNextSeq(sessionKey);
 
@@ -167,7 +184,7 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
           sessionKey,
           seq: nextSeq,
           type: 'user_message' as const,
-          payload: { text: content },
+          payload: { text: content, requestId },
         };
 
         // Persist event to database

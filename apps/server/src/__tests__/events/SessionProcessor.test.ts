@@ -4,11 +4,14 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import crypto from 'crypto';
 import { SessionProcessor } from '../../events/session/SessionProcessor.js';
 import type { OutboxStore } from '../../events/effects/OutboxStore.js';
 import type { Event } from '../../events/events/types.js';
 import type { ChatAgent, AgentStreamEvent } from '../../chat/chat-agent.js';
+import type { ConnectionManager } from '../../chat/connection-manager.js';
 import { SessionKeySchema } from '../../events/types/events.schema.js';
+import type { SendMessagePayload } from '../../events/types/effects.schema.js';
 
 describe('SessionProcessor', () => {
   let sessionProcessor: SessionProcessor;
@@ -18,7 +21,7 @@ describe('SessionProcessor', () => {
     sessionKey: string;
     checkpointId: string;
     type: string;
-    payload: { content: string };
+    payload: SendMessagePayload;
     dedupeKey: string;
   }>;
 
@@ -50,7 +53,13 @@ describe('SessionProcessor', () => {
       streamChat: vi.fn(),
     } as unknown as ChatAgent;
 
-    sessionProcessor = new SessionProcessor(mockAgent, mockOutboxStore);
+    // Mock ConnectionManager
+    const mockConnectionManager = {
+      getConnectionsByThread: vi.fn(() => []),
+      get: vi.fn(() => null),
+    } as unknown as ConnectionManager;
+
+    sessionProcessor = new SessionProcessor(mockAgent, mockOutboxStore, mockConnectionManager);
   });
 
   const createEvent = (text: string, seq = 1): Event => ({
@@ -58,7 +67,7 @@ describe('SessionProcessor', () => {
     session_key: SESSION_KEY,
     seq,
     type: 'user_message',
-    payload: { text },
+    payload: { text, requestId: crypto.randomUUID() },
     created_at: new Date(),
   });
 
@@ -91,7 +100,7 @@ describe('SessionProcessor', () => {
       );
     });
 
-    it('should create effects for each streamed token', async () => {
+    it('should create single effect with complete message', async () => {
       vi.mocked(mockAgent.streamChat).mockReturnValue(
         mockStreamResponse(['Hello', ' ', 'world', '!']),
       );
@@ -99,23 +108,21 @@ describe('SessionProcessor', () => {
       const event = createEvent('Say hello');
       await sessionProcessor.processEvent(event);
 
-      // Should create 4 effects (one per token)
-      expect(createdEffects.length).toBe(4);
-      expect(createdEffects[0].payload.content).toBe('Hello');
-      expect(createdEffects[1].payload.content).toBe(' ');
-      expect(createdEffects[2].payload.content).toBe('world');
-      expect(createdEffects[3].payload.content).toBe('!');
+      // Should create 1 effect with complete message
+      expect(createdEffects.length).toBe(1);
+      expect(createdEffects[0].payload.content).toBe('Hello world!');
+      expect(createdEffects[0].payload.isFinal).toBe(true);
     });
 
-    it('should set checkpointId on all effects', async () => {
+    it('should set checkpointId on effect', async () => {
       vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['token1', 'token2']));
 
       const event = createEvent('Test', 42);
       await sessionProcessor.processEvent(event);
 
-      expect(createdEffects.length).toBe(2);
+      expect(createdEffects.length).toBe(1);
       expect(createdEffects[0].checkpointId).toBe('thread1:42');
-      expect(createdEffects[1].checkpointId).toBe('thread1:42');
+      expect(createdEffects[0].payload.content).toBe('token1token2');
     });
 
     it('should handle empty token stream with final message', async () => {
@@ -141,7 +148,7 @@ describe('SessionProcessor', () => {
     it('should throw error for unsupported event type', async () => {
       const invalidEvent = {
         ...createEvent('test'),
-        type: 'unknown_type' as any,
+        type: 'unknown_type' as unknown as 'user_message',
       };
 
       await expect(sessionProcessor.processEvent(invalidEvent)).rejects.toThrow(
@@ -161,14 +168,15 @@ describe('SessionProcessor', () => {
       await expect(sessionProcessor.processEvent(event)).rejects.toThrow('Agent error');
     });
 
-    it('should save all effects atomically', async () => {
+    it('should save effect after streaming completes', async () => {
       vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['a', 'b', 'c']));
 
       const event = createEvent('Test');
       await sessionProcessor.processEvent(event);
 
-      // All creates should have been called
-      expect(mockOutboxStore.create).toHaveBeenCalledTimes(3);
+      // Should create one effect with complete message
+      expect(mockOutboxStore.create).toHaveBeenCalledTimes(1);
+      expect(createdEffects[0].payload.content).toBe('abc');
     });
 
     it('should use event ID as correlationId', async () => {
@@ -204,11 +212,23 @@ describe('SessionProcessor', () => {
         yield { type: 'token', value: 'end' };
       }
 
-      vi.mocked(mockAgent.streamChat).mockImplementation(slowStream as any);
+      vi.mocked(mockAgent.streamChat).mockImplementation(
+        slowStream as unknown as () => AsyncGenerator<AgentStreamEvent>,
+      );
 
-      const fastProcessor = new SessionProcessor(mockAgent, mockOutboxStore, {
-        graphTimeoutMs: 50, // Very short timeout
-      });
+      const mockConnectionManager = {
+        getConnectionsByThread: vi.fn(() => []),
+        get: vi.fn(() => null),
+      } as unknown as ConnectionManager;
+
+      const fastProcessor = new SessionProcessor(
+        mockAgent,
+        mockOutboxStore,
+        mockConnectionManager,
+        {
+          graphTimeoutMs: 50, // Very short timeout
+        },
+      );
 
       const event = createEvent('Slow message');
 

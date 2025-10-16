@@ -105,14 +105,12 @@ export class EventQueue {
 
           // Process event
           if (this.processor) {
-            await this.processor(queued.event);
-            queued.resolve();
-          }
-        } catch (error) {
-          // On error, reject the promise but continue processing other events
-          const queued = queue[0]; // Error occurred during processing
-          if (queued) {
-            queued.reject(error as Error);
+            try {
+              await this.processor(queued.event);
+              queued.resolve();
+            } catch (error) {
+              queued.reject(error as Error);
+            }
           }
         } finally {
           // Mark session as no longer processing

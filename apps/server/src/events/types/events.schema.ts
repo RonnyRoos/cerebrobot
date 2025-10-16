@@ -22,6 +22,7 @@ export type EventType = z.infer<typeof EventTypeSchema>;
 // User message payload
 export const UserMessagePayloadSchema = z.object({
   text: z.string().min(1),
+  requestId: z.string().uuid(),
 });
 
 export type UserMessagePayload = z.infer<typeof UserMessagePayloadSchema>;
@@ -39,12 +40,17 @@ export const EventSchema = z.object({
 export type Event = z.infer<typeof EventSchema>;
 
 // Event creation helper
-export function createUserMessageEvent(sessionKey: SessionKey, seq: number, text: string) {
+export function createUserMessageEvent(
+  sessionKey: SessionKey,
+  seq: number,
+  text: string,
+  requestId: string,
+) {
   return {
     session_key: sessionKey,
     seq,
     type: 'user_message' as const,
-    payload: { text },
+    payload: { text, requestId },
   };
 }
 

@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import crypto from 'crypto';
 import type { EffectDeliveryHandler } from '../../events/effects/EffectRunner.js';
 import { EffectRunner } from '../../events/effects/EffectRunner.js';
+import type { OutboxStore } from '../../events/effects/OutboxStore.js';
 import type { Effect } from '../../events/types/effects.schema.js';
-import { parseSessionKey, SessionKeySchema } from '../../events/index.js';
+import { SessionKeySchema } from '../../events/index.js';
 
 describe('EffectRunner', () => {
   let mockOutboxStore: {
@@ -20,7 +22,7 @@ describe('EffectRunner', () => {
       updateStatus: vi.fn().mockResolvedValue(undefined),
     };
 
-    effectRunner = new EffectRunner(mockOutboxStore as any, {
+    effectRunner = new EffectRunner(mockOutboxStore as unknown as OutboxStore, {
       pollIntervalMs: 100,
     });
   });
@@ -31,19 +33,19 @@ describe('EffectRunner', () => {
     vi.clearAllMocks();
   });
 
-  function createEffect(
-    sessionKey: string,
-    content: string,
-    id = '1',
-    seq = 1,
-  ): Effect {
+  function createEffect(sessionKey: string, seq: number, content: string): Effect {
     const validatedKey = SessionKeySchema.parse(sessionKey);
+
     return {
-      id,
+      id: `effect-${seq}`,
       session_key: validatedKey,
-      checkpoint_id: 'checkpoint-1',
+      checkpoint_id: `checkpoint-${seq}`,
       type: 'send_message',
-      payload: { content },
+      payload: {
+        content,
+        requestId: crypto.randomUUID(),
+        isFinal: true,
+      },
       dedupe_key: `${validatedKey}:send_message:${seq}`,
       status: 'pending',
       created_at: new Date(),
@@ -88,8 +90,8 @@ describe('EffectRunner', () => {
 
   describe('delivery', () => {
     it('should invoke delivery handler for each pending effect', async () => {
-      const effect1 = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
-      const effect2 = createEffect('user1:agent1:thread1', 'World', '2', 2);
+      const effect1 = createEffect('user1:agent1:thread1', 1, 'Hello');
+      const effect2 = createEffect('user1:agent1:thread1', 2, 'World');
 
       mockOutboxStore.getPending.mockResolvedValueOnce([effect1, effect2]);
 
@@ -103,8 +105,8 @@ describe('EffectRunner', () => {
     });
 
     it('should process effects in parallel', async () => {
-      const effect1 = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
-      const effect2 = createEffect('user2:agent1:thread2', 'World', '2', 1);
+      const effect1 = createEffect('user1:agent1:thread1', 1, 'Hello');
+      const effect2 = createEffect('user2:agent1:thread2', 2, 'World');
 
       let effect1Started = false;
       let effect2Started = false;
@@ -112,11 +114,11 @@ describe('EffectRunner', () => {
       let effect2Completed = false;
 
       const slowDelivery = vi.fn(async (effect: Effect) => {
-        if (effect.id === '1') {
+        if (effect.id === 'effect-1') {
           effect1Started = true;
           await new Promise((resolve) => setTimeout(resolve, 50));
           effect1Completed = true;
-        } else {
+        } else if (effect.id === 'effect-2') {
           effect2Started = true;
           await new Promise((resolve) => setTimeout(resolve, 50));
           effect2Completed = true;
@@ -143,7 +145,7 @@ describe('EffectRunner', () => {
 
   describe('status updates', () => {
     it('should update status to executing when starting delivery', async () => {
-      const effect = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
+      const effect = createEffect('user1:agent1:thread1', 1, 'Hello');
 
       mockOutboxStore.getPending.mockResolvedValueOnce([effect]).mockResolvedValue([]);
 
@@ -157,7 +159,7 @@ describe('EffectRunner', () => {
     });
 
     it('should update status to completed on successful delivery', async () => {
-      const effect = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
+      const effect = createEffect('user1:agent1:thread1', 1, 'Hello');
 
       mockOutboxStore.getPending.mockResolvedValueOnce([effect]).mockResolvedValue([]);
       vi.mocked(deliveryHandler).mockResolvedValueOnce(true);
@@ -170,7 +172,7 @@ describe('EffectRunner', () => {
     });
 
     it('should revert status to pending on delivery failure', async () => {
-      const effect = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
+      const effect = createEffect('user1:agent1:thread1', 1, 'Hello');
 
       mockOutboxStore.getPending.mockResolvedValueOnce([effect]).mockResolvedValue([]);
       vi.mocked(deliveryHandler).mockResolvedValueOnce(false); // Delivery failed
@@ -183,7 +185,7 @@ describe('EffectRunner', () => {
     });
 
     it('should mark as failed on delivery exception', async () => {
-      const effect = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
+      const effect = createEffect('user1:agent1:thread1', 1, 'Hello');
 
       mockOutboxStore.getPending.mockResolvedValueOnce([effect]).mockResolvedValue([]);
       vi.mocked(deliveryHandler).mockRejectedValueOnce(new Error('Network error'));
@@ -199,7 +201,7 @@ describe('EffectRunner', () => {
   describe('session-specific polling', () => {
     it('should poll for specific session when requested', async () => {
       const sessionKey = SessionKeySchema.parse('user1:agent1:thread1');
-      const effect = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
+      const effect = createEffect('user1:agent1:thread1', 1, 'Hello');
 
       // First mock for the automatic start() poll, second for pollForSession()
       mockOutboxStore.getPending.mockResolvedValueOnce([]).mockResolvedValueOnce([effect]);
@@ -215,7 +217,7 @@ describe('EffectRunner', () => {
 
     it('should process session-specific effects immediately', async () => {
       const sessionKey = SessionKeySchema.parse('user1:agent1:thread1');
-      const effect = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
+      const effect = createEffect('user1:agent1:thread1', 1, 'Hello');
 
       // First mock for the automatic start() poll, second for pollForSession()
       mockOutboxStore.getPending.mockResolvedValueOnce([]).mockResolvedValueOnce([effect]);
@@ -267,8 +269,8 @@ describe('EffectRunner', () => {
 
   describe('error handling', () => {
     it('should continue polling after delivery error', async () => {
-      const effect1 = createEffect('user1:agent1:thread1', 'Hello', '1', 1);
-      const effect2 = createEffect('user1:agent1:thread1', 'World', '2', 2);
+      const effect1 = createEffect('user1:agent1:thread1', 1, 'Hello');
+      const effect2 = createEffect('user1:agent1:thread1', 2, 'World');
 
       mockOutboxStore.getPending
         .mockResolvedValueOnce([effect1])
