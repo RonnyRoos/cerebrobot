@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { TimerStore } from '../TimerStore.js';
-import type { SessionKey } from '../../types/events.schema.js';
+import type { SessionKey } from '../../../events/types/events.schema.js';
 
 const prisma = new PrismaClient();
 const timerStore = new TimerStore(prisma);
