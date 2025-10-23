@@ -11,11 +11,13 @@ import { parseSessionKey } from './types.js';
 import { createSendMessageEffect } from '../types/effects.schema.js';
 import type { Logger } from 'pino';
 import type { ConnectionManager } from '../../chat/connection-manager.js';
+import type { TimerStore } from '../../autonomy/timers/TimerStore.js';
 
 export class SessionProcessor {
   private readonly agent: ChatAgent;
   private readonly outboxStore: OutboxStore;
   private readonly connectionManager: ConnectionManager;
+  private readonly timerStore?: TimerStore;
   private readonly config: SessionProcessorConfig;
   private readonly logger?: Logger;
 
@@ -25,10 +27,12 @@ export class SessionProcessor {
     connectionManager: ConnectionManager,
     config: SessionProcessorConfig = {},
     logger?: Logger,
+    timerStore?: TimerStore,
   ) {
     this.agent = agent;
     this.outboxStore = outboxStore;
     this.connectionManager = connectionManager;
+    this.timerStore = timerStore;
     this.config = config;
     this.logger = logger;
   }
@@ -43,12 +47,57 @@ export class SessionProcessor {
   async processEvent(event: Event): Promise<void> {
     const { userId, agentId, threadId } = parseSessionKey(event.session_key);
 
-    // Validate event type
-    if (event.type !== 'user_message') {
+    // Extract message and requestId based on event type
+    let message: string;
+    let requestId: string;
+
+    if (event.type === 'user_message') {
+      const payload = event.payload as { text: string; requestId: string };
+      message = payload.text;
+      requestId = payload.requestId;
+
+      // USER STORY 2: Clear all pending timers and effects when user sends message
+      // This prevents stale autonomous follow-ups from firing after user has moved on
+      if (this.timerStore) {
+        const cancelledTimers = await this.timerStore.cancelBySession(event.session_key);
+        if (cancelledTimers > 0) {
+          this.logger?.debug(
+            { sessionKey: event.session_key, count: cancelledTimers },
+            'Cancelled pending timers on user message',
+          );
+        }
+      }
+
+      const clearedEffects = await this.outboxStore.clearPendingBySession(event.session_key);
+      if (clearedEffects > 0) {
+        this.logger?.debug(
+          { sessionKey: event.session_key, count: clearedEffects },
+          'Cleared pending effects on user message',
+        );
+      }
+    } else if (event.type === 'timer') {
+      const payload = event.payload as { timer_id: string; payload?: unknown };
+      // For timer events, create a synthetic message to trigger autonomous response
+      // Include timer context so agent can craft appropriate follow-up
+      const timerContext = payload.payload as
+        | { followUpType?: string; reason?: string }
+        | undefined;
+      message = `[AUTONOMOUS_FOLLOWUP: ${timerContext?.followUpType ?? 'check_in'}]`;
+      requestId = payload.timer_id; // Use timer_id as requestId for correlation
+
+      this.logger?.info(
+        {
+          sessionKey: event.session_key,
+          timerId: payload.timer_id,
+          followUpType: timerContext?.followUpType,
+          reason: timerContext?.reason,
+        },
+        'Processing timer event for autonomous follow-up',
+      );
+    } else {
       throw new Error(`Unsupported event type: ${event.type}`);
     }
 
-    const { text } = event.payload;
     const startTime = Date.now();
 
     this.logger?.info(
@@ -56,6 +105,7 @@ export class SessionProcessor {
         sessionKey: event.session_key,
         eventId: event.id,
         eventSeq: event.seq,
+        eventType: event.type,
         userId,
         agentId,
         threadId,
@@ -76,7 +126,7 @@ export class SessionProcessor {
       const stream = this.agent.streamChat({
         threadId,
         userId,
-        message: text,
+        message,
         correlationId: event.id,
         signal: abortController.signal,
       });
@@ -105,7 +155,7 @@ export class SessionProcessor {
             activeSocket.send(
               JSON.stringify({
                 type: 'token',
-                requestId: event.payload.requestId,
+                requestId,
                 value: chunk.value,
               }),
             );
@@ -123,7 +173,7 @@ export class SessionProcessor {
             activeSocket.send(
               JSON.stringify({
                 type: 'final',
-                requestId: event.payload.requestId,
+                requestId,
                 message: finalMessage,
                 latencyMs,
                 tokenUsage: chunk.tokenUsage,
@@ -138,7 +188,7 @@ export class SessionProcessor {
             event.session_key,
             checkpointId,
             finalMessage,
-            event.payload.requestId,
+            requestId,
             0, // Single effect, no sequence needed
             true, // Mark as final
           );
@@ -151,6 +201,32 @@ export class SessionProcessor {
             dedupeKey: effect.dedupe_key,
             status: activeSocket ? 'completed' : 'pending', // Set status based on delivery
           });
+
+          // Extract and create any additional effects from graph state (e.g., schedule_timer from autonomy evaluator)
+          if (chunk.effects && Array.isArray(chunk.effects)) {
+            for (const graphEffect of chunk.effects) {
+              this.logger?.info(
+                {
+                  sessionKey: event.session_key,
+                  effectType: graphEffect.type,
+                  payload: graphEffect.payload,
+                },
+                'Creating effect from graph state',
+              );
+
+              // Type assertion: we trust the graph to produce valid effects
+              await this.outboxStore.create({
+                sessionKey: event.session_key,
+                checkpointId,
+                type: graphEffect.type as 'send_message' | 'schedule_timer',
+                payload: graphEffect.payload as
+                  | { content: string; requestId: string; isFinal?: boolean }
+                  | { timer_id: string; delay_seconds: number; payload?: unknown },
+                dedupeKey: `${checkpointId}:${graphEffect.type}:${Date.now()}`,
+                status: 'pending',
+              });
+            }
+          }
 
           this.logger?.debug(
             {
@@ -181,13 +257,20 @@ export class SessionProcessor {
 
       // Check if error was due to abort
       if (error instanceof Error && error.name === 'AbortError') {
-        this.logger?.warn(
+        const logLevel = event.type === 'timer' ? 'warn' : 'error';
+        const logMessage =
+          event.type === 'timer'
+            ? 'Timer event processing timed out (best-effort delivery)'
+            : 'Event processing timed out';
+
+        this.logger?.[logLevel](
           {
             sessionKey: event.session_key,
             eventId: event.id,
+            eventType: event.type,
             timeoutMs,
           },
-          'Event processing timed out',
+          logMessage,
         );
         throw new Error(`Event processing timed out after ${timeoutMs}ms`);
       }

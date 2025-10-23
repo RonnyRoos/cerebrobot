@@ -46,6 +46,7 @@ describe('SessionProcessor', () => {
           updated_at: new Date(),
         };
       }),
+      clearPendingBySession: vi.fn(async () => 0), // NEW: Mock for clear-on-user-message
     } as unknown as OutboxStore;
 
     // Mock ChatAgent with streamChat generator

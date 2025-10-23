@@ -1,6 +1,6 @@
 # Tasks: Server-Side Autonomy for Proactive Agent Follow-ups
 
-**Input**: Design documents from `/specs/008-server-side-autonomy/`
+**Input**: Design documents from `/specs/009-server-side-autonomy/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Tests are included in this implementation per standard development workflow. Each user story includes unit tests before implementation (TDD approach).
@@ -25,11 +25,13 @@ All paths relative to repository root `/Users/ronny.roos/dev/cerebrobot/`:
 
 **Purpose**: Project initialization and database schema
 
-- [ ] T001 Add Prisma models for autonomy tables in `prisma/schema.prisma` (Event, Effect, Timer)
-- [ ] T002 Run Prisma migration: `pnpm prisma migrate dev --name add_autonomy_tables`
-- [ ] T003 Run Prisma client generation: `pnpm prisma generate`
-- [ ] T004 [P] Create autonomy subsystem directory structure in `apps/server/src/autonomy/` (events/, effects/, timers/, session/)
-- [ ] T005 [P] Copy contract schemas from `specs/008-server-side-autonomy/contracts/` to `apps/server/src/autonomy/types/` (events.schema.ts, effects.schema.ts, timers.schema.ts)
+- [x] T001 Add Prisma models for autonomy tables in `prisma/schema.prisma` (events, effects, timers - note: events and effects already exist from spec 008, only timers table is new)
+- [x] T002 Run Prisma migration: `pnpm prisma migrate dev --name add_autonomy_tables`
+- [x] T003 Run Prisma client generation: `pnpm prisma generate`
+- [x] T004 [P] Create autonomy subsystem directory structure in `apps/server/src/autonomy/` (events/, effects/, timers/, session/)
+- [x] T005 [P] Copy contract schemas from `specs/009-server-side-autonomy/contracts/` to `apps/server/src/autonomy/types/` (events.schema.ts, effects.schema.ts, timers.schema.ts)
+- [x] T005a [P] Create AutonomyEvaluationResponseSchema in `packages/chat-shared/src/schemas/autonomy.schema.ts` (shouldSchedule, delaySeconds, reason, followUpType, suggestedMessage with Zod validation)
+- [x] T005b [P] Extend agent config schema in `packages/chat-shared/src/schemas/agent.schema.ts` to include autonomy configuration (enabled, evaluator settings, limits)
 
 ---
 
@@ -39,14 +41,14 @@ All paths relative to repository root `/Users/ronny.roos/dev/cerebrobot/`:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 [P] Implement SessionKey validation and parsing utilities in `apps/server/src/autonomy/types/session-key.ts` (parseSessionKey, validateSessionKey, branded type)
-- [ ] T007 [P] Implement EventStore (PostgreSQL persistence for events) in `apps/server/src/autonomy/events/EventStore.ts` (createEvent, getNextSeq, listEvents)
-- [ ] T008 [P] Implement OutboxStore (PostgreSQL persistence for effects) in `apps/server/src/autonomy/effects/OutboxStore.ts` (createEffects, pollPending, updateStatus, clearPendingBySession)
-- [ ] T009 [P] Implement TimerStore (PostgreSQL persistence for timers) in `apps/server/src/autonomy/timers/TimerStore.ts` (upsertTimer, findDueTimers, cancelBySession, markPromoted)
-- [ ] T010 Implement EventQueue (in-process per-SESSION_KEY queue) in `apps/server/src/autonomy/events/EventQueue.ts` (enqueue, dequeue, processOne, strict ordering)
-- [ ] T011 Implement PolicyGates (hard cap and cooldown enforcement) in `apps/server/src/autonomy/session/PolicyGates.ts` (checkCanSendAutonomous, updateCounters, resetOnUserMessage)
-- [ ] T012 Extend PostgresCheckpointSaver metadata to include autonomy counters in `apps/server/src/graph/checkpointer.ts` (event_seq, consecutive_autonomous_msgs, last_autonomous_at)
-- [ ] T013 Add environment configuration for autonomy in `apps/server/src/config/autonomy.ts` (AUTONOMY_ENABLED, AUTONOMY_MAX_CONSECUTIVE, AUTONOMY_COOLDOWN_MS, TIMER_POLL_INTERVAL_MS, EFFECT_POLL_INTERVAL_MS)
+- [x] T006 [P] Implement SessionKey validation and parsing utilities in `apps/server/src/autonomy/types/session-key.ts` (parseSessionKey, validateSessionKey, branded type)
+- [x] T007 [P] Implement EventStore (PostgreSQL persistence for events) in `apps/server/src/autonomy/events/EventStore.ts` (createEvent, getNextSeq, listEvents)
+- [x] T008 [P] Implement OutboxStore (PostgreSQL persistence for effects) in `apps/server/src/autonomy/effects/OutboxStore.ts` (createEffects, pollPending, updateStatus, clearPendingBySession)
+- [x] T009 [P] Implement TimerStore (PostgreSQL persistence for timers) in `apps/server/src/autonomy/timers/TimerStore.ts` (upsertTimer, findDueTimers, cancelBySession, markPromoted)
+- [x] T010 Implement EventQueue (in-process per-SESSION_KEY queue) in `apps/server/src/autonomy/events/EventQueue.ts` (enqueue, dequeue, processOne with strict ordering per session_key using Map<SESSION_KEY, Queue> + async locks to prevent concurrent processing of same session)
+- [x] T011 Implement PolicyGates (hard cap and cooldown enforcement) in `apps/server/src/autonomy/session/PolicyGates.ts` (checkCanSendAutonomous, updateCounters, resetOnUserMessage)
+- [x] T012 Extend PostgresCheckpointSaver metadata to include autonomy counters in `apps/server/src/autonomy/session/checkpoint-metadata.ts` (event_seq, consecutive_autonomous_msgs, last_autonomous_at)
+- [x] T013 Add environment configuration for autonomy in `apps/server/src/config/autonomy.ts` (AUTONOMY_ENABLED, AUTONOMY_MAX_CONSECUTIVE, AUTONOMY_COOLDOWN_MS, TIMER_POLL_INTERVAL_MS, EFFECT_POLL_INTERVAL_MS)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -62,18 +64,21 @@ All paths relative to repository root `/Users/ronny.roos/dev/cerebrobot/`:
 
 **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T014 [P] [US1] Unit test for TimerStore.upsertTimer in `apps/server/src/autonomy/timers/__tests__/TimerStore.test.ts` (create, upsert, duplicate timer_id handling)
-- [ ] T015 [P] [US1] Unit test for TimerStore.findDueTimers in `apps/server/src/autonomy/timers/__tests__/TimerStore.test.ts` (due timers, past-scheduled timers, pending status filter)
+- [ ] T014 [P] [US1] Unit test for TimerStore.upsertTimer in `apps/server/src/autonomy/timers/__tests__/TimerStore.test.ts` (create new timer, upsert with same timer_id replaces previous fire_at and payload, verify UNIQUE constraint on (session_key, timer_id))
+- [ ] T015 [P] [US1] Unit test for TimerStore.findDueTimers in `apps/server/src/autonomy/timers/__tests__/TimerStore.test.ts` (due timers, past-scheduled timers with fire_at in the past return immediately, pending status filter, verify past timers don't cause infinite loops)
 - [ ] T016 [P] [US1] Unit test for TimerWorker.pollAndPromote in `apps/server/src/autonomy/timers/__tests__/TimerWorker.test.ts` (timer promotion, event creation, status update)
 - [ ] T017 [P] [US1] Unit test for EffectRunner.processScheduleTimer in `apps/server/src/autonomy/effects/__tests__/EffectRunner.test.ts` (schedule_timer effect execution, timer store integration)
 - [ ] T018 [P] [US1] Unit test for EffectRunner.processSendMessage in `apps/server/src/autonomy/effects/__tests__/EffectRunner.test.ts` (send_message effect execution, WebSocket delivery, dedupe key handling)
+- [ ] T018a [P] [US1] Unit test for AutonomyEvaluatorNode in `apps/server/src/graph/nodes/__tests__/autonomy-evaluator.test.ts` (structured output validation, memory context access, conditional scheduling based on conversation state)
 
 ### Implementation for User Story 1
 
 - [ ] T019 [US1] Implement TimerWorker background worker in `apps/server/src/autonomy/timers/TimerWorker.ts` (polling loop, findDueTimers, promote to events, logging)
 - [ ] T020 [US1] Implement EffectRunner background worker in `apps/server/src/autonomy/effects/EffectRunner.ts` (polling loop, execute send_message, execute schedule_timer, status updates, deduplication)
 - [ ] T021 [US1] Implement SessionProcessor orchestration in `apps/server/src/autonomy/session/SessionProcessor.ts` (event → checkpoint load → graph execution → effect generation → transaction commit)
+- [ ] T021a [US1] Implement AutonomyEvaluatorNode in `apps/server/src/graph/nodes/autonomy-evaluator.ts` (LLM call with evaluator prompt, schema validation, memory context injection, return schedule_timer effect or null)
 - [ ] T022 [US1] Refactor LangGraph nodes to return effects instead of performing I/O in `apps/server/src/graph/nodes/` (extract WebSocket sends, timer scheduling to effect return values)
+- [ ] T022a [US1] Add conditional edge to graph definition in `apps/server/src/graph/index.ts` (after agent response node, route to autonomy evaluator if agent config.autonomy.enabled, else end)
 - [ ] T023 [US1] Integrate TimerWorker startup in `apps/server/src/index.ts` (initialize worker on server start, graceful shutdown)
 - [ ] T024 [US1] Integrate EffectRunner startup in `apps/server/src/index.ts` (initialize worker on server start, graceful shutdown)
 - [ ] T025 [US1] Add WebSocket delivery handler for send_message effects in `apps/server/src/lib/websocket.ts` (deliver message, handle closed connections, durable outbox on failure)

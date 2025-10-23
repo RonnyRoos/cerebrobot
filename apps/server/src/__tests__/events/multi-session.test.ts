@@ -49,6 +49,7 @@ describe('Multi-Session Isolation (User Story 3)', () => {
         created_at: new Date(),
         updated_at: new Date(),
       })),
+      isCompletedByDedupeKey: vi.fn(async () => false), // No duplicates by default
     } as unknown as OutboxStore;
 
     // Mock SessionProcessor that tracks which sessions it processes
@@ -112,12 +113,12 @@ describe('Multi-Session Isolation (User Story 3)', () => {
 
     // Session 1 should have 2 events
     expect(session1Events.length).toBe(2);
-    expect(session1Events[0].payload.text).toBe('Message from session 1');
-    expect(session1Events[1].payload.text).toBe('Another message from session 1');
+    expect((session1Events[0].payload as { text: string }).text).toBe('Message from session 1');
+    expect((session1Events[1].payload as { text: string }).text).toBe('Another message from session 1');
 
     // Session 2 should have 1 event
     expect(session2Events.length).toBe(1);
-    expect(session2Events[0].payload.text).toBe('Message from session 2');
+    expect((session2Events[0].payload as { text: string }).text).toBe('Message from session 2');
   });
 
   it('should deliver effects only to correct session', async () => {
@@ -163,10 +164,10 @@ describe('Multi-Session Isolation (User Story 3)', () => {
 
     // Verify events processed in order within each session
     const session1Events = processedEvents.get(SESSION_1)!;
-    expect(session1Events.map((e) => e.payload.text)).toEqual(['S1-M1', 'S1-M2', 'S1-M3']);
+    expect(session1Events.map((e) => (e.payload as { text: string }).text)).toEqual(['S1-M1', 'S1-M2', 'S1-M3']);
 
     const session2Events = processedEvents.get(SESSION_2)!;
-    expect(session2Events.map((e) => e.payload.text)).toEqual(['S2-M1', 'S2-M2']);
+    expect(session2Events.map((e) => (e.payload as { text: string }).text)).toEqual(['S2-M1', 'S2-M2']);
   });
 
   it('should not allow cross-session event contamination', async () => {
@@ -217,12 +218,12 @@ describe('Multi-Session Isolation (User Story 3)', () => {
     // Verify ordering within each session
     const session1Events = processedEvents.get(SESSION_1)!;
     for (let i = 0; i < 10; i++) {
-      expect(session1Events[i].payload.text).toBe(`Session 1 - Message ${i}`);
+      expect((session1Events[i].payload as { text: string }).text).toBe(`Session 1 - Message ${i}`);
     }
 
     const session2Events = processedEvents.get(SESSION_2)!;
     for (let i = 0; i < 10; i++) {
-      expect(session2Events[i].payload.text).toBe(`Session 2 - Message ${i}`);
+      expect((session2Events[i].payload as { text: string }).text).toBe(`Session 2 - Message ${i}`);
     }
   });
 });

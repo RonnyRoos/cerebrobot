@@ -14,7 +14,7 @@ import {
 import type { ChatAgent, ChatInvocationContext, AgentStreamEvent } from './chat-agent.js';
 import type { ThreadManager } from '../thread-manager/thread-manager.js';
 import { ConnectionManager } from './connection-manager.js';
-import type { EventStore, EventQueue, EffectRunner } from '../events/index.js';
+import type { EventStore, EventQueue, EffectRunner, SessionKey } from '../events/index.js';
 import { SessionKeySchema } from '../events/index.js';
 
 const MAX_MESSAGE_BYTES = 1_048_576;
@@ -263,8 +263,20 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
     });
 
     socket.on('error', (error: Error) => {
-      options.logger?.error({ err: error, connectionId, threadId }, 'websocket_connection_error');
+      options.logger?.error(
+        {
+          error: error.message,
+          errorStack: error.stack,
+          connectionId,
+          threadId,
+        },
+        'websocket_connection_error',
+      );
     });
+
+    // Poll for pending effects on connection (reconnection delivery)
+    // Uses threadId as session_key for effect delivery
+    void options.effectRunner.pollForSession(threadId as SessionKey);
 
     socket.on('close', (code: number, reasonBuffer: Buffer) => {
       const interpreted = WS_CLOSE_CODE_DESCRIPTIONS[code] ?? 'unknown';

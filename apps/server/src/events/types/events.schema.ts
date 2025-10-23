@@ -1,8 +1,7 @@
 /**
  * Event Schemas for 008-migrate-to-events-effects
  *
- * Defines user_message event type only.
- * Spec 009 will extend with timer and tool_result types.
+ * Extended in spec 009 with timer and tool_result event types.
  */
 
 import { z } from 'zod';
@@ -15,11 +14,11 @@ export const SessionKeySchema = z
 
 export type SessionKey = z.infer<typeof SessionKeySchema>;
 
-// Event type (008: user_message only)
-export const EventTypeSchema = z.enum(['user_message']);
+// Event types (spec 008 + spec 009 extensions)
+export const EventTypeSchema = z.enum(['user_message', 'timer', 'tool_result']);
 export type EventType = z.infer<typeof EventTypeSchema>;
 
-// User message payload
+// User message payload (spec 008)
 export const UserMessagePayloadSchema = z.object({
   text: z.string().min(1),
   requestId: z.string().uuid(),
@@ -27,13 +26,38 @@ export const UserMessagePayloadSchema = z.object({
 
 export type UserMessagePayload = z.infer<typeof UserMessagePayloadSchema>;
 
+// Timer event payload (spec 009)
+export const TimerPayloadSchema = z.object({
+  timer_id: z.string().min(1),
+  payload: z.any().optional(),
+});
+
+export type TimerPayload = z.infer<typeof TimerPayloadSchema>;
+
+// Tool result event payload (spec 009)
+export const ToolResultPayloadSchema = z.object({
+  tool_call_id: z.string().min(1),
+  result: z.any(),
+});
+
+export type ToolResultPayload = z.infer<typeof ToolResultPayloadSchema>;
+
+// Union of all event payloads
+export const EventPayloadSchema = z.union([
+  UserMessagePayloadSchema,
+  TimerPayloadSchema,
+  ToolResultPayloadSchema,
+]);
+
+export type EventPayload = z.infer<typeof EventPayloadSchema>;
+
 // Complete event schema
 export const EventSchema = z.object({
   id: z.string().uuid(),
   session_key: SessionKeySchema,
   seq: z.number().int().positive(),
   type: EventTypeSchema,
-  payload: UserMessagePayloadSchema,
+  payload: EventPayloadSchema,
   created_at: z.date(),
 });
 

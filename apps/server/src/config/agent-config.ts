@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { AgentAutonomyConfigSchema } from '@cerebrobot/chat-shared';
 
 /**
  * LLM Provider Configuration
@@ -83,6 +84,9 @@ export const AgentConfigSchema = z.object({
 
   /** Memory system configuration */
   memory: AgentMemoryConfigSchema,
+
+  /** Autonomy and follow-up message configuration (spec 009) */
+  autonomy: AgentAutonomyConfigSchema,
 });
 
 /**

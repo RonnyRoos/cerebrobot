@@ -10,6 +10,7 @@ describe('EffectRunner', () => {
   let mockOutboxStore: {
     getPending: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
+    isCompletedByDedupeKey: ReturnType<typeof vi.fn>;
   };
   let effectRunner: EffectRunner;
   const deliveryHandler: EffectDeliveryHandler = vi.fn(async () => true);
@@ -20,6 +21,7 @@ describe('EffectRunner', () => {
     mockOutboxStore = {
       getPending: vi.fn().mockResolvedValue([]),
       updateStatus: vi.fn().mockResolvedValue(undefined),
+      isCompletedByDedupeKey: vi.fn().mockResolvedValue(false), // No duplicates by default
     };
 
     effectRunner = new EffectRunner(mockOutboxStore as unknown as OutboxStore, {

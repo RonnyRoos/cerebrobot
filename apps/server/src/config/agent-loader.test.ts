@@ -11,6 +11,26 @@ import { AgentLoader } from './agent-loader.js';
 
 const ORIGINAL_ENV = { ...process.env };
 
+// Minimal valid autonomy config for tests
+const TEST_AUTONOMY_CONFIG = {
+  enabled: false,
+  evaluator: {
+    model: 'test-model',
+    temperature: 0.2,
+    maxTokens: 512,
+    systemPrompt: 'Test autonomy evaluator',
+  },
+  limits: {
+    maxFollowUpsPerSession: 3,
+    minDelayMs: 30000,
+    maxDelayMs: 3600000,
+  },
+  memoryContext: {
+    recentMemoryCount: 5,
+    includeRecentMessages: 6,
+  },
+};
+
 describe('AgentLoader class', () => {
   let testDir: string;
   let loader: AgentLoader;
@@ -52,6 +72,7 @@ describe('AgentLoader class', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     const config2 = {
@@ -94,6 +115,7 @@ describe('AgentLoader class', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     // Create both a template and a valid config
@@ -131,6 +153,7 @@ describe('AgentLoader class', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     const invalidConfig = {
@@ -188,6 +211,7 @@ describe('AgentLoader - loadAgentConfig', () => {
       injectionBudget: 1000,
       retrievalTimeoutMs: 5000,
     },
+    autonomy: TEST_AUTONOMY_CONFIG,
   };
 
   beforeEach(async () => {
@@ -305,6 +329,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     const result = AgentConfigSchema.parse(validConfig);
@@ -337,6 +362,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     expect(() => AgentConfigSchema.parse(invalidConfig)).toThrow();
@@ -368,6 +394,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     expect(() => AgentConfigSchema.parse(invalidConfig)).toThrow('Must be a valid UUID v4');
@@ -399,6 +426,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     expect(() => AgentConfigSchema.parse(invalidConfig)).toThrow(
@@ -432,6 +460,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     expect(() => AgentConfigSchema.parse(invalidConfig)).toThrow('Must be a positive integer');
@@ -463,6 +492,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     expect(() => AgentConfigSchema.parse(invalidConfig)).toThrow('Must be a valid URL');
@@ -495,6 +525,7 @@ describe('AgentConfigSchema validation', () => {
         injectionBudget: 1000,
         retrievalTimeoutMs: 5000,
       },
+      autonomy: TEST_AUTONOMY_CONFIG,
     };
 
     const result = AgentConfigSchema.parse(configWithExtra);

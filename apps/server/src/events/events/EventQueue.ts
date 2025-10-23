@@ -117,7 +117,12 @@ export class EventQueue {
               const attemptCount = (queued.attemptCount ?? 0) + 1;
               const err = error as Error;
 
-              if (attemptCount < EventQueue.MAX_RETRY_ATTEMPTS) {
+              // Don't retry timer events - autonomous messages are best-effort
+              // Retrying timer events causes duplicate messages when LLM timeouts occur
+              const shouldRetry =
+                queued.event.type !== 'timer' && attemptCount < EventQueue.MAX_RETRY_ATTEMPTS;
+
+              if (shouldRetry) {
                 // Retry with exponential backoff
                 const delayMs = EventQueue.RETRY_DELAY_MS * Math.pow(2, attemptCount - 1);
 
@@ -134,12 +139,12 @@ export class EventQueue {
                   this.queues.set(sessionKey, retryQueue);
                 }, delayMs);
               } else {
-                // Max retries exceeded, reject permanently
-                queued.reject(
-                  new Error(
-                    `Event processing failed after ${EventQueue.MAX_RETRY_ATTEMPTS} attempts: ${err.message}`,
-                  ),
-                );
+                // Timer events or max retries exceeded, reject permanently
+                const reason =
+                  queued.event.type === 'timer'
+                    ? 'Timer events are not retried (best-effort delivery)'
+                    : `Event processing failed after ${EventQueue.MAX_RETRY_ATTEMPTS} attempts`;
+                queued.reject(new Error(`${reason}: ${err.message}`));
               }
             }
           }

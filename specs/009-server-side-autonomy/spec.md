@@ -22,6 +22,89 @@ This spec (009) extends that foundation with:
 - PolicyGates with configurable limits (.env)
 - Autonomy metadata in checkpoints
 
+## Terminology & Glossary
+
+**Conversation Thread / Session**: Used interchangeably throughout this spec. Both refer to a unique conversation instance identified by SESSION_KEY (userId:agentId:threadId). "Session" is preferred in technical contexts (aligns with SESSION_KEY), while "conversation thread" is used in user-facing descriptions.
+
+**Outbox Pattern / Effects**: The "outbox pattern" is the implementation strategy (transactional outbox for durable delivery), while "effects" refers to the data model (send_message, schedule_timer). An "outbox entry" is an effect awaiting execution. These terms are used interchangeably in implementation contexts.
+
+**Autonomous Message**: A message sent by the agent without direct user input, triggered by timer events rather than user_message events. Tagged as "Agent follow-up" in transcripts.
+
+**Autonomy Evaluator**: A dedicated LangGraph node that runs conditionally after agent responses to decide whether to schedule follow-up messages. Uses a separate LLM call with specialized prompt and returns structured JSON (AutonomyEvaluationResponse) validated against schema. Has access to conversation context and recent memories. Operates independently from main agent response logic for separation of concerns.
+
+## Autonomy Decision-Making Architecture
+
+### Overview
+
+Autonomy decisions are made by a **dedicated evaluator node** in the LangGraph, separate from the main agent response logic. This separation provides:
+- **Clear responsibility**: Main agent focuses on responding; evaluator focuses on planning
+- **Independent tuning**: Different model, temperature, and prompt for meta-decisions
+- **Cost optimization**: Cheaper/faster model for simple yes/no decisions
+- **Testability**: Evaluator behavior can be tested independently
+
+### Flow
+
+```
+User Message Event
+    ↓
+SessionProcessor loads checkpoint
+    ↓
+Main Agent Node (respond to user)
+    ↓ [produces send_message effect]
+    ↓
+[conditional: if agent.autonomy.enabled]
+    ↓
+Autonomy Evaluator Node
+    - Receives: conversation context, recent memories, autonomy metadata
+    - Calls: separate LLM with evaluator prompt
+    - Returns: AutonomyEvaluationResponse (structured JSON)
+    - Validates: schema compliance
+    - Produces: schedule_timer effect (if shouldSchedule=true) or nothing
+    ↓
+Effects committed to outbox
+    ↓
+[Clear-on-user-message remains active: next user message clears all pending]
+```
+
+### Configuration Levels
+
+**System-Level** (`.env`):
+- `AUTONOMY_ENABLED`: Master feature toggle
+- `AUTONOMY_MAX_CONSECUTIVE`: Hard cap (enforced by PolicyGates)
+- `AUTONOMY_COOLDOWN_MS`: Minimum time between autonomous sends
+
+**Agent-Level** (`config/agents/*.json`):
+- `autonomy.enabled`: Per-agent toggle
+- `autonomy.evaluator.model`: LLM for decision-making (e.g., Llama 3.1 8B)
+- `autonomy.evaluator.systemPrompt`: Instructions for when/why to follow up
+- `autonomy.limits.maxFollowUpsPerSession`: Agent-specific cap
+
+**LLM Decision** (runtime):
+- Evaluator analyzes conversation state
+- Returns structured decision: `shouldSchedule`, `delaySeconds`, `reason`, `followUpType`
+- System validates and enforces limits even if LLM recommends scheduling
+
+### Example Evaluator Prompt Pattern
+
+```
+You are an autonomy evaluator. Analyze conversation and decide if follow-up needed.
+
+Guidelines:
+- Schedule when user asked question but didn't respond
+- Schedule when task incomplete
+- DO NOT schedule if conversation concluded
+- Consider recent memories to avoid repetition
+
+Respond with valid JSON:
+{
+  "shouldSchedule": true|false,
+  "delaySeconds": 30-3600,
+  "reason": "brief explanation",
+  "followUpType": "question_unanswered" | "task_incomplete" | "waiting_for_decision" | "check_in" | "agent_decision",
+  "suggestedMessage": "optional message"
+}
+```
+
 ## Clarifications
 
 ### Session 2025-10-15
@@ -31,6 +114,13 @@ This spec (009) extends that foundation with:
 - Q: When the EffectRunner attempts to deliver an autonomous message but finds the WebSocket connection is closed, what should happen? → A: Keep in outbox; deliver on any future connection (using existing durable outbox pattern)
 - Q: Should there be a maximum allowed duration for scheduled timers, and if so, what happens when an agent tries to schedule beyond that limit? → A: No limit; allow any duration
 - Q: When a conversation thread is explicitly closed/ended, what should happen to all pending timers for that SESSION_KEY? → A: Let timers continue firing (no explicit close mechanism in MVP)
+
+### Session 2025-10-16
+
+- Q: Should the autonomy evaluator have access to agent memory? → A: Yes, include recent memory context (last N memories) in evaluator input
+- Q: Structured output vs freeform for evaluator? → A: Structured JSON validated against AutonomyEvaluationResponseSchema for reliability, parseability, and type safety
+- Q: Should system allow explicit timer scheduling outside evaluator? → A: No, KISS - all autonomy decisions go through evaluator node for consistency
+- Q: Should system log why follow-ups were cancelled? → A: No, KISS - existing clear-on-user-message (FR-010, FR-011) is sufficient without additional tracking
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -190,6 +280,14 @@ Multiple users are simultaneously conversing with agents, potentially with the s
   - `TIMER_POLL_INTERVAL_MS` (default: 250) - Timer worker polling frequency
   - `EFFECT_POLL_INTERVAL_MS` (default: 250) - Effect runner polling frequency
 
+#### Autonomy Decision-Making
+- **FR-042**: System MUST support per-agent autonomy configuration including enabled flag, evaluator model settings, system prompt, and decision limits
+- **FR-043**: System MUST implement a dedicated autonomy evaluator graph node that runs conditionally after agent responses when agent config enables autonomy
+- **FR-044**: Autonomy evaluator node MUST have access to conversation context (recent messages, time since last user message, autonomy metadata) and recent memory context (last N memories)
+- **FR-045**: Autonomy evaluator MUST return structured JSON output validated against AutonomyEvaluationResponseSchema (shouldSchedule: boolean, delaySeconds: number, reason: string, followUpType: enum, suggestedMessage: optional string)
+- **FR-046**: System MUST validate autonomy evaluator output against schema and reject malformed responses with logged warnings
+- **FR-047**: Autonomy evaluator decisions MUST respect system-level PolicyGates (hard cap, cooldown) even if evaluator recommends scheduling
+
 ### Key Entities *(include if feature involves data)*
 
 - **Event**: Represents an input to the conversation graph (user message, timer firing, or tool result). Contains session_key, sequence number, type, payload, and timestamp. Events are ordered per session and immutable once created.
@@ -200,6 +298,8 @@ Multiple users are simultaneously conversing with agents, potentially with the s
 
 - **SESSION_KEY**: A composite identifier (userId:agentId:threadId) that uniquely identifies a conversation thread. Used to partition and order all events, effects, and timers. Ensures isolation between different conversations.
 
+- **AutonomyEvaluation**: Structured decision output from the autonomy evaluator node. Contains shouldSchedule (boolean), delaySeconds (30-3600), reason (string), followUpType (enum: question_unanswered, task_incomplete, waiting_for_decision, check_in), and optional suggestedMessage. Validated against Zod schema before processing.
+
 - **Checkpoint**: Persistent snapshot of conversation state managed by PostgresCheckpointSaver. Contains the graph state, metadata including autonomy counters (consecutive_autonomous_msgs, last_autonomous_at, event_seq), and links to the last processed event.
 
 - **Outbox Entry**: An effect awaiting execution. Contains all effect fields plus processing status. Enables transactional outbox pattern where effects are atomically committed with checkpoints, then asynchronously executed.
@@ -208,7 +308,7 @@ Multiple users are simultaneously conversing with agents, potentially with the s
 
 ### Measurable Outcomes
 
-- **SC-001**: Agents can send proactive follow-up messages after a specified delay (e.g., 30 seconds) without requiring user input, with delivery latency under 1 second from scheduled time
+- **SC-001**: Agents can send proactive follow-up messages after a specified delay (e.g., 30 seconds) without requiring user input, with delivery latency under 1 second from scheduled fire_at time to WebSocket delivery completion
 - **SC-002**: When a user sends a new message, all previously scheduled follow-ups for that conversation are cancelled within 100ms, preventing irrelevant autonomous messages in 100% of cases
 - **SC-003**: System enforces hard cap of 3 consecutive autonomous messages and 15-second cooldown with 100% accuracy, preventing any violations
 - **SC-004**: System maintains strict event ordering per conversation session, with zero out-of-order processing events under normal operation
@@ -244,7 +344,6 @@ The following are explicitly NOT included in this feature:
 - **Advanced retry logic**: No exponential backoff, dead letter queues, or complex failure handling for message delivery
 - **Tool result processing**: tool_result event type is defined but not implemented in MVP
 - **Timer persistence across restarts**: Timers are cleared on system restart in MVP
-- **Per-agent autonomy configuration**: All agents use the same hard cap and cooldown settings
 - **User preference controls**: No user-facing settings to adjust or disable autonomous messages
 - **A/B testing infrastructure**: No built-in experimentation framework for autonomy parameters
 - **Thread lifecycle management**: No explicit thread closure, archival, or deletion mechanisms in MVP

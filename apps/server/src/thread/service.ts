@@ -183,7 +183,14 @@ class DefaultThreadService implements ThreadService {
         );
         threads.push(metadata);
       } catch (error) {
-        logger?.error({ threadId: record.threadId, error }, 'Error processing thread - skipping');
+        logger?.error(
+          {
+            threadId: record.threadId,
+            error: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+          },
+          'Error processing thread - skipping',
+        );
         errors.push({ threadId: record.threadId, error });
         // Continue processing other threads
       }
@@ -326,7 +333,14 @@ class DefaultThreadService implements ThreadService {
       .filter((msg: BaseMessage) => {
         // Filter out system messages (memory injection, etc.) - these are internal only
         const messageType = msg._getType();
-        return messageType === 'human' || messageType === 'ai';
+        if (messageType !== 'human' && messageType !== 'ai') return false;
+
+        // Filter out autonomous follow-up prompts (internal triggers for timer events)
+        // These are synthetic HumanMessages like "[AUTONOMOUS_FOLLOWUP: check_in]"
+        const content = typeof msg.content === 'string' ? msg.content : '';
+        if (content.startsWith('[AUTONOMOUS_FOLLOWUP:')) return false;
+
+        return true;
       })
       .map((msg: BaseMessage, index: number) => ({
         id: msg.id ?? `msg-${index}`,

@@ -30,10 +30,28 @@ interface ResponseHandler {
  *
  * **Pattern**: One WebSocket per thread, many requests per WebSocket
  */
-export function useThreadConnection(threadId: string | null) {
+export function useThreadConnection(
+  threadId: string | null,
+  onAutonomousMessage?: (message: string) => void,
+  onAutonomousToken?: (requestId: string, token: string) => void,
+  onAutonomousComplete?: (requestId: string, message: string, latencyMs?: number) => void,
+) {
   const wsRef = useRef<WebSocket | null>(null);
   const inflightRequestsRef = useRef<Map<string, ResponseHandler>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
+  const onAutonomousMessageRef = useRef(onAutonomousMessage);
+  const onAutonomousTokenRef = useRef(onAutonomousToken);
+  const onAutonomousCompleteRef = useRef(onAutonomousComplete);
+
+  // Update callback refs when props change
+  useEffect(() => {
+    onAutonomousMessageRef.current = onAutonomousMessage;
+    onAutonomousTokenRef.current = onAutonomousToken;
+    onAutonomousCompleteRef.current = onAutonomousComplete;
+  }, [onAutonomousMessage, onAutonomousToken, onAutonomousComplete]);
 
   /**
    * Resolve WebSocket URL from environment or default
@@ -79,92 +97,184 @@ export function useThreadConnection(threadId: string | null) {
     const wsUrl = resolveWebSocketUrl();
     const url = `${wsUrl}?threadId=${encodeURIComponent(threadId)}`;
 
-    console.log('[useThreadConnection] Creating WebSocket connection', { threadId, url });
+    // Calculate exponential backoff delay: min(1000 * 2^attempts, 30000) ms
+    const getReconnectDelay = (attempts: number): number => {
+      const baseDelay = 1000; // 1 second
+      const maxDelay = 30000; // 30 seconds
+      return Math.min(baseDelay * Math.pow(2, attempts), maxDelay);
+    };
 
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
-
-    ws.addEventListener('open', () => {
-      console.log('[useThreadConnection] WebSocket connected', { threadId });
-      setIsConnected(true);
-    });
-
-    ws.addEventListener('close', (event) => {
-      console.log('[useThreadConnection] WebSocket closed', {
+    const createConnection = () => {
+      console.log('[useThreadConnection] Creating WebSocket connection', {
         threadId,
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
+        url,
+        attempt: reconnectAttemptsRef.current,
       });
-      setIsConnected(false);
-    });
 
-    ws.addEventListener('error', (event) => {
-      console.error('[useThreadConnection] WebSocket error', { threadId, event });
-    });
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
 
-    ws.addEventListener('message', (event) => {
-      try {
-        const serverEvent = JSON.parse(event.data) as ChatStreamEvent;
+      ws.addEventListener('open', () => {
+        console.log('[useThreadConnection] WebSocket connected', { threadId });
+        setIsConnected(true);
+        reconnectAttemptsRef.current = 0; // Reset counter on successful connection
+      });
 
-        // Extract requestId from event
-        if (!('requestId' in serverEvent)) {
-          console.warn('[useThreadConnection] Received event without requestId', serverEvent);
-          return;
-        }
-
-        const { requestId } = serverEvent;
-        const handler = inflightRequestsRef.current.get(requestId);
-
-        if (!handler) {
-          console.warn('[useThreadConnection] No handler found for requestId', { requestId });
-          return;
-        }
-
-        // Route event to appropriate handler callback
-        switch (serverEvent.type) {
-          case 'token':
-            handler.onToken?.(serverEvent.value);
-            break;
-
-          case 'final':
-            handler.onComplete?.(serverEvent.message, serverEvent.latencyMs);
-            cleanupHandler(requestId);
-            break;
-
-          case 'error':
-            handler.onError?.(serverEvent.message, serverEvent.retryable ?? false);
-            cleanupHandler(requestId);
-            break;
-
-          case 'cancelled':
-            handler.onCancelled?.();
-            cleanupHandler(requestId);
-            break;
-
-          default:
-            console.warn('[useThreadConnection] Unknown event type', serverEvent);
-        }
-      } catch (error) {
-        console.error('[useThreadConnection] Failed to parse server message', {
-          error,
-          data: event.data,
+      ws.addEventListener('close', (event) => {
+        console.log('[useThreadConnection] WebSocket closed', {
+          threadId,
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          intentional: intentionalCloseRef.current,
         });
-      }
-    });
+        setIsConnected(false);
+
+        // Only reconnect if not an intentional close
+        if (!intentionalCloseRef.current) {
+          const delay = getReconnectDelay(reconnectAttemptsRef.current);
+          console.log('[useThreadConnection] Scheduling reconnect', {
+            threadId,
+            attempt: reconnectAttemptsRef.current + 1,
+            delayMs: delay,
+          });
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectAttemptsRef.current += 1;
+            createConnection();
+          }, delay);
+        }
+      });
+
+      ws.addEventListener('error', (event) => {
+        console.error('[useThreadConnection] WebSocket error', {
+          threadId,
+          event,
+          attempt: reconnectAttemptsRef.current,
+        });
+      });
+
+      ws.addEventListener('message', (event) => {
+        try {
+          const serverEvent = JSON.parse(event.data) as ChatStreamEvent;
+
+          // Extract requestId from event
+          if (!('requestId' in serverEvent)) {
+            console.warn('[useThreadConnection] Received event without requestId', serverEvent);
+            return;
+          }
+
+          const { requestId } = serverEvent;
+          const handler = inflightRequestsRef.current.get(requestId);
+
+          // Server-initiated messages (autonomous follow-ups) don't have handlers
+          // But we need to stream them token-by-token for real-time display
+          if (!handler) {
+            if (requestId.startsWith('followup_')) {
+              // Autonomous message - stream tokens and notify on completion
+              switch (serverEvent.type) {
+                case 'token':
+                  // Stream token to parent for display
+                  onAutonomousTokenRef.current?.(requestId, serverEvent.value);
+                  break;
+
+                case 'final':
+                  // Notify completion with full message
+                  console.log('[useThreadConnection] Autonomous message complete', {
+                    requestId,
+                    messagePreview: serverEvent.message.slice(0, 50) + '...',
+                  });
+                  onAutonomousCompleteRef.current?.(
+                    requestId,
+                    serverEvent.message,
+                    serverEvent.latencyMs,
+                  );
+                  // Also call legacy callback for backward compatibility
+                  onAutonomousMessageRef.current?.(serverEvent.message);
+                  break;
+
+                case 'error':
+                  console.error('[useThreadConnection] Autonomous message error', {
+                    requestId,
+                    error: serverEvent.message,
+                  });
+                  break;
+
+                default:
+                  console.log('[useThreadConnection] Autonomous message event', {
+                    requestId,
+                    type: serverEvent.type,
+                  });
+              }
+            } else {
+              console.warn('[useThreadConnection] No handler found for requestId', { requestId });
+            }
+            return;
+          }
+
+          // Route event to appropriate handler callback
+          switch (serverEvent.type) {
+            case 'token':
+              handler.onToken?.(serverEvent.value);
+              break;
+
+            case 'final':
+              handler.onComplete?.(serverEvent.message, serverEvent.latencyMs);
+              cleanupHandler(requestId);
+              break;
+
+            case 'error':
+              handler.onError?.(serverEvent.message, serverEvent.retryable ?? false);
+              cleanupHandler(requestId);
+              break;
+
+            case 'cancelled':
+              handler.onCancelled?.();
+              cleanupHandler(requestId);
+              break;
+
+            default:
+              console.warn('[useThreadConnection] Unknown event type', serverEvent);
+          }
+        } catch (error) {
+          console.error('[useThreadConnection] Failed to parse server message', {
+            error,
+            data: event.data,
+          });
+        }
+      });
+    };
+
+    // Start initial connection
+    createConnection();
 
     // Cleanup on unmount or threadId change
     return () => {
       console.log('[useThreadConnection] Cleaning up WebSocket connection', { threadId });
 
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close(WS_CLOSE_CODES.NORMAL_CLOSURE, 'Component unmount');
+      // Mark as intentional close to prevent reconnection
+      intentionalCloseRef.current = true;
+
+      // Clear any pending reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      // Close WebSocket if open
+      if (wsRef.current) {
+        const ws = wsRef.current;
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close(WS_CLOSE_CODES.NORMAL_CLOSURE, 'Component unmount');
+        }
       }
 
       // Refs are stable across renders - safe to access in cleanup
       // eslint-disable-next-line react-hooks/exhaustive-deps -- refs are intentionally stable and don't need to be in dependency array
       inflightRequestsRef.current.clear();
       wsRef.current = null;
+      reconnectAttemptsRef.current = 0;
+      intentionalCloseRef.current = false;
     };
   }, [threadId]);
 

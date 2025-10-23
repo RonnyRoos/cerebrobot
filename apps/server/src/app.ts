@@ -23,6 +23,13 @@ import {
   type Event as ChatEvent,
 } from './events/index.js';
 
+// Augment Fastify instance with eventQueue
+declare module 'fastify' {
+  interface FastifyInstance {
+    eventQueue: EventQueue;
+  }
+}
+
 export interface BuildServerOptions {
   readonly threadManager: ThreadManager;
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
@@ -30,7 +37,10 @@ export interface BuildServerOptions {
   readonly logger?: Logger;
 }
 
-export function buildServer(options: BuildServerOptions): FastifyInstance {
+export function buildServer(options: BuildServerOptions): {
+  server: FastifyInstance;
+  eventQueue: EventQueue | null;
+} {
   const logger = options.logger ?? pino({ level: process.env.LOG_LEVEL ?? 'info' });
   const fastifyLogger = options.logger ? { level: options.logger.level ?? 'info' } : false;
 
@@ -63,6 +73,21 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
     const eventStore = new EventStore(prisma);
     const outboxStore = new OutboxStore(prisma);
 
+    // Initialize Autonomy stores (spec 009)
+    const { TimerStore } = await import('./autonomy/timers/TimerStore.js');
+    const timerStore = new TimerStore(prisma);
+
+    // Initialize PolicyGates if autonomy enabled (spec 009)
+    let policyGates = null;
+    if (process.env.AUTONOMY_ENABLED === 'true') {
+      const { PolicyGates } = await import('./autonomy/session/PolicyGates.js');
+      policyGates = new PolicyGates({
+        maxConsecutive: parseInt(process.env.AUTONOMY_MAX_CONSECUTIVE ?? '3', 10),
+        cooldownMs: parseInt(process.env.AUTONOMY_COOLDOWN_MS ?? '15000', 10),
+      });
+      logger.info('PolicyGates initialized');
+    }
+
     // Note: SessionProcessor needs a ChatAgent instance, but we have a factory
     // We'll create a wrapper that lazy-loads the default agent
     const getDefaultAgent = async () => options.getAgent();
@@ -74,16 +99,39 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
       outboxStore,
       connectionManager,
       {
-        graphTimeoutMs: 30000,
+        // Increased timeout for autonomous messages with heavy memory retrieval
+        // Autonomous messages can take >30s when loading many memories
+        graphTimeoutMs: 60000, // 60 seconds
         debug: false,
       },
       logger.child({ component: 'session-processor' }),
+      timerStore, // NEW (spec 009): TimerStore for clear-on-user-message
     );
 
     // Create EventQueue
     eventQueue = new EventQueue(parseInt(process.env.EVENT_QUEUE_PROCESS_INTERVAL_MS ?? '50', 10));
 
-    // Create EffectRunner with delivery handler
+    // Attach eventQueue to fastify instance for access in index.ts (TimerWorker)
+    fastifyInstance.decorate('eventQueue', eventQueue);
+
+    // Initialize TimerWorker if autonomy enabled (spec 009)
+    if (process.env.AUTONOMY_ENABLED === 'true') {
+      const { TimerWorker } = await import('./autonomy/timers/TimerWorker.js');
+      const timerWorker = new TimerWorker(
+        timerStore,
+        eventStore,
+        eventQueue,
+        {
+          pollIntervalMs: parseInt(process.env.TIMER_POLL_INTERVAL_MS ?? '5000', 10),
+          batchSize: 10,
+        },
+        logger.child({ component: 'timer-worker' }),
+      );
+      timerWorker.start();
+      logger.info('TimerWorker started');
+    }
+
+    // Create EffectRunner with delivery handler + TimerStore + PolicyGates (spec 009)
     effectRunner = new EffectRunner(
       outboxStore,
       {
@@ -92,6 +140,36 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
         debug: false,
       },
       logger.child({ component: 'effect-runner' }),
+      timerStore, // NEW: TimerStore for schedule_timer effects
+      policyGates ?? undefined, // NEW: PolicyGates for autonomous message limits
+      async (sessionKey) => {
+        // NEW: Metadata loader for PolicyGates enforcement
+        // Loads autonomy metadata from checkpoint (consecutiveAutonomousMessages, lastAutonomousAt)
+        try {
+          const { threadId } = parseSessionKey(sessionKey);
+          const tuple = await options.checkpointer.getTuple({
+            configurable: { thread_id: threadId },
+          });
+
+          if (!tuple?.metadata) {
+            return { consecutiveAutonomousMessages: 0, lastAutonomousAt: null };
+          }
+
+          const metadata = tuple.metadata as Record<string, unknown>;
+          return {
+            consecutiveAutonomousMessages: (metadata.consecutiveAutonomousMessages as number) ?? 0,
+            lastAutonomousAt: metadata.lastAutonomousAt
+              ? new Date(metadata.lastAutonomousAt as string)
+              : null,
+          };
+        } catch (error) {
+          logger.warn(
+            { sessionKey, error: error instanceof Error ? error.message : String(error) },
+            'Failed to load autonomy metadata',
+          );
+          return null;
+        }
+      },
     );
 
     // Start EventQueue with SessionProcessor
@@ -136,7 +214,18 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
 
         logger.info({ effectId: effect.id, connectionId }, '✅ Got connection, about to send');
 
-        const { content, requestId, isFinal } = effect.payload;
+        // Only handle send_message effects in delivery handler
+        if (effect.type !== 'send_message') {
+          logger.warn(
+            { effectId: effect.id, type: effect.type },
+            'Unexpected effect type in delivery handler',
+          );
+          return false;
+        }
+
+        // Type guard - payload is now known to be SendMessagePayload
+        const payload = effect.payload as { content: string; requestId: string; isFinal?: boolean };
+        const { content, requestId, isFinal } = payload;
         const socket = connection.socket;
 
         if (isFinal) {
@@ -211,5 +300,5 @@ export function buildServer(options: BuildServerOptions): FastifyInstance {
 
   logger.info('fastify server initialized');
 
-  return app;
+  return { server: app, eventQueue };
 }

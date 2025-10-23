@@ -35,6 +35,7 @@ describe('Reconnection Delivery (User Story 2)', () => {
       updateStatus: vi.fn(async (id: string) => {
         return createMockEffect(id, SESSION_KEY, 'content');
       }),
+      isCompletedByDedupeKey: vi.fn(async () => false), // No duplicates by default
     } as unknown as OutboxStore;
 
     // Create EffectRunner
@@ -53,8 +54,10 @@ describe('Reconnection Delivery (User Story 2)', () => {
 
     // Should have delivered both pending effects
     expect(deliveredEffects.length).toBe(2);
-    expect(deliveredEffects[0].payload.content).toBe('Message from before disconnect');
-    expect(deliveredEffects[1].payload.content).toBe('Second pending message');
+    const payload1 = deliveredEffects[0].payload as { content: string };
+    const payload2 = deliveredEffects[1].payload as { content: string };
+    expect(payload1.content).toBe('Message from before disconnect');
+    expect(payload2.content).toBe('Second pending message');
 
     // Should have fetched pending effects for this session
     expect(mockOutboxStore.getPending).toHaveBeenCalledWith(100, SESSION_KEY);

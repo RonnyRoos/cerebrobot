@@ -9,8 +9,8 @@ import { z } from 'zod';
 import { SessionKeySchema } from './events.schema.js';
 import { createHash } from 'crypto';
 
-// Effect type (008: send_message only)
-export const EffectTypeSchema = z.enum(['send_message']);
+// Effect type (EXTENDED in 009: added schedule_timer)
+export const EffectTypeSchema = z.enum(['send_message', 'schedule_timer']);
 export type EffectType = z.infer<typeof EffectTypeSchema>;
 
 // Effect status
@@ -26,13 +26,27 @@ export const SendMessagePayloadSchema = z.object({
 
 export type SendMessagePayload = z.infer<typeof SendMessagePayloadSchema>;
 
+// Schedule timer payload (NEW in 009)
+export const ScheduleTimerPayloadSchema = z.object({
+  timer_id: z.string(),
+  delay_seconds: z.number().int().positive(),
+  payload: z.unknown().optional(),
+});
+
+export type ScheduleTimerPayload = z.infer<typeof ScheduleTimerPayloadSchema>;
+
+// Union of all effect payloads
+export const EffectPayloadSchema = z.union([SendMessagePayloadSchema, ScheduleTimerPayloadSchema]);
+
+export type EffectPayload = z.infer<typeof EffectPayloadSchema>;
+
 // Complete effect schema
 export const EffectSchema = z.object({
   id: z.string().uuid(),
   session_key: SessionKeySchema,
   checkpoint_id: z.string(),
   type: EffectTypeSchema,
-  payload: SendMessagePayloadSchema,
+  payload: EffectPayloadSchema,
   dedupe_key: z.string(),
   status: EffectStatusSchema,
   created_at: z.date(),

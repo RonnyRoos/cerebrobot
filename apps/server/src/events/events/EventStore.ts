@@ -3,11 +3,18 @@
  * Implements event sourcing storage with session-scoped sequential IDs
  */
 
-import { PrismaClient } from '@prisma/client';
-import type { SessionKey, EventType, UserMessagePayload } from './types.js';
-import type { CreateEvent, Event } from './types.js';
-import { SessionKeySchema } from '../types/events.schema.js';
+import { PrismaClient, Prisma } from '@prisma/client';
+import type { SessionKey } from './types.js';
+import {
+  SessionKeySchema,
+  type Event,
+  type EventType,
+  type EventPayload,
+} from '../types/events.schema.js';
 import { randomUUID } from 'crypto';
+
+// Re-export for backward compatibility
+export type { Event, EventType, EventPayload };
 
 export class EventStore {
   constructor(private readonly prisma: PrismaClient) {}
@@ -16,8 +23,14 @@ export class EventStore {
    * Create a new event and persist to database
    * Generates UUID and timestamp automatically
    * Validates SESSION_KEY format before persisting
+   * EXTENDED: Supports user_message, timer, and tool_result types (spec 009)
    */
-  async create(event: CreateEvent): Promise<Event> {
+  async create(event: {
+    sessionKey: SessionKey;
+    seq: number;
+    type: EventType;
+    payload: EventPayload;
+  }): Promise<Event> {
     // Validate SESSION_KEY format
     SessionKeySchema.parse(event.sessionKey);
 
@@ -27,7 +40,7 @@ export class EventStore {
         sessionKey: event.sessionKey,
         seq: event.seq,
         type: event.type,
-        payload: event.payload, // Prisma accepts plain objects for Json type
+        payload: event.payload as Prisma.InputJsonValue, // Prisma accepts plain objects for Json type
       },
     });
 
@@ -36,7 +49,7 @@ export class EventStore {
       session_key: created.sessionKey as SessionKey,
       seq: created.seq,
       type: created.type as EventType,
-      payload: created.payload as UserMessagePayload,
+      payload: created.payload as EventPayload,
       created_at: created.createdAt,
     };
   }
@@ -57,6 +70,7 @@ export class EventStore {
   /**
    * Find all events for a session ordered by sequence
    * Used for session replay/debugging
+   * EXTENDED: Returns all event types (spec 009)
    */
   async findBySession(sessionKey: SessionKey): Promise<Event[]> {
     const events = await this.prisma.event.findMany({
@@ -69,7 +83,7 @@ export class EventStore {
       session_key: e.sessionKey as SessionKey,
       seq: e.seq,
       type: e.type as EventType,
-      payload: e.payload as UserMessagePayload,
+      payload: e.payload as EventPayload,
       created_at: e.createdAt,
     }));
   }

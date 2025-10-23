@@ -73,6 +73,22 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
       // Check if aborted before expensive operation
       runnableConfig?.signal?.throwIfAborted();
 
+      // OPTIMIZATION: Check if namespace has any memories before generating embeddings
+      // This avoids expensive embedding API calls for new conversations with no memories
+      const existingKeys = await store.list(namespace);
+      if (existingKeys.length === 0) {
+        logger.debug(
+          { namespace, threadId: state.threadId },
+          'No memories in namespace, skipping retrieval',
+        );
+        return { retrievedMemories: [] };
+      }
+
+      logger.debug(
+        { namespace, memoryCount: existingKeys.length, query },
+        'Searching memories for relevant context',
+      );
+
       // Search for relevant memories
       const searchResults = await Promise.race([
         store.search(

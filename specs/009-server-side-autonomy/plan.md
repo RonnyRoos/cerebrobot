@@ -20,7 +20,7 @@
 
 ## Summary
 
-Extend the Events & Effects foundation (spec 008) with timer-driven autonomous messaging. Add timer events, TimerWorker for polling, schedule_timer effects, and PolicyGates with fully .env-configurable limits (hard cap, cooldown, polling intervals). Timers schedule future actions, the Timer Worker promotes due timers to events, and the EffectRunner (from 008) handles both send_message AND schedule_timer effect types.
+Extend the Events & Effects foundation (spec 008) with timer-driven autonomous messaging and LLM-driven autonomy decisions. Add timer events, TimerWorker for polling, schedule_timer effects, and PolicyGates with fully .env-configurable limits. Introduce a dedicated autonomy evaluator LangGraph node that uses a separate LLM call to decide whether/when to schedule follow-ups based on conversation context and memory. Timers schedule future actions, the Timer Worker promotes due timers to events, and the EffectRunner handles both send_message AND schedule_timer effect types.
 
 ## Technical Context
 
@@ -46,6 +46,14 @@ Extend the Events & Effects foundation (spec 008) with timer-driven autonomous m
 - **Validation**: Loaded and validated via `apps/server/src/config/autonomy.ts` using Zod schema
 - **Usage**: Injected into PolicyGates, TimerWorker, EffectRunner constructors as config object
 - **Type Safety**: Export `AutonomyConfig` type from autonomy.ts for DI consistency
+
+**Autonomy Decision-Making**:
+- **Evaluator Node**: Dedicated LangGraph node runs conditionally after agent responses (only when agent.autonomy.enabled)
+- **Separation of Concerns**: Main agent responds to user; evaluator decides whether to schedule follow-ups
+- **Evaluator Model**: Configurable per-agent (e.g., meta-llama/Meta-Llama-3.1-8B-Instruct for cost optimization, lower temperature)
+- **Structured Output**: Returns AutonomyEvaluationResponse JSON validated against Zod schema (shouldSchedule, delaySeconds, reason, followUpType, suggestedMessage)
+- **Memory Context**: Evaluator receives recent N memories + conversation history + autonomy metadata
+- **Agent-Level Config**: Per-agent settings in `config/agents/*.json` (enabled flag, evaluator model/prompt/temp, limits, memory context config)
 
 ## Constitution Check
 
@@ -104,7 +112,8 @@ specs/009-server-side-autonomy/
 ├── contracts/           # Phase 1 output (/speckit.plan command)
 │   ├── events.schema.ts
 │   ├── effects.schema.ts
-│   └── timers.schema.ts
+│   ├── timers.schema.ts
+│   └── autonomy-evaluation.schema.ts
 └── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
@@ -131,16 +140,24 @@ apps/server/src/
 │   │   └── types.ts            # SESSION_KEY type, autonomy counters
 │   └── index.ts                # Autonomy subsystem exports
 ├── graph/                       # Existing: LangGraph integration
+│   ├── nodes/
+│   │   └── autonomy-evaluator.ts  # NEW: Dedicated evaluator node
+│   ├── index.ts                # Extend with conditional edge to evaluator
 │   └── checkpointer.ts         # Extend to persist autonomy metadata
 ├── routes/
 │   └── chat.ts                 # Extend WebSocket route for autonomy messages
 └── lib/
     └── websocket.ts            # Extend for outbox-driven delivery
 
+packages/chat-shared/src/
+├── schemas/
+│   ├── autonomy.schema.ts      # NEW: AutonomyEvaluationResponse schema
+│   └── agent.schema.ts         # EXTEND: Add autonomy config section
+
 prisma/
-├── schema.prisma               # Add: events, effects, timers tables
+├── schema.prisma               # Add: timers table (events and effects already exist from spec 008)
 └── migrations/
-    └── YYYYMMDDHHMMSS_add_autonomy_tables/
+    └── YYYYMMDDHHMMSS_add_autonomy_timers/
         └── migration.sql
 
 tests/
@@ -176,6 +193,7 @@ All technical unknowns resolved. See [research.md](./research.md) for detailed d
 6. Branded SESSION_KEY type with Zod validation
 7. PolicyGates for hard cap and cooldown enforcement
 8. Checkpoint metadata extension for autonomy state
+9. Autonomy evaluator node - dedicated LangGraph node with separate LLM call for meta-decisions (not integrated into main prompt)
 
 ---
 
@@ -184,18 +202,21 @@ All technical unknowns resolved. See [research.md](./research.md) for detailed d
 ### Data Model
 See [data-model.md](./data-model.md) for complete entity definitions.
 
-**Core Entities**:
+**Core Entities** (7 total):
 - Event (immutable audit log)
 - Effect (transactional outbox)
 - Timer (scheduled actions)
 - SESSION_KEY (partition key)
-- Checkpoint Metadata Extension (autonomy state)
+- AutonomyEvaluation (evaluator decision output)
+- Checkpoint (persistent graph state with metadata)
+- Outbox Entry (effect awaiting execution)
 
 ### Contracts
-See [contracts/](./contracts/) for Zod schemas:
+See [contracts/](./contracts/) for Zod schemas (4 total):
 - `events.schema.ts`: Event types and payloads
 - `effects.schema.ts`: Effect types and payloads
 - `timers.schema.ts`: Timer data structures
+- `autonomy-evaluation.schema.ts`: Evaluator response and context schemas
 
 ### Implementation Guide
 See [quickstart.md](./quickstart.md) for step-by-step implementation instructions with code examples.
@@ -251,12 +272,12 @@ See [quickstart.md](./quickstart.md) for step-by-step implementation instruction
 ## Summary
 
 **Planning Status**: Complete  
-**Branch**: 008-server-side-autonomy  
+**Branch**: 009-server-side-autonomy  
 **Artifacts Generated**:
 - ✅ plan.md (this file)
-- ✅ research.md (8 technical decisions documented)
-- ✅ data-model.md (5 entities with Prisma schema)
-- ✅ contracts/ (3 Zod schema files)
+- ✅ research.md (9 technical decisions documented)
+- ✅ data-model.md (7 entities with Prisma schema)
+- ✅ contracts/ (4 Zod schema files)
 - ✅ quickstart.md (8-step implementation guide with code)
 - ✅ Agent context updated (GitHub Copilot)
 
@@ -266,17 +287,17 @@ See [quickstart.md](./quickstart.md) for step-by-step implementation instruction
 
 See [tasks.md](./tasks.md) for complete implementation task list.
 
-**Task Organization**: 65 tasks organized by user story to enable independent implementation and testing
-- Phase 1: Setup (5 tasks) - Database schema and directory structure
+**Task Organization**: 70 tasks organized by user story to enable independent implementation and testing
+- Phase 1: Setup (7 tasks) - Database schema, directory structure, autonomy schemas (T005a, T005b added)
 - Phase 2: Foundational (8 tasks) - Stores, EventQueue, PolicyGates (BLOCKS all user stories)
-- Phase 3: User Story 1 (14 tasks) - Agent sends scheduled follow-ups
+- Phase 3: User Story 1 (17 tasks) - Agent sends scheduled follow-ups (T018a, T021a, T022a added for evaluator)
 - Phase 4: User Story 2 (6 tasks) - User message cancels pending follow-ups
 - Phase 5: User Story 3 (9 tasks) - Autonomy hard limits prevent message storms
 - Phase 6: User Story 4 (7 tasks) - System recovers from failures
 - Phase 7: User Story 5 (7 tasks) - Multi-session isolation
 - Phase 8: Polish (9 tasks) - Documentation, cleanup, validation
 
-**MVP Scope**: User Stories 1, 2, 3 (all P1) = 35 tasks → 7-10 day timeline for single developer
+**MVP Scope**: User Stories 1, 2, 3 (all P1) = 38 tasks → 7-10 day timeline for single developer
 
 **Parallel Opportunities**: 
 - Setup: All 5 tasks parallel
@@ -287,8 +308,12 @@ See [tasks.md](./tasks.md) for complete implementation task list.
 **Next Command**: Begin implementation with `T001` (Add Prisma models)
 
 **Notes for Implementation**:
-- Database migration will create 1 new table (autonomy_timers) - events and effects tables already exist from 008
+- Database migration will create 1 new table (timers) - events and effects tables already exist from 008
+- Autonomy evaluator node is a separate LangGraph node with its own LLM call (not mixed into main agent prompt)
+- Evaluator uses structured JSON output validated against AutonomyEvaluationResponseSchema
+- Per-agent config in `config/agents/*.json` controls evaluator model, prompt, and limits
 - SessionProcessor (orchestration layer) needs implementation (referenced but not detailed in quickstart)
 - LangGraph nodes need refactoring to return effects instead of performing I/O
+- Conditional edge after agent response routes to evaluator only when agent.autonomy.enabled
 - WebSocket reconnection handler should trigger outbox poll for pending effects
-- Consider adding telemetry (Prometheus metrics) for queue depths, timer lag, effect processing time
+- Consider adding telemetry (Prometheus metrics) for queue depths, timer lag, effect processing time, evaluator decision distribution
