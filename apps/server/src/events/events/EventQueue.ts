@@ -139,12 +139,17 @@ export class EventQueue {
                   this.queues.set(sessionKey, retryQueue);
                 }, delayMs);
               } else {
-                // Timer events or max retries exceeded, reject permanently
-                const reason =
-                  queued.event.type === 'timer'
-                    ? 'Timer events are not retried (best-effort delivery)'
-                    : `Event processing failed after ${EventQueue.MAX_RETRY_ATTEMPTS} attempts`;
-                queued.reject(new Error(`${reason}: ${err.message}`));
+                // Timer events: resolve to prevent crash (logged in SessionProcessor)
+                // User messages: reject after max retries
+                if (queued.event.type === 'timer') {
+                  queued.resolve();
+                } else {
+                  queued.reject(
+                    new Error(
+                      `Event processing failed after ${EventQueue.MAX_RETRY_ATTEMPTS} attempts: ${err.message}`,
+                    ),
+                  );
+                }
               }
             }
           }
