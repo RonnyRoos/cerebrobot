@@ -116,8 +116,21 @@ Should we schedule an autonomous follow-up message? Provide your decision as JSO
         }
       }
 
-      const parsed = JSON.parse(jsonText);
-      const evaluation = AutonomyEvaluationResponseSchema.parse(parsed);
+      // Parse and validate with error handling
+      let evaluation;
+      try {
+        const parsed = JSON.parse(jsonText);
+        evaluation = AutonomyEvaluationResponseSchema.parse(parsed);
+      } catch (parseError) {
+        this.logger?.warn(
+          {
+            err: parseError,
+            responseText: responseText.substring(0, 200), // First 200 chars for debugging
+          },
+          'Failed to parse autonomy evaluation response - assuming no follow-up',
+        );
+        return {}; // Fail safe: don't schedule on parse error
+      }
 
       this.logger?.info(
         {
@@ -153,7 +166,7 @@ Should we schedule an autonomous follow-up message? Provide your decision as JSO
     } catch (error) {
       this.logger?.error(
         {
-          error: error instanceof Error ? error.message : String(error),
+          err: error,
         },
         'Autonomy evaluator error - failing safe (no follow-up)',
       );

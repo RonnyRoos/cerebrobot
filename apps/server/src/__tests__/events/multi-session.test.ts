@@ -114,7 +114,9 @@ describe('Multi-Session Isolation (User Story 3)', () => {
     // Session 1 should have 2 events
     expect(session1Events.length).toBe(2);
     expect((session1Events[0].payload as { text: string }).text).toBe('Message from session 1');
-    expect((session1Events[1].payload as { text: string }).text).toBe('Another message from session 1');
+    expect((session1Events[1].payload as { text: string }).text).toBe(
+      'Another message from session 1',
+    );
 
     // Session 2 should have 1 event
     expect(session2Events.length).toBe(1);
@@ -164,10 +166,17 @@ describe('Multi-Session Isolation (User Story 3)', () => {
 
     // Verify events processed in order within each session
     const session1Events = processedEvents.get(SESSION_1)!;
-    expect(session1Events.map((e) => (e.payload as { text: string }).text)).toEqual(['S1-M1', 'S1-M2', 'S1-M3']);
+    expect(session1Events.map((e) => (e.payload as { text: string }).text)).toEqual([
+      'S1-M1',
+      'S1-M2',
+      'S1-M3',
+    ]);
 
     const session2Events = processedEvents.get(SESSION_2)!;
-    expect(session2Events.map((e) => (e.payload as { text: string }).text)).toEqual(['S2-M1', 'S2-M2']);
+    expect(session2Events.map((e) => (e.payload as { text: string }).text)).toEqual([
+      'S2-M1',
+      'S2-M2',
+    ]);
   });
 
   it('should not allow cross-session event contamination', async () => {

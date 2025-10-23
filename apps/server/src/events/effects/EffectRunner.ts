@@ -67,6 +67,13 @@ export class EffectRunner {
   private readonly sessionCooldowns = new Map<SessionKey, number>();
   private readonly cooldownMs = 10_000; // 10 seconds
 
+  /**
+   * Track consecutive metadata load failures per session for circuit breaker
+   * After 3 consecutive failures, block autonomous sends until success
+   */
+  private readonly metadataFailures = new Map<SessionKey, number>();
+  private readonly maxMetadataFailures = 3;
+
   constructor(
     outboxStore: OutboxStore,
     config: EffectRunnerConfig = {},
@@ -181,9 +188,9 @@ export class EffectRunner {
 
         await Promise.allSettled(
           expiredEffects.map((effect) =>
-            this.outboxStore.updateStatus(effect.id, 'failed').catch((error) => {
+            this.outboxStore.updateStatus(effect.id, 'failed').catch((err) => {
               this.logger?.error(
-                { effectId: effect.id, error },
+                { err, effectId: effect.id },
                 'Failed to mark expired effect as failed',
               );
             }),
@@ -198,6 +205,9 @@ export class EffectRunner {
       });
 
       if (activeEffects.length === 0) {
+        // Cleanup old cooldowns and metadata failures when idle
+        this.cleanupStaleMaps();
+
         if (this.config.debug) {
           this.logger?.debug('All effects are either in cooldown or expired');
         }
@@ -234,8 +244,7 @@ export class EffectRunner {
     } catch (error) {
       this.logger?.error(
         {
-          error: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
+          err: error,
         },
         'Error in processEffects',
       );
@@ -281,8 +290,27 @@ export class EffectRunner {
           const isAutonomous = payload.requestId?.includes('timer_') ?? false;
 
           if (isAutonomous && this.policyGates && this.loadMetadata) {
+            // Check circuit breaker first
+            const failureCount = this.metadataFailures.get(effect.session_key) || 0;
+            if (failureCount >= this.maxMetadataFailures) {
+              await this.outboxStore.updateStatus(effect.id, 'failed');
+              this.logger?.error(
+                {
+                  effectId: effect.id,
+                  sessionKey: effect.session_key,
+                  failureCount,
+                },
+                'Autonomous message blocked - repeated metadata load failures (circuit breaker)',
+              );
+              return; // Circuit breaker tripped - fail closed
+            }
+
             try {
               const metadata = await this.loadMetadata(effect.session_key);
+
+              // Reset failure counter on successful load
+              this.metadataFailures.delete(effect.session_key);
+
               if (metadata) {
                 const policyCheck = this.policyGates.checkCanSendAutonomous(metadata);
 
@@ -304,14 +332,22 @@ export class EffectRunner {
                 }
               }
             } catch (error) {
+              // Increment failure counter
+              const newCount = failureCount + 1;
+              this.metadataFailures.set(effect.session_key, newCount);
+
               this.logger?.warn(
                 {
+                  err: error,
                   effectId: effect.id,
-                  error: error instanceof Error ? error.message : String(error),
+                  sessionKey: effect.session_key,
+                  failureCount: newCount,
+                  maxFailures: this.maxMetadataFailures,
                 },
-                'Failed to load autonomy metadata for PolicyGates check - allowing send',
+                'Failed to load autonomy metadata - allowing send (failure tracked)',
               );
-              // Fail open: if we can't check policy, allow the send (better than blocking legitimate messages)
+              // Fail open on first few failures to handle transient issues
+              // Circuit breaker will trip on next attempt if this continues
             }
           }
 
@@ -321,6 +357,9 @@ export class EffectRunner {
             // Mark as completed and clear cooldown
             await this.outboxStore.updateStatus(effect.id, 'completed');
             this.sessionCooldowns.delete(effect.session_key);
+
+            // Reset metadata failure counter on successful delivery
+            this.metadataFailures.delete(effect.session_key);
 
             this.logger?.debug(
               {
@@ -467,9 +506,8 @@ export class EffectRunner {
     } catch (error) {
       this.logger?.error(
         {
+          err: error,
           sessionKey,
-          error: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
         },
         'Error polling effects for session',
       );
@@ -488,5 +526,29 @@ export class EffectRunner {
    */
   getConfig(): Required<EffectRunnerConfig> {
     return { ...this.config };
+  }
+
+  /**
+   * Cleanup stale session cooldowns and metadata failure counters
+   * Prevents memory leaks in long-running processes
+   */
+  private cleanupStaleMaps(): void {
+    const now = Date.now();
+    const staleThreshold = this.cooldownMs * 10; // 10x cooldown = safe to forget
+
+    // Cleanup old cooldowns
+    for (const [key, timestamp] of this.sessionCooldowns.entries()) {
+      if (now - timestamp > staleThreshold) {
+        this.sessionCooldowns.delete(key);
+      }
+    }
+
+    // Cleanup metadata failures for sessions that haven't had activity
+    // If session not in recent cooldowns, it's stale - remove from failure tracking
+    for (const key of this.metadataFailures.keys()) {
+      if (!this.sessionCooldowns.has(key)) {
+        this.metadataFailures.delete(key);
+      }
+    }
   }
 }

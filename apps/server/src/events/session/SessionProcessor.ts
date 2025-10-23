@@ -205,26 +205,64 @@ export class SessionProcessor {
           // Extract and create any additional effects from graph state (e.g., schedule_timer from autonomy evaluator)
           if (chunk.effects && Array.isArray(chunk.effects)) {
             for (const graphEffect of chunk.effects) {
-              this.logger?.info(
-                {
-                  sessionKey: event.session_key,
-                  effectType: graphEffect.type,
-                  payload: graphEffect.payload,
-                },
-                'Creating effect from graph state',
-              );
+              // Validate effect structure before creating in outbox
+              try {
+                // Validate type
+                if (!['send_message', 'schedule_timer'].includes(graphEffect.type)) {
+                  this.logger?.error(
+                    {
+                      sessionKey: event.session_key,
+                      invalidType: graphEffect.type,
+                    },
+                    'Invalid effect type from graph, skipping',
+                  );
+                  continue;
+                }
 
-              // Type assertion: we trust the graph to produce valid effects
-              await this.outboxStore.create({
-                sessionKey: event.session_key,
-                checkpointId,
-                type: graphEffect.type as 'send_message' | 'schedule_timer',
-                payload: graphEffect.payload as
-                  | { content: string; requestId: string; isFinal?: boolean }
-                  | { timer_id: string; delay_seconds: number; payload?: unknown },
-                dedupeKey: `${checkpointId}:${graphEffect.type}:${Date.now()}`,
-                status: 'pending',
-              });
+                // Validate payload structure based on type
+                if (graphEffect.type === 'schedule_timer') {
+                  const payload = graphEffect.payload as Record<string, unknown>;
+                  if (!payload?.timer_id || typeof payload.delay_seconds !== 'number') {
+                    this.logger?.error(
+                      {
+                        sessionKey: event.session_key,
+                        payload: graphEffect.payload,
+                      },
+                      'Invalid schedule_timer payload from graph, skipping',
+                    );
+                    continue;
+                  }
+                }
+
+                this.logger?.info(
+                  {
+                    sessionKey: event.session_key,
+                    effectType: graphEffect.type,
+                    payload: graphEffect.payload,
+                  },
+                  'Creating effect from graph state',
+                );
+
+                await this.outboxStore.create({
+                  sessionKey: event.session_key,
+                  checkpointId,
+                  type: graphEffect.type as 'send_message' | 'schedule_timer',
+                  payload: graphEffect.payload as
+                    | { content: string; requestId: string; isFinal?: boolean }
+                    | { timer_id: string; delay_seconds: number; payload?: unknown },
+                  dedupeKey: `${checkpointId}:${graphEffect.type}:${Date.now()}`,
+                  status: 'pending',
+                });
+              } catch (err) {
+                this.logger?.error(
+                  {
+                    err,
+                    sessionKey: event.session_key,
+                    effectType: graphEffect.type,
+                  },
+                  'Failed to create effect from graph state',
+                );
+              }
             }
           }
 
@@ -257,29 +295,39 @@ export class SessionProcessor {
 
       // Check if error was due to abort
       if (error instanceof Error && error.name === 'AbortError') {
-        const logLevel = event.type === 'timer' ? 'warn' : 'error';
-        const logMessage =
-          event.type === 'timer'
-            ? 'Timer event processing timed out (best-effort delivery)'
-            : 'Event processing timed out';
+        // Timer events are best-effort - warn but don't throw
+        if (event.type === 'timer') {
+          this.logger?.warn(
+            {
+              sessionKey: event.session_key,
+              eventId: event.id,
+              eventType: event.type,
+              timeoutMs,
+            },
+            'Timer event processing timed out (best-effort delivery, continuing)',
+          );
+          return; // Exit gracefully - timer delivery is not critical
+        }
 
-        this.logger?.[logLevel](
+        // User messages should error on timeout
+        this.logger?.error(
           {
             sessionKey: event.session_key,
             eventId: event.id,
             eventType: event.type,
             timeoutMs,
           },
-          logMessage,
+          'Event processing timed out',
         );
         throw new Error(`Event processing timed out after ${timeoutMs}ms`);
       }
 
       this.logger?.error(
         {
+          err: error,
           sessionKey: event.session_key,
           eventId: event.id,
-          error: error instanceof Error ? error.message : String(error),
+          eventType: event.type,
         },
         'Event processing failed',
       );

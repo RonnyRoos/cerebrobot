@@ -79,7 +79,10 @@ export class TimerStore {
         sessionKey,
         status: 'pending',
       },
-      data: { status: 'cancelled' },
+      data: {
+        status: 'cancelled',
+        cancelledAt: new Date(), // Soft delete audit trail
+      },
     });
 
     return result.count;

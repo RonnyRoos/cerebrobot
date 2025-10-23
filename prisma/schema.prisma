@@ -117,14 +117,15 @@ model Effect {
 
 /// Timer: Scheduled future action for a conversation session (Spec 009)
 model Timer {
-  id         String   @id @default(uuid()) @db.Uuid
-  sessionKey String   @map("session_key")
-  timerId    String   @map("timer_id")
-  fireAtMs   BigInt   @map("fire_at_ms") // Epoch milliseconds for timezone-free comparison
-  payload    Json?    // Optional context for timer event
-  status     String   @default("pending") // pending|promoted|cancelled
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id          String    @id @default(uuid()) @db.Uuid
+  sessionKey  String    @map("session_key")
+  timerId     String    @map("timer_id")
+  fireAtMs    BigInt    @map("fire_at_ms") // Epoch milliseconds for timezone-free comparison
+  payload     Json?     // Optional context for timer event
+  status      String    @default("pending") // pending|promoted|cancelled
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz // Soft delete audit trail
 
   @@unique([sessionKey, timerId])
   @@index([status, fireAtMs], map: "idx_timers_status_fireat")
