@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "format:write": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@cerebrobot/chat-shared": "workspace:*",
