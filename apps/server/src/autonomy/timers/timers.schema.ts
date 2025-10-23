@@ -35,4 +35,6 @@ export const UpsertTimerSchema = z.object({
   payload: z.unknown().nullable().optional(),
 });
 
-export type UpsertTimer = z.infer<typeof UpsertTimerSchema>;
+export type UpsertTimer = Omit<z.infer<typeof UpsertTimerSchema>, 'fire_at_ms'> & {
+  fire_at_ms: number | bigint; // Accept both for convenience, Zod coerces to bigint
+};

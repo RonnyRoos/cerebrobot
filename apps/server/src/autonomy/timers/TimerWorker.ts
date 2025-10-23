@@ -111,8 +111,8 @@ export class TimerWorker {
             {
               timerId: timer.timer_id,
               sessionKey: timer.session_key,
-              fireAtMs: timer.fire_at_ms,
-              fireAt: new Date(timer.fire_at_ms).toISOString(), // Convert to ISO string for logging
+              fireAtMs: timer.fire_at_ms.toString(),
+              fireAt: new Date(Number(timer.fire_at_ms)).toISOString(), // Convert to ISO string for logging
               seq: nextSeq,
             },
             'Timer promoted to event',

@@ -5,7 +5,7 @@
  * Supports upsert by (session_key, timer_id) to prevent duplicates.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionKey } from '../../events/types/events.schema.js';
 import { Timer, TimerSchema, TimerStatus, UpsertTimer } from './timers.schema.js';
 
@@ -28,12 +28,12 @@ export class TimerStore {
         sessionKey: timer.session_key,
         timerId: timer.timer_id,
         fireAtMs: BigInt(timer.fire_at_ms),
-        payload: timer.payload ?? null,
+        payload: (timer.payload !== undefined ? timer.payload : null) as Prisma.InputJsonValue,
         status: 'pending',
       },
       update: {
         fireAtMs: BigInt(timer.fire_at_ms),
-        payload: timer.payload ?? null,
+        payload: (timer.payload !== undefined ? timer.payload : null) as Prisma.InputJsonValue,
         status: 'pending', // Reset status on update
       },
     });
