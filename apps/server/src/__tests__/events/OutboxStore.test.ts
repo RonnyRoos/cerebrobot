@@ -20,10 +20,13 @@ const SESSION_2 = 'user2:agent2:thread2' as SessionKey;
 
 describe('OutboxStore', () => {
   beforeEach(async () => {
-    // Clean up ALL test data (including any leftover from other tests or postgres-validation)
-    // This ensures test isolation
-    await prisma.effect.deleteMany({});
-    await prisma.event.deleteMany({});
+    // Clean up ONLY this test's session data to avoid interfering with parallel tests
+    await prisma.effect.deleteMany({
+      where: { sessionKey: { in: [SESSION_1, SESSION_2] } },
+    });
+    await prisma.event.deleteMany({
+      where: { sessionKey: { in: [SESSION_1, SESSION_2] } },
+    });
   });
 
   afterAll(async () => {
