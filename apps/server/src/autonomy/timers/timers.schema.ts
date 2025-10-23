@@ -17,9 +17,10 @@ export const TimerSchema = z.object({
   id: z.string().uuid(),
   session_key: SessionKeySchema,
   timer_id: z.string(),
-  fire_at_ms: z.number().int().positive(), // Epoch milliseconds
+  fire_at_ms: z.coerce.bigint(),
   payload: z.unknown().nullable().optional(),
   status: TimerStatusSchema,
+  cancelled_at: z.date().nullable().optional(),
   created_at: z.date(),
   updated_at: z.date(),
 });
@@ -30,22 +31,8 @@ export type Timer = z.infer<typeof TimerSchema>;
 export const UpsertTimerSchema = z.object({
   session_key: SessionKeySchema,
   timer_id: z.string(),
-  fire_at_ms: z.number().int().positive(), // Epoch milliseconds
+  fire_at_ms: z.coerce.bigint(),
   payload: z.unknown().nullable().optional(),
 });
 
 export type UpsertTimer = z.infer<typeof UpsertTimerSchema>;
-
-// Timer query schemas
-export const FindDueTimersSchema = z.object({
-  before_ms: z.number().int().positive(), // Epoch milliseconds
-  limit: z.number().int().positive().optional(),
-});
-
-export type FindDueTimersQuery = z.infer<typeof FindDueTimersSchema>;
-
-export const CancelTimersSchema = z.object({
-  session_key: SessionKeySchema,
-});
-
-export type CancelTimersQuery = z.infer<typeof CancelTimersSchema>;

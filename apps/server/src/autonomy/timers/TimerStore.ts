@@ -7,7 +7,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import type { SessionKey } from '../../events/types/events.schema.js';
-import { Timer, TimerSchema, TimerStatus, UpsertTimer } from '../types/timers.schema';
+import { Timer, TimerSchema, TimerStatus, UpsertTimer } from './timers.schema.js';
 
 export class TimerStore {
   constructor(private readonly prisma: PrismaClient) {}

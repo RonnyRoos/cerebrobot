@@ -13,7 +13,7 @@ describe('AutonomyEvaluatorNode', () => {
     it('should return no follow-up when shouldSchedule is false', () => {
       const response: AutonomyEvaluationResponse = {
         shouldSchedule: false,
-        reasoning: 'User query fully answered, no follow-up needed',
+        reason: 'User query fully answered, no follow-up needed',
       };
 
       // Evaluator node would use this response to skip scheduling
@@ -26,27 +26,22 @@ describe('AutonomyEvaluatorNode', () => {
       const response: AutonomyEvaluationResponse = {
         shouldSchedule: true,
         delaySeconds: 60,
-        followUpType: 'check_understanding',
-        reasoning: 'Complex explanation provided, verify understanding',
-        context: {
-          priorExchangeCount: 3,
-          lastUserIntent: 'explain async patterns',
-        },
+        followUpType: 'check_in',
+        reason: 'Complex explanation provided, verify understanding',
       };
 
       // Evaluator node would use this to create schedule_timer effect
       expect(response.shouldSchedule).toBe(true);
       expect(response.delaySeconds).toBe(60);
-      expect(response.followUpType).toBe('check_understanding');
-      expect(response.context?.priorExchangeCount).toBe(3);
+      expect(response.followUpType).toBe('check_in');
     });
 
     it('should validate delaySeconds is within acceptable range', () => {
       const validResponse: AutonomyEvaluationResponse = {
         shouldSchedule: true,
         delaySeconds: 120, // 2 minutes - valid
-        followUpType: 'offer_next_steps',
-        reasoning: 'User completed task, offer guidance',
+        followUpType: 'agent_decision',
+        reason: 'User completed task, offer guidance',
       };
 
       // Schema validation ensures 30 <= delaySeconds <= 3600
@@ -55,20 +50,20 @@ describe('AutonomyEvaluatorNode', () => {
     });
 
     it('should support all follow-up types', () => {
-      const followUpTypes = [
-        'check_understanding',
-        'offer_next_steps',
-        'request_feedback',
-        'provide_context',
-        'general',
+      const followUpTypes: AutonomyEvaluationResponse['followUpType'][] = [
+        'question_unanswered',
+        'task_incomplete',
+        'waiting_for_decision',
+        'check_in',
+        'agent_decision',
       ];
 
       followUpTypes.forEach((type) => {
         const response: AutonomyEvaluationResponse = {
           shouldSchedule: true,
           delaySeconds: 60,
-          followUpType: type as AutonomyEvaluationResponse['followUpType'],
-          reasoning: `Testing ${type}`,
+          followUpType: type,
+          reason: `Testing ${type}`,
         };
 
         expect(response.followUpType).toBe(type);
@@ -133,7 +128,7 @@ describe('AutonomyEvaluatorNode', () => {
     it('should handle LLM saying no follow-up needed', () => {
       const llmResponse: AutonomyEvaluationResponse = {
         shouldSchedule: false,
-        reasoning: 'Query fully resolved',
+        reason: 'Query fully resolved',
       };
 
       expect(llmResponse.shouldSchedule).toBe(false);
@@ -154,7 +149,7 @@ describe('AutonomyEvaluatorNode', () => {
         // Default to no follow-up on error
         evaluationResult = {
           shouldSchedule: false,
-          reasoning: 'Error during evaluation',
+          reason: 'Error during evaluation',
         };
       }
 

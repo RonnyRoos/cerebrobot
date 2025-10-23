@@ -39,7 +39,7 @@ describe('TimerStore', () => {
       expect(timer.id).toBeDefined();
       expect(timer.session_key).toBe(SESSION_1);
       expect(timer.timer_id).toBe('followup-1');
-      expect(timer.fire_at_ms).toBe(fireAtMs);
+      expect(timer.fire_at_ms).toBe(BigInt(fireAtMs));
       expect(timer.status).toBe('pending');
       expect(timer.payload).toEqual({ reason: 'question_unanswered' });
     });
@@ -66,7 +66,7 @@ describe('TimerStore', () => {
 
       // Should be same ID (update, not insert)
       expect(second.id).toBe(first.id);
-      expect(second.fire_at_ms).toBe(secondFireAtMs);
+      expect(second.fire_at_ms).toBe(BigInt(secondFireAtMs));
       expect(second.payload).toEqual({ reason: 'second' });
 
       // Verify only one timer exists in DB
