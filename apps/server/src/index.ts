@@ -58,7 +58,7 @@ export async function bootstrap(): Promise<void> {
     logger: logger.child({ component: 'thread-manager' }),
   });
 
-  const server = buildServer({
+  const { server } = buildServer({
     threadManager,
     getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     checkpointer,
@@ -72,10 +72,17 @@ export async function bootstrap(): Promise<void> {
     logger.info({ signal }, 'received shutdown signal');
     try {
       await server.close();
+      await prisma.$disconnect();
       logger.info('server closed gracefully');
       process.exit(0);
     } catch (error) {
-      logger.error({ err: error }, 'error during shutdown');
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        },
+        'error during shutdown',
+      );
       process.exit(1);
     }
   };
@@ -87,7 +94,13 @@ export async function bootstrap(): Promise<void> {
     await server.listen({ port, host });
     logger.info({ port, host }, 'server listening');
   } catch (error) {
-    logger.error({ err: error }, 'failed to start server');
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      },
+      'failed to start server',
+    );
     process.exit(1);
   }
 }

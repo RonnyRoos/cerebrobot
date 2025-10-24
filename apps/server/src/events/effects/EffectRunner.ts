@@ -7,12 +7,20 @@ import type { OutboxStore } from './OutboxStore.js';
 import type { Effect } from './types.js';
 import type { Logger } from 'pino';
 import type { SessionKey } from '../types/events.schema.js';
+import type { TimerStore } from '../../autonomy/timers/TimerStore.js';
+import type { PolicyGates, AutonomyMetadata } from '../../autonomy/session/PolicyGates.js';
 
 /**
  * Callback for delivering effects to WebSocket connections
  * Returns true if delivery succeeded, false if WebSocket not connected
  */
 export type EffectDeliveryHandler = (effect: Effect) => Promise<boolean>;
+
+/**
+ * Callback for loading autonomy metadata from checkpoint
+ * Used for PolicyGates enforcement (optional - only needed if autonomy enabled)
+ */
+export type LoadAutonomyMetadata = (sessionKey: SessionKey) => Promise<AutonomyMetadata | null>;
 
 export interface EffectRunnerConfig {
   /**
@@ -32,22 +40,57 @@ export interface EffectRunnerConfig {
    * Default: false
    */
   debug?: boolean;
+
+  /**
+   * Time-to-live for pending effects in milliseconds
+   * Effects older than this will be marked as failed
+   * Default: 24 hours (86400000ms)
+   */
+  effectTtlMs?: number;
 }
 
 export class EffectRunner {
   private readonly outboxStore: OutboxStore;
+  private readonly timerStore?: TimerStore;
+  private readonly policyGates?: PolicyGates;
+  private readonly loadMetadata?: LoadAutonomyMetadata;
   private readonly config: Required<EffectRunnerConfig>;
   private readonly logger?: Logger;
   private deliveryHandler: EffectDeliveryHandler | null = null;
   private pollInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
 
-  constructor(outboxStore: OutboxStore, config: EffectRunnerConfig = {}, logger?: Logger) {
+  /**
+   * Track last failed delivery timestamp per session to avoid log spam
+   * Session cooldown: skip retry for 10 seconds after WebSocket delivery fails
+   */
+  private readonly sessionCooldowns = new Map<SessionKey, number>();
+  private readonly cooldownMs = 10_000; // 10 seconds
+
+  /**
+   * Track consecutive metadata load failures per session for circuit breaker
+   * After 3 consecutive failures, block autonomous sends until success
+   */
+  private readonly metadataFailures = new Map<SessionKey, number>();
+  private readonly maxMetadataFailures = 3;
+
+  constructor(
+    outboxStore: OutboxStore,
+    config: EffectRunnerConfig = {},
+    logger?: Logger,
+    timerStore?: TimerStore,
+    policyGates?: PolicyGates,
+    loadMetadata?: LoadAutonomyMetadata,
+  ) {
     this.outboxStore = outboxStore;
+    this.timerStore = timerStore;
+    this.policyGates = policyGates;
+    this.loadMetadata = loadMetadata;
     this.config = {
       pollIntervalMs: config.pollIntervalMs ?? 500,
       batchSize: config.batchSize ?? 100,
       debug: config.debug ?? false,
+      effectTtlMs: config.effectTtlMs ?? 24 * 60 * 60 * 1000, // 24 hours
     };
     this.logger = logger;
   }
@@ -119,21 +162,92 @@ export class EffectRunner {
         return;
       }
 
-      this.logger?.info({ count: effects.length }, 'Processing pending effects');
+      // Filter out effects for sessions in cooldown (recently failed delivery)
+      const now = Date.now();
+      const effectsToProcess = effects.filter((effect) => {
+        const lastFail = this.sessionCooldowns.get(effect.session_key);
+        if (lastFail && now - lastFail < this.cooldownMs) {
+          // Skip this effect - session is in cooldown
+          return false;
+        }
+        return true;
+      });
+
+      // Check for expired effects (older than TTL)
+      const expiredEffects = effectsToProcess.filter((effect) => {
+        const createdAt = new Date(effect.created_at).getTime();
+        return now - createdAt > this.config.effectTtlMs;
+      });
+
+      // Mark expired effects as failed
+      if (expiredEffects.length > 0) {
+        this.logger?.info(
+          { count: expiredEffects.length, ttlHours: this.config.effectTtlMs / (60 * 60 * 1000) },
+          'Marking expired effects as failed (TTL exceeded)',
+        );
+
+        await Promise.allSettled(
+          expiredEffects.map((effect) =>
+            this.outboxStore.updateStatus(effect.id, 'failed').catch((err) => {
+              this.logger?.error(
+                { err, effectId: effect.id },
+                'Failed to mark expired effect as failed',
+              );
+            }),
+          ),
+        );
+      }
+
+      // Remove expired effects from processing list
+      const activeEffects = effectsToProcess.filter((effect) => {
+        const createdAt = new Date(effect.created_at).getTime();
+        return now - createdAt <= this.config.effectTtlMs;
+      });
+
+      if (activeEffects.length === 0) {
+        // Cleanup old cooldowns and metadata failures when idle
+        this.cleanupStaleMaps();
+
+        if (this.config.debug) {
+          this.logger?.debug('All effects are either in cooldown or expired');
+        }
+        return;
+      }
+
+      if (activeEffects.length < effects.length) {
+        this.logger?.debug(
+          {
+            total: effects.length,
+            processing: activeEffects.length,
+            cooldown: effectsToProcess.length - activeEffects.length,
+            expired: expiredEffects.length,
+          },
+          'Some effects skipped (cooldown) or failed (TTL)',
+        );
+      }
+
+      this.logger?.info({ count: activeEffects.length }, 'Processing pending effects');
 
       // Process effects concurrently (each session isolated)
-      const results = await Promise.allSettled(effects.map((effect) => this.executeEffect(effect)));
+      const results = await Promise.allSettled(
+        activeEffects.map((effect) => this.executeEffect(effect)),
+      );
 
       // Log any failures
       const failures = results.filter((r) => r.status === 'rejected');
       if (failures.length > 0) {
         this.logger?.error(
-          { failureCount: failures.length, totalCount: effects.length },
+          { failureCount: failures.length, totalCount: effectsToProcess.length },
           'Some effects failed to execute',
         );
       }
     } catch (error) {
-      this.logger?.error({ error }, 'Error in processEffects');
+      this.logger?.error(
+        {
+          err: error,
+        },
+        'Error in processEffects',
+      );
     }
   }
 
@@ -152,17 +266,100 @@ export class EffectRunner {
     }
 
     try {
+      // Idempotency check: Skip if effect with same dedupe_key already completed
+      const alreadyCompleted = await this.outboxStore.isCompletedByDedupeKey(effect.dedupe_key);
+      if (alreadyCompleted) {
+        this.logger?.info(
+          { effectId: effect.id, dedupeKey: effect.dedupe_key },
+          'Effect already completed (duplicate dedupe_key), skipping execution',
+        );
+        // Mark this duplicate as completed to remove from pending queue
+        await this.outboxStore.updateStatus(effect.id, 'completed');
+        return;
+      }
+
       // Update status to executing (prevents duplicate processing)
       await this.outboxStore.updateStatus(effect.id, 'executing');
 
       // Execute based on effect type
       switch (effect.type) {
         case 'send_message': {
+          // USER STORY 3: Check PolicyGates for autonomous messages (timer-triggered)
+          // Only applies to autonomous sends (from timer events), not user-response sends
+          const payload = effect.payload as { content: string; requestId: string };
+          const isAutonomous = payload.requestId?.includes('timer_') ?? false;
+
+          if (isAutonomous && this.policyGates && this.loadMetadata) {
+            // Check circuit breaker first
+            const failureCount = this.metadataFailures.get(effect.session_key) || 0;
+            if (failureCount >= this.maxMetadataFailures) {
+              await this.outboxStore.updateStatus(effect.id, 'failed');
+              this.logger?.error(
+                {
+                  effectId: effect.id,
+                  sessionKey: effect.session_key,
+                  failureCount,
+                },
+                'Autonomous message blocked - repeated metadata load failures (circuit breaker)',
+              );
+              return; // Circuit breaker tripped - fail closed
+            }
+
+            try {
+              const metadata = await this.loadMetadata(effect.session_key);
+
+              // Reset failure counter on successful load
+              this.metadataFailures.delete(effect.session_key);
+
+              if (metadata) {
+                const policyCheck = this.policyGates.checkCanSendAutonomous(metadata);
+
+                if (!policyCheck.allowed) {
+                  // Blocked by policy - mark as failed and log
+                  await this.outboxStore.updateStatus(effect.id, 'failed');
+
+                  this.logger?.info(
+                    {
+                      effectId: effect.id,
+                      sessionKey: effect.session_key,
+                      blockedBy: policyCheck.blockedBy,
+                      reason: policyCheck.reason,
+                    },
+                    'Autonomous message blocked by PolicyGates',
+                  );
+
+                  return; // Exit early - message blocked
+                }
+              }
+            } catch (error) {
+              // Increment failure counter
+              const newCount = failureCount + 1;
+              this.metadataFailures.set(effect.session_key, newCount);
+
+              this.logger?.warn(
+                {
+                  err: error,
+                  effectId: effect.id,
+                  sessionKey: effect.session_key,
+                  failureCount: newCount,
+                  maxFailures: this.maxMetadataFailures,
+                },
+                'Failed to load autonomy metadata - allowing send (failure tracked)',
+              );
+              // Fail open on first few failures to handle transient issues
+              // Circuit breaker will trip on next attempt if this continues
+            }
+          }
+
           const delivered = await this.deliveryHandler(effect);
 
           if (delivered) {
-            // Mark as completed
+            // Mark as completed and clear cooldown
             await this.outboxStore.updateStatus(effect.id, 'completed');
+            this.sessionCooldowns.delete(effect.session_key);
+
+            // Reset metadata failure counter on successful delivery
+            this.metadataFailures.delete(effect.session_key);
 
             this.logger?.debug(
               {
@@ -173,17 +370,72 @@ export class EffectRunner {
               'Effect delivered successfully',
             );
           } else {
-            // WebSocket not connected - revert to pending for retry on reconnection
+            // WebSocket not connected - revert to pending and start cooldown
             await this.outboxStore.updateStatus(effect.id, 'pending');
+            this.sessionCooldowns.set(effect.session_key, Date.now());
 
             this.logger?.debug(
               {
                 effectId: effect.id,
                 sessionKey: effect.session_key,
               },
-              'WebSocket not connected, effect reverted to pending for retry',
+              'WebSocket not connected, effect reverted to pending (cooldown started)',
             );
           }
+          break;
+        }
+        case 'schedule_timer': {
+          // NEW in spec 009: Handle schedule_timer effects
+          if (!this.timerStore) {
+            this.logger?.error(
+              { effectId: effect.id },
+              'schedule_timer effect received but no TimerStore configured',
+            );
+            await this.outboxStore.updateStatus(effect.id, 'failed');
+            break;
+          }
+
+          const payload = effect.payload as unknown;
+          if (
+            !payload ||
+            typeof payload !== 'object' ||
+            !('timer_id' in payload) ||
+            !('delay_seconds' in payload)
+          ) {
+            this.logger?.error({ effectId: effect.id }, 'Invalid schedule_timer payload');
+            await this.outboxStore.updateStatus(effect.id, 'failed');
+            break;
+          }
+
+          const { timer_id, delay_seconds } = payload as {
+            timer_id: string;
+            delay_seconds: number;
+            payload?: unknown;
+          };
+          const timerPayload =
+            'payload' in payload ? (payload as { payload: unknown }).payload : undefined;
+
+          const fireAtMs = Date.now() + delay_seconds * 1000;
+
+          await this.timerStore.upsertTimer({
+            session_key: effect.session_key,
+            timer_id,
+            fire_at_ms: fireAtMs,
+            payload: timerPayload ?? null,
+          });
+
+          await this.outboxStore.updateStatus(effect.id, 'completed');
+
+          this.logger?.info(
+            {
+              effectId: effect.id,
+              timerId: timer_id,
+              sessionKey: effect.session_key,
+              fireAtMs,
+              delaySeconds: delay_seconds,
+            },
+            'Timer scheduled from effect',
+          );
           break;
         }
         default: {
@@ -201,7 +453,9 @@ export class EffectRunner {
         {
           effectId: effect.id,
           sessionKey: effect.session_key,
-          error,
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          errorName: error instanceof Error ? error.name : undefined,
         },
         'Error executing effect, marking as failed',
       );
@@ -229,6 +483,9 @@ export class EffectRunner {
     }
 
     try {
+      // Clear cooldown for this session (WebSocket is now connected)
+      this.sessionCooldowns.delete(sessionKey);
+
       // Fetch pending effects for this session only
       const effects = await this.outboxStore.getPending(this.config.batchSize, sessionKey);
 
@@ -247,7 +504,13 @@ export class EffectRunner {
         await this.executeEffect(effect);
       }
     } catch (error) {
-      this.logger?.error({ sessionKey, error }, 'Error polling effects for session');
+      this.logger?.error(
+        {
+          err: error,
+          sessionKey,
+        },
+        'Error polling effects for session',
+      );
     }
   }
 
@@ -263,5 +526,29 @@ export class EffectRunner {
    */
   getConfig(): Required<EffectRunnerConfig> {
     return { ...this.config };
+  }
+
+  /**
+   * Cleanup stale session cooldowns and metadata failure counters
+   * Prevents memory leaks in long-running processes
+   */
+  private cleanupStaleMaps(): void {
+    const now = Date.now();
+    const staleThreshold = this.cooldownMs * 10; // 10x cooldown = safe to forget
+
+    // Cleanup old cooldowns
+    for (const [key, timestamp] of this.sessionCooldowns.entries()) {
+      if (now - timestamp > staleThreshold) {
+        this.sessionCooldowns.delete(key);
+      }
+    }
+
+    // Cleanup metadata failures for sessions that haven't had activity
+    // If session not in recent cooldowns, it's stale - remove from failure tracking
+    for (const key of this.metadataFailures.keys()) {
+      if (!this.sessionCooldowns.has(key)) {
+        this.metadataFailures.delete(key);
+      }
+    }
   }
 }

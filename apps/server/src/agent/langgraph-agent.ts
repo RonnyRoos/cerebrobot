@@ -135,6 +135,9 @@ export class LangGraphChatAgent implements ChatAgent {
         memoryStore,
         memoryTools,
         memoryConfig,
+        autonomyConfig: agentConfig.autonomy,
+        llmApiKey: agentConfig.llm.apiKey,
+        llmApiBase: agentConfig.llm.apiBase,
       },
       chatModel,
       summarizerModel,
@@ -171,6 +174,9 @@ export class LangGraphChatAgent implements ChatAgent {
         userId: context.userId,
         agentId: this.agentId,
         messages: [new HumanMessage(context.message)],
+        // CRITICAL: Clear effects at the start of each new event processing
+        // Effects should be ephemeral per invocation, not accumulate across turns
+        effects: [],
       },
       this.createConfig(context.threadId, 'stream', context.userId, context.signal),
     )) as MessageStream;
@@ -200,6 +206,11 @@ export class LangGraphChatAgent implements ChatAgent {
     const usageSnapshot = (finalState.values.tokenUsage as TokenUsageSnapshot | null) ?? null;
     const tokenUsage = formatTokenUsageSnapshot(usageSnapshot);
 
+    // Extract effects from final graph state
+    const effects = finalState.values.effects as
+      | Array<{ type: string; payload: unknown }>
+      | undefined;
+
     this.logger?.info(
       {
         threadId: context.threadId,
@@ -207,12 +218,13 @@ export class LangGraphChatAgent implements ChatAgent {
         latencyMs,
         messageLength: accumulated.length,
         tokenUsage,
+        effectsCount: effects?.length ?? 0,
         agentId: this.agentId,
       },
       'langgraph chat agent completed response (stream)',
     );
 
-    yield { type: 'final' as const, message: accumulated, latencyMs, tokenUsage };
+    yield { type: 'final' as const, message: accumulated, latencyMs, tokenUsage, effects };
   }
 
   public async completeChat(context: ChatInvocationContext) {

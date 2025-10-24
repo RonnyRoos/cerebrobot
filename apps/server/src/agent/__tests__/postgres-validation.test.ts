@@ -421,6 +421,24 @@ const mockAgentConfig: AgentConfig = {
     injectionBudget: 1000,
     retrievalTimeoutMs: 5000,
   },
+  autonomy: {
+    enabled: false,
+    evaluator: {
+      model: 'deepseek/deepseek-chat',
+      temperature: 0.3,
+      maxTokens: 500,
+      systemPrompt: 'Test evaluator',
+    },
+    limits: {
+      maxFollowUpsPerSession: 3,
+      minDelayMs: 10000,
+      maxDelayMs: 3600000,
+    },
+    memoryContext: {
+      recentMemoryCount: 10,
+      includeRecentMessages: 5,
+    },
+  },
 };
 
 const baseEnv = {
@@ -899,6 +917,99 @@ describe('Events & Effects Tables (Real Database)', () => {
       expect(linked.length).toBe(1);
       expect(linked[0].event_type).toBe('user_message');
       expect(linked[0].effect_type).toBe('send_message');
+    });
+  });
+
+  describe('timers table', () => {
+    it('should have required schema columns', async () => {
+      const columns = await prisma.$queryRaw<Array<{ column_name: string; data_type: string }>>`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'timers' 
+        AND table_schema = 'public'
+        ORDER BY ordinal_position
+      `;
+
+      const columnNames = columns.map((col) => col.column_name);
+      expect(columnNames).toContain('id');
+      expect(columnNames).toContain('session_key');
+      expect(columnNames).toContain('timer_id');
+      expect(columnNames).toContain('fire_at_ms');
+      expect(columnNames).toContain('payload');
+      expect(columnNames).toContain('status');
+      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('updated_at');
+    });
+
+    it('should enforce unique constraint on (session_key, timer_id)', async () => {
+      const sessionKey = 'test-validation:agent1:thread1';
+      const timerId = 'timer-unique-' + Date.now();
+
+      // Insert first timer
+      await prisma.$executeRaw`
+        INSERT INTO timers (id, session_key, timer_id, fire_at_ms, status, created_at, updated_at)
+        VALUES (gen_random_uuid(), ${sessionKey}, ${timerId}, 1000000000000, 'pending', NOW(), NOW())
+      `;
+
+      // Attempt duplicate insert (should fail)
+      await expect(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO timers (id, session_key, timer_id, fire_at_ms, status, created_at, updated_at)
+          VALUES (gen_random_uuid(), ${sessionKey}, ${timerId}, 2000000000000, 'pending', NOW(), NOW())
+        `;
+      }).rejects.toThrow(/already exists/i);
+    });
+
+    it('should support upsert pattern for timer updates', async () => {
+      const sessionKey = 'test-validation:agent1:thread1';
+      const timerId = 'timer-upsert-' + Date.now();
+      const fireAt1 = 1000000000000;
+      const fireAt2 = 2000000000000;
+
+      // First insert
+      await prisma.$executeRaw`
+        INSERT INTO timers (id, session_key, timer_id, fire_at_ms, status, created_at, updated_at)
+        VALUES (gen_random_uuid(), ${sessionKey}, ${timerId}, ${fireAt1}, 'pending', NOW(), NOW())
+        ON CONFLICT (session_key, timer_id) DO UPDATE SET 
+          fire_at_ms = EXCLUDED.fire_at_ms,
+          updated_at = NOW()
+      `;
+
+      // Upsert (should update fire_at_ms)
+      await prisma.$executeRaw`
+        INSERT INTO timers (id, session_key, timer_id, fire_at_ms, status, created_at, updated_at)
+        VALUES (gen_random_uuid(), ${sessionKey}, ${timerId}, ${fireAt2}, 'pending', NOW(), NOW())
+        ON CONFLICT (session_key, timer_id) DO UPDATE SET 
+          fire_at_ms = EXCLUDED.fire_at_ms,
+          updated_at = NOW()
+      `;
+
+      // Verify updated fire_at_ms
+      const result = await prisma.$queryRaw<Array<{ fire_at_ms: string }>>`
+        SELECT fire_at_ms FROM timers 
+        WHERE session_key = ${sessionKey} AND timer_id = ${timerId}
+      `;
+
+      expect(result.length).toBe(1);
+      expect(Number(result[0].fire_at_ms)).toBe(fireAt2);
+    });
+
+    it('should have required indexes for efficient polling', async () => {
+      const indexes = await prisma.$queryRaw<Array<{ indexname: string; indexdef: string }>>`
+        SELECT indexname, indexdef
+        FROM pg_indexes 
+        WHERE tablename = 'timers' AND schemaname = 'public'
+      `;
+
+      // Should have composite index on (status, fire_at_ms) for TimerWorker polling
+      const hasStatusFireAtIndex = indexes.some(
+        (idx) => idx.indexdef.includes('status') && idx.indexdef.includes('fire_at_ms'),
+      );
+      expect(hasStatusFireAtIndex).toBe(true);
+
+      // Should have session_key index for session-specific queries
+      const hasSessionKeyIndex = indexes.some((idx) => idx.indexdef.includes('session_key'));
+      expect(hasSessionKeyIndex).toBe(true);
     });
   });
 });

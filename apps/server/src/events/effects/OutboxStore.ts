@@ -44,7 +44,7 @@ export class OutboxStore {
         sessionKey: effect.sessionKey,
         checkpointId: effect.checkpointId,
         type: effect.type,
-        payload: effect.payload, // Prisma accepts plain objects for Json type
+        payload: effect.payload as object, // Type assertion: payload is always serializable object
         dedupeKey: effect.dedupeKey,
         status: effect.status ?? 'pending', // Allow caller to specify status
         attemptCount: 0,
@@ -88,6 +88,35 @@ export class OutboxStore {
     });
 
     return this.toDomainEffect(updated);
+  }
+
+  /**
+   * Clear all pending effects for a session (used on user message to cancel scheduled follow-ups)
+   * @returns Number of effects deleted
+   */
+  async clearPendingBySession(sessionKey: SessionKey): Promise<number> {
+    const result = await this.prisma.effect.deleteMany({
+      where: {
+        sessionKey,
+        status: 'pending',
+      },
+    });
+
+    return result.count;
+  }
+
+  /**
+   * Check if effect with dedupe_key already completed (idempotency check)
+   * @param dedupeKey The deduplication key to check
+   * @returns true if effect with this dedupe_key is already completed
+   */
+  async isCompletedByDedupeKey(dedupeKey: string): Promise<boolean> {
+    const effect = await this.prisma.effect.findFirst({
+      where: { dedupeKey, status: 'completed' },
+      select: { id: true },
+    });
+
+    return effect !== null;
   }
 
   /**

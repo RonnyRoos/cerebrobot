@@ -63,6 +63,8 @@ describe('Memory Nodes', () => {
         },
       ];
 
+      // Mock list to return keys so optimization doesn't short-circuit
+      vi.mocked(mockStore.list).mockResolvedValue(['diet']);
       vi.mocked(mockStore.search).mockResolvedValue(mockResults);
 
       const result = await retrieveMemories(state);
@@ -88,6 +90,9 @@ describe('Memory Nodes', () => {
 
     it('uses userId from state and throws if missing', async () => {
       const retrieveMemories = createRetrieveMemoriesNode(mockStore, config, logger);
+
+      // Mock list to return keys so search is called
+      vi.mocked(mockStore.list).mockResolvedValue(['some-key']);
 
       // Test with userId - should work
       await retrieveMemories({
@@ -150,6 +155,8 @@ describe('Memory Nodes', () => {
     it('returns empty when no memories found', async () => {
       const retrieveMemories = createRetrieveMemoriesNode(mockStore, config, logger);
 
+      // Mock list to return keys so search is called
+      vi.mocked(mockStore.list).mockResolvedValue(['some-key']);
       vi.mocked(mockStore.search).mockResolvedValue([]);
 
       const state = {
@@ -198,6 +205,8 @@ describe('Memory Nodes', () => {
         },
       ];
 
+      // Mock list to return keys so search is called
+      vi.mocked(mockStore.list).mockResolvedValue(['key1', 'key2']);
       vi.mocked(mockStore.search).mockResolvedValue(mockResults);
 
       const result = await retrieveMemories(state);
@@ -229,6 +238,8 @@ describe('Memory Nodes', () => {
         },
       ];
 
+      // Mock list to return keys so search is called
+      vi.mocked(mockStore.list).mockResolvedValue(['key1']);
       vi.mocked(mockStore.search).mockResolvedValue(mockResults);
 
       const result = await retrieveMemories(state);
@@ -263,8 +274,12 @@ describe('Memory Nodes', () => {
       const state = {
         messages: [new HumanMessage('test')],
         threadId: 'thread-123',
+        userId: 'user-456',
+        agentId: 'agent-123',
       };
 
+      // Mock list to return keys so search is called
+      vi.mocked(mockStore.list).mockResolvedValue(['some-key']);
       // Mock search to take longer than timeout
       vi.mocked(mockStore.search).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve([]), 200)),

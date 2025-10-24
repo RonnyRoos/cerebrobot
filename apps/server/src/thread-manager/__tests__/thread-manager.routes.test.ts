@@ -82,7 +82,7 @@ describe('thread creation routes', () => {
 
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const getAgent = async () => chatAgent;
-    const app = buildServer({
+    const { server: app } = buildServer({
       threadManager,
       getAgent,
       config,
@@ -112,7 +112,7 @@ describe('thread creation routes', () => {
 
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const getAgent = async () => chatAgent;
-    const app = buildServer({
+    const { server: app } = buildServer({
       threadManager,
       getAgent,
       config,
@@ -150,7 +150,7 @@ describe('thread creation routes', () => {
   it('rejects invalid payloads', async () => {
     const mockCheckpointer = {} as BaseCheckpointSaver;
     const getAgent = async () => chatAgent;
-    const app = buildServer({
+    const { server: app } = buildServer({
       threadManager,
       getAgent,
       config,

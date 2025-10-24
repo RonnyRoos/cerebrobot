@@ -153,7 +153,7 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
     {
       name: 'upsertMemory',
       description:
-        'Store or update a memory about the user for future conversations. Use this to remember important user preferences, facts, or context that should be recalled later. The memory will be automatically retrieved in relevant future conversations. Required parameters: content (string, 1-8192 chars). Optional: metadata (object), key (string for updates).',
+        'Store or update significant memories about the user for future conversations. Only use this for meaningful facts, preferences, goals, or important context that would be valuable across multiple conversations. Do NOT store trivial interactions, simple acknowledgments, or one-off requests. The memory will be automatically retrieved in relevant future conversations. Required: content (string, 1-8192 chars). Optional: metadata (object), key (string for updates).',
       schema: UpsertMemoryInputSchema,
     },
   );

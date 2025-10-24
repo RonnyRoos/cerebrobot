@@ -82,9 +82,31 @@ export type {
 } from './schemas/thread.js';
 
 // Agent schemas
-export { AgentListItemSchema, AgentListResponseSchema } from './schemas/agent.js';
+export {
+  AgentListItemSchema,
+  AgentListResponseSchema,
+  AgentConfigSchema,
+  AgentAutonomyConfigSchema,
+} from './schemas/agent.js';
 
-export type { AgentListItem, AgentListResponse } from './schemas/agent.js';
+export type {
+  AgentListItem,
+  AgentListResponse,
+  AgentConfig,
+  AgentAutonomyConfig,
+} from './schemas/agent.js';
+
+// Autonomy schemas
+export {
+  AutonomyEvaluationResponseSchema,
+  AutonomyEvaluationContextSchema,
+  FollowUpTypeSchema,
+} from './schemas/autonomy.schema.js';
+
+export type {
+  AutonomyEvaluationResponse,
+  AutonomyEvaluationContext,
+} from './schemas/autonomy.schema.js';
 
 // WebSocket constants
 export {

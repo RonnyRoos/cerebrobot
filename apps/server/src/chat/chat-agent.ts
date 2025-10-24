@@ -22,6 +22,7 @@ export type AgentStreamEvent =
       readonly summary?: string;
       readonly latencyMs?: number;
       readonly tokenUsage?: TokenUsageEvent;
+      readonly effects?: Array<{ type: string; payload: unknown }>;
     }
   | { readonly type: 'error'; readonly message: string; readonly retryable: boolean };
 

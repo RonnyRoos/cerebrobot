@@ -54,7 +54,13 @@ export async function generateEmbedding(
 
     return embedding;
   } catch (error) {
-    logger?.error({ error }, 'Failed to generate embedding');
+    logger?.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      },
+      'Failed to generate embedding',
+    );
     return null;
   }
 }

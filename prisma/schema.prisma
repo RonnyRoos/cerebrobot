@@ -101,8 +101,8 @@ model Effect {
   id            String    @id @default(uuid()) @db.Uuid
   sessionKey    String    @map("session_key")
   checkpointId  String    @map("checkpoint_id")
-  type          String    // 'send_message' (spec 008), extensible for spec 009
-  payload       Json      // { content: string } for send_message
+  type          String    // 'send_message' (spec 008), 'schedule_timer' (spec 009)
+  payload       Json      // { content: string } for send_message, { timer_id, fire_at, payload } for schedule_timer
   dedupeKey     String    @unique @map("dedupe_key")
   status        String    @default("pending") // pending|executing|completed|failed
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -113,4 +113,22 @@ model Effect {
   @@index([status, createdAt], map: "idx_effects_status_created")
   @@index([sessionKey])
   @@map("effects")
+}
+
+/// Timer: Scheduled future action for a conversation session (Spec 009)
+model Timer {
+  id          String    @id @default(uuid()) @db.Uuid
+  sessionKey  String    @map("session_key")
+  timerId     String    @map("timer_id")
+  fireAtMs    BigInt    @map("fire_at_ms") // Epoch milliseconds for timezone-free comparison
+  payload     Json?     // Optional context for timer event
+  status      String    @default("pending") // pending|promoted|cancelled
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz // Soft delete audit trail
+
+  @@unique([sessionKey, timerId])
+  @@index([status, fireAtMs], map: "idx_timers_status_fireat")
+  @@index([sessionKey])
+  @@map("timers")
 }

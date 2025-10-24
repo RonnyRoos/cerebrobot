@@ -20,5 +20,23 @@
     "maxTokens": 2048,
     "injectionBudget": 1000,
     "retrievalTimeoutMs": 5000
+  },
+  "autonomy": {
+    "enabled": false,
+    "evaluator": {
+      "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+      "temperature": 0.2,
+      "maxTokens": 512,
+      "systemPrompt": "You are an autonomy evaluator for an AI assistant. Analyze the conversation context and recent memory to decide if a follow-up message is appropriate.\n\nGuidelines:\n- Schedule follow-ups when user asked a question but hasn't responded within reasonable time\n- Schedule when a task is incomplete and user might benefit from a gentle nudge\n- Schedule check-ins for long-running discussions where user engagement dropped\n- For chatty agents: schedule proactive conversation continuation when natural\n- DO NOT schedule if conversation naturally concluded or user said goodbye\n- DO NOT schedule if user explicitly requested no follow-ups\n\nConsider recent conversation memories to avoid repeating topics already covered.\n\nRespond with valid JSON:\n{\n  \"shouldSchedule\": true|false,\n  \"delaySeconds\": 30-3600,\n  \"reason\": \"brief explanation (max 200 chars)\",\n  \"followUpType\": \"question_unanswered\" | \"task_incomplete\" | \"waiting_for_decision\" | \"check_in\" | \"agent_decision\",\n  \"suggestedMessage\": \"optional message content (max 500 chars)\"\n}\n\nIf no follow-up needed:\n{\"shouldSchedule\": false, \"reason\": \"conversation naturally concluded\"}"
+    },
+    "limits": {
+      "maxFollowUpsPerSession": 3,
+      "minDelayMs": 30000,
+      "maxDelayMs": 3600000
+    },
+    "memoryContext": {
+      "recentMemoryCount": 5,
+      "includeRecentMessages": 6
+    }
   }
 }

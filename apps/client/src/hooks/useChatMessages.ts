@@ -66,8 +66,75 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
+  // Track autonomous messages being streamed (requestId -> messageId mapping)
+  const autonomousMessagesRef = useRef<Map<string, string>>(new Map());
+
+  // Callback for autonomous message tokens (streaming)
+  const handleAutonomousToken = (requestId: string, token: string) => {
+    let messageId = autonomousMessagesRef.current.get(requestId);
+
+    if (!messageId) {
+      // First token - create a new streaming message
+      messageId = `autonomous-${requestId}`;
+      autonomousMessagesRef.current.set(requestId, messageId);
+
+      const autonomousMessage: DisplayMessage = {
+        id: messageId,
+        role: 'assistant',
+        content: token,
+        status: 'streaming',
+      };
+
+      setMessages((prev) => [...prev, autonomousMessage]);
+      console.log('[useChatMessages] Autonomous message started streaming', { requestId });
+    } else {
+      // Append token to existing message
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? { ...msg, content: msg.content + token } : msg)),
+      );
+    }
+  };
+
+  // Callback for autonomous message completion
+  const handleAutonomousComplete = (requestId: string, message: string, latencyMs?: number) => {
+    const messageId = autonomousMessagesRef.current.get(requestId);
+
+    if (messageId) {
+      // Update existing streaming message to complete
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, content: message, status: 'complete', latencyMs } : msg,
+        ),
+      );
+      autonomousMessagesRef.current.delete(requestId);
+      console.log('[useChatMessages] Autonomous message completed', { requestId, latencyMs });
+    } else {
+      // Fallback: No tokens received, create complete message directly
+      const autonomousMessage: DisplayMessage = {
+        id: `autonomous-${requestId}`,
+        role: 'assistant',
+        content: message,
+        status: 'complete',
+        latencyMs,
+      };
+      setMessages((prev) => [...prev, autonomousMessage]);
+      console.log('[useChatMessages] Autonomous message added (no streaming)', { requestId });
+    }
+  };
+
+  // Legacy callback for backward compatibility (not used with new streaming approach)
+  const handleAutonomousMessage = () => {
+    // This is now only called as a fallback from onAutonomousComplete
+    // The actual streaming is handled by handleAutonomousToken/Complete
+  };
+
   // Thread-persistent WebSocket connection
-  const { sendMessage, cancelMessage, isConnected } = useThreadConnection(activeThreadId);
+  const { sendMessage, cancelMessage, isConnected } = useThreadConnection(
+    activeThreadId,
+    handleAutonomousMessage,
+    handleAutonomousToken,
+    handleAutonomousComplete,
+  );
 
   // Refs for stable references
   const assistantMessageIdRef = useRef<string | null>(null);

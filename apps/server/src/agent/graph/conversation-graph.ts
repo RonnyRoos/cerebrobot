@@ -17,6 +17,11 @@ import {
   type ConversationMessages,
 } from './types.js';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
+import {
+  AutonomyEvaluatorNode,
+  type AutonomyEvaluatorConfig,
+} from '../../graph/nodes/autonomy-evaluator.js';
+import type { AgentAutonomyConfig } from '@cerebrobot/chat-shared';
 
 interface LangGraphChatAgentOptions {
   readonly systemPrompt: string;
@@ -31,6 +36,9 @@ interface LangGraphChatAgentOptions {
   readonly memoryStore?: BaseStore;
   readonly memoryTools?: ReturnType<typeof createUpsertMemoryTool>[]; // LangChain tools
   readonly memoryConfig?: MemoryConfig;
+  readonly autonomyConfig?: AgentAutonomyConfig;
+  readonly llmApiKey: string;
+  readonly llmApiBase: string;
 }
 
 function buildConversationGraph(
@@ -192,7 +200,7 @@ function buildConversationGraph(
   }
 
   // Conditional edge: check if agent made tool calls (standard LangGraph pattern)
-  function shouldContinue(state: ConversationState): 'tools' | typeof END {
+  function shouldContinue(state: ConversationState): 'tools' | 'evaluateAutonomy' | typeof END {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
@@ -214,6 +222,12 @@ function buildConversationGraph(
       }
     }
 
+    // If autonomy is enabled, route to evaluator before ending
+    if (options.autonomyConfig?.enabled) {
+      logger?.debug('shouldContinue: routing to autonomy evaluator');
+      return 'evaluateAutonomy';
+    }
+
     // Otherwise, we end (reply to the user)
     logger?.debug('shouldContinue: routing to END');
     return END;
@@ -223,6 +237,21 @@ function buildConversationGraph(
     .addNode('summarize', RunnableLambda.from(summarize).withConfig({ tags: ['nostream'] }))
     .addNode('callModel', callModel)
     .addEdge(START, 'summarize');
+
+  // Add autonomy evaluator node if enabled (add node first, edges later)
+  if (options.autonomyConfig?.enabled) {
+    const evaluatorConfig: AutonomyEvaluatorConfig = {
+      model: options.autonomyConfig.evaluator.model,
+      temperature: options.autonomyConfig.evaluator.temperature,
+      systemPrompt: options.autonomyConfig.evaluator.systemPrompt,
+      apiKey: options.llmApiKey,
+      apiBase: options.llmApiBase,
+    };
+    const autonomyEvaluator = new AutonomyEvaluatorNode(evaluatorConfig, logger);
+    workflow.addNode('evaluateAutonomy', async (state: ConversationState) => {
+      return await autonomyEvaluator.evaluate(state);
+    });
+  }
 
   // Add memory nodes if memory store is available
   if (options.memoryStore && logger && memoryTools && memoryTools.length > 0) {
@@ -242,15 +271,21 @@ function buildConversationGraph(
         .addNode('tools', toolNode) // ToolNode executes tools and creates ToolMessages
         .addEdge('summarize', 'retrieveMemories')
         .addEdge('retrieveMemories', 'callModel')
-        .addConditionalEdges('callModel', shouldContinue) // Route to tools or END
+        .addConditionalEdges('callModel', shouldContinue) // Route to tools, evaluateAutonomy, or END
         .addEdge('tools', 'callModel'); // Loop back to agent after tool execution
     } catch (error) {
       logger?.warn({ error }, 'Failed to add memory nodes, using fallback flow');
-      workflow.addEdge('summarize', 'callModel').addEdge('callModel', END);
+      workflow.addEdge('summarize', 'callModel').addConditionalEdges('callModel', shouldContinue);
     }
   } else {
     // No memory - use original flow
-    workflow.addEdge('summarize', 'callModel').addEdge('callModel', END);
+    workflow.addEdge('summarize', 'callModel').addConditionalEdges('callModel', shouldContinue);
+  }
+
+  // Add edge from autonomy evaluator to END (after nodes are set up)
+  if (options.autonomyConfig?.enabled) {
+    // Type cast needed because TypeScript can't infer conditional node additions
+    (workflow as typeof workflow).addEdge('evaluateAutonomy' as never, END);
   }
 
   // Checkpointer must be provided by caller

@@ -16,6 +16,8 @@ export type {
   EffectType,
   EffectStatus,
   SendMessagePayload,
+  ScheduleTimerPayload,
+  EffectPayload,
   Effect,
 } from './types/effects.schema.js';
 export { createSendMessageEffect, generateDedupeKey } from './types/effects.schema.js';

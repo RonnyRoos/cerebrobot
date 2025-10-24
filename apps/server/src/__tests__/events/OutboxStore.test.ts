@@ -20,10 +20,13 @@ const SESSION_2 = 'user2:agent2:thread2' as SessionKey;
 
 describe('OutboxStore', () => {
   beforeEach(async () => {
-    // Clean up ALL test data (including any leftover from other tests or postgres-validation)
-    // This ensures test isolation
-    await prisma.effect.deleteMany({});
-    await prisma.event.deleteMany({});
+    // Clean up ONLY this test's session data to avoid interfering with parallel tests
+    await prisma.effect.deleteMany({
+      where: { sessionKey: { in: [SESSION_1, SESSION_2] } },
+    });
+    await prisma.event.deleteMany({
+      where: { sessionKey: { in: [SESSION_1, SESSION_2] } },
+    });
   });
 
   afterAll(async () => {
@@ -56,9 +59,10 @@ describe('OutboxStore', () => {
       expect(effect.session_key).toBe(SESSION_1);
       expect(effect.checkpoint_id).toBe('checkpoint-1');
       expect(effect.type).toBe('send_message');
-      expect(effect.payload.content).toBe('Hello');
-      expect(effect.payload.requestId).toBeDefined();
-      expect(effect.payload.isFinal).toBe(true);
+      const payload = effect.payload as { content: string; requestId: string; isFinal?: boolean };
+      expect(payload.content).toBe('Hello');
+      expect(payload.requestId).toBeDefined();
+      expect(payload.isFinal).toBe(true);
       expect(effect.dedupe_key).toBe(dedupeKey);
       expect(effect.status).toBe('pending');
       expect(effect.created_at).toBeInstanceOf(Date);
@@ -192,8 +196,10 @@ describe('OutboxStore', () => {
 
       expect(session1Pending).toHaveLength(1);
       expect(session2Pending).toHaveLength(1);
-      expect(session1Pending[0].payload.content).toBe('Session 1');
-      expect(session2Pending[0].payload.content).toBe('Session 2');
+      const payload1 = session1Pending[0].payload as { content: string };
+      const payload2 = session2Pending[0].payload as { content: string };
+      expect(payload1.content).toBe('Session 1');
+      expect(payload2.content).toBe('Session 2');
     });
 
     it('should respect limit parameter', async () => {
