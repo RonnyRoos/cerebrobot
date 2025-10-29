@@ -36,6 +36,15 @@ const SearchMemoriesQuerySchema = z.object({
   threshold: z.coerce.number().min(0).max(1).default(0.7).optional(),
 });
 
+// Request body validation schemas
+const UpdateMemoryBodySchema = z.object({
+  content: z.string().min(1, 'Content cannot be empty').max(2000, 'Content too long'),
+});
+
+const MemoryIdParamSchema = z.object({
+  id: z.string().uuid('Invalid memory ID format'),
+});
+
 /**
  * Register memory API routes
  *
@@ -263,15 +272,57 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
    */
   app.put<{
     Params: { id: string };
+    Body: { content: string };
   }>('/api/memory/:id', async (request, reply) => {
-    logger.debug(
-      { memoryId: request.params.id },
-      'PUT /api/memory/:id - placeholder for US3 implementation',
-    );
-    return reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Memory update endpoint will be implemented in User Story 3 (T040)',
-    });
+    // Validate params
+    const paramsValidation = MemoryIdParamSchema.safeParse(request.params);
+    if (!paramsValidation.success) {
+      return reply.status(400).send({
+        error: 'Invalid memory ID',
+        details: paramsValidation.error.issues,
+      });
+    }
+
+    // Validate body
+    const bodyValidation = UpdateMemoryBodySchema.safeParse(request.body);
+    if (!bodyValidation.success) {
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        details: bodyValidation.error.issues,
+      });
+    }
+
+    const { id: memoryId } = paramsValidation.data;
+    const { content } = bodyValidation.data;
+
+    try {
+      logger.info({ memoryId, contentLength: content.length }, 'Updating memory');
+
+      // Update memory via service
+      const updatedMemory = await memoryService.updateMemory(memoryId, content);
+
+      logger.debug({ memoryId }, 'Memory update successful');
+
+      return reply.status(200).send({
+        success: true,
+        memory: updatedMemory,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage.includes('not found')) {
+        return reply.status(404).send({
+          error: 'Memory not found',
+          message: `Memory ${memoryId} does not exist`,
+        });
+      }
+
+      logger.error({ error, memoryId }, 'Failed to update memory');
+      return reply.status(500).send({
+        error: 'Failed to update memory',
+        message: 'An error occurred while updating the memory',
+      });
+    }
   });
 
   /**
@@ -283,14 +334,45 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
   app.delete<{
     Params: { id: string };
   }>('/api/memory/:id', async (request, reply) => {
-    logger.debug(
-      { memoryId: request.params.id },
-      'DELETE /api/memory/:id - placeholder for US3 implementation',
-    );
-    return reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Memory deletion endpoint will be implemented in User Story 3 (T041)',
-    });
+    // Validate params
+    const paramsValidation = MemoryIdParamSchema.safeParse(request.params);
+    if (!paramsValidation.success) {
+      return reply.status(400).send({
+        error: 'Invalid memory ID',
+        details: paramsValidation.error.issues,
+      });
+    }
+
+    const { id: memoryId } = paramsValidation.data;
+
+    try {
+      logger.info({ memoryId }, 'Deleting memory');
+
+      // Delete memory via service
+      await memoryService.deleteMemory(memoryId);
+
+      logger.debug({ memoryId }, 'Memory deletion successful');
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Memory deleted successfully',
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage.includes('not found')) {
+        return reply.status(404).send({
+          error: 'Memory not found',
+          message: `Memory ${memoryId} does not exist`,
+        });
+      }
+
+      logger.error({ error, memoryId }, 'Failed to delete memory');
+      return reply.status(500).send({
+        error: 'Failed to delete memory',
+        message: 'An error occurred while deleting the memory',
+      });
+    }
   });
 
   logger.info(

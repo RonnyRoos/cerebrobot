@@ -489,3 +489,202 @@ describe('Memory Routes - GET /api/memory/search', () => {
     expect(body.query).toBe('nonexistent');
   });
 });
+
+describe('Memory Routes - PUT /api/memory/:id', () => {
+  let app: FastifyInstance;
+  let mockMemoryService: MemoryService;
+  let mockPrisma: PrismaClient;
+  let mockLogger: Logger;
+
+  beforeEach(async () => {
+    app = fastify({ logger: false });
+
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as Logger;
+
+    mockMemoryService = {
+      updateMemory: vi.fn(),
+    } as unknown as MemoryService;
+
+    mockPrisma = {} as unknown as PrismaClient;
+
+    registerMemoryRoutes(app, {
+      logger: mockLogger,
+      memoryService: mockMemoryService,
+      prisma: mockPrisma,
+    });
+
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 if memory ID is not a UUID', async () => {
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/api/memory/invalid-uuid',
+      payload: { content: 'Updated content' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid memory ID');
+  });
+
+  it('should return 400 if content is missing', async () => {
+    const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/memory/${memoryId}`,
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid request body');
+  });
+
+  it('should return 400 if content is empty', async () => {
+    const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/memory/${memoryId}`,
+      payload: { content: '' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid request body');
+  });
+
+  it('should return 404 if memory does not exist (T043)', async () => {
+    const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+    vi.mocked(mockMemoryService.updateMemory).mockRejectedValue(
+      new Error(`Memory ${memoryId} not found`),
+    );
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/memory/${memoryId}`,
+      payload: { content: 'Updated content' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Memory not found');
+  });
+
+  it('should update memory and return updated entry (T040)', async () => {
+    const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+    const updatedMemory: MemoryEntry = {
+      id: memoryId,
+      namespace: ['user', 'test-user'],
+      key: memoryId,
+      content: 'Updated content',
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-02'),
+    };
+
+    vi.mocked(mockMemoryService.updateMemory).mockResolvedValue(updatedMemory);
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/memory/${memoryId}`,
+      payload: { content: 'Updated content' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.memory.id).toBe(memoryId);
+    expect(body.memory.content).toBe('Updated content');
+    expect(mockMemoryService.updateMemory).toHaveBeenCalledWith(memoryId, 'Updated content');
+  });
+});
+
+describe('Memory Routes - DELETE /api/memory/:id', () => {
+  let app: FastifyInstance;
+  let mockMemoryService: MemoryService;
+  let mockPrisma: PrismaClient;
+  let mockLogger: Logger;
+
+  beforeEach(async () => {
+    app = fastify({ logger: false });
+
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as Logger;
+
+    mockMemoryService = {
+      deleteMemory: vi.fn(),
+    } as unknown as MemoryService;
+
+    mockPrisma = {} as unknown as PrismaClient;
+
+    registerMemoryRoutes(app, {
+      logger: mockLogger,
+      memoryService: mockMemoryService,
+      prisma: mockPrisma,
+    });
+
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 if memory ID is not a UUID', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/memory/invalid-uuid',
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid memory ID');
+  });
+
+  it('should return 404 if memory does not exist (T044)', async () => {
+    const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+    vi.mocked(mockMemoryService.deleteMemory).mockRejectedValue(
+      new Error(`Memory ${memoryId} not found`),
+    );
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/memory/${memoryId}`,
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Memory not found');
+  });
+
+  it('should delete memory successfully (T041)', async () => {
+    const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+    vi.mocked(mockMemoryService.deleteMemory).mockResolvedValue(undefined);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/memory/${memoryId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.message).toBe('Memory deleted successfully');
+    expect(mockMemoryService.deleteMemory).toHaveBeenCalledWith(memoryId);
+  });
+});

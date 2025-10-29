@@ -219,4 +219,103 @@ export class MemoryService {
       );
     }
   }
+
+  /**
+   * Update an existing memory's content
+   * Implementation: User Story 3 (T040)
+   *
+   * @param memoryId - UUID of the memory to update
+   * @param newContent - New content text
+   * @returns Updated memory entry
+   */
+  async updateMemory(memoryId: string, newContent: string): Promise<MemoryEntry> {
+    try {
+      this.logger.debug({ memoryId, contentLength: newContent.length }, 'Updating memory');
+
+      // Fetch current memory from Prisma (to get namespace and validate existence)
+      const existingMemory = await this.prisma.memory.findUnique({
+        where: { id: memoryId },
+      });
+
+      if (!existingMemory) {
+        this.logger.warn({ memoryId }, 'Memory not found for update');
+        throw new Error(`Memory ${memoryId} not found`);
+      }
+
+      const namespace = existingMemory.namespace;
+      const key = existingMemory.key;
+
+      // Create updated memory entry with new content
+      // The store will handle embedding regeneration and timestamp updates
+      const updatedEntry: MemoryEntry = {
+        id: existingMemory.id,
+        namespace,
+        key,
+        content: newContent,
+        createdAt: existingMemory.createdAt,
+        updatedAt: new Date(),
+        metadata: existingMemory.metadata
+          ? (existingMemory.metadata as Record<string, unknown>)
+          : undefined,
+      };
+
+      // Update in store (which handles embedding regeneration)
+      await this.store.put(namespace, key, updatedEntry);
+
+      // Fetch updated memory from store to get new embedding
+      const result = await this.store.get(namespace, key);
+
+      if (!result) {
+        throw new Error('Failed to retrieve updated memory from store');
+      }
+
+      this.logger.info(
+        { memoryId, namespace, key, contentLength: newContent.length },
+        'Memory updated successfully',
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error({ error, memoryId }, 'Failed to update memory');
+      throw new Error(
+        `Failed to update memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
+   * Delete a memory
+   * Implementation: User Story 3 (T041)
+   *
+   * @param memoryId - UUID of the memory to delete
+   * @returns Success confirmation
+   */
+  async deleteMemory(memoryId: string): Promise<void> {
+    try {
+      this.logger.debug({ memoryId }, 'Deleting memory');
+
+      // Fetch memory from Prisma to get namespace/key
+      const existingMemory = await this.prisma.memory.findUnique({
+        where: { id: memoryId },
+      });
+
+      if (!existingMemory) {
+        this.logger.warn({ memoryId }, 'Memory not found for deletion');
+        throw new Error(`Memory ${memoryId} not found`);
+      }
+
+      const namespace = existingMemory.namespace;
+      const key = existingMemory.key;
+
+      // Delete from store
+      await this.store.delete(namespace, key);
+
+      this.logger.info({ memoryId, namespace, key }, 'Memory deleted successfully');
+    } catch (error) {
+      this.logger.error({ error, memoryId }, 'Failed to delete memory');
+      throw new Error(
+        `Failed to delete memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
 }
