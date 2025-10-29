@@ -186,16 +186,19 @@ export function useThreadConnection(
           // Handle memory events (no requestId correlation needed)
           if ('type' in serverEvent) {
             if (serverEvent.type === 'memory.created') {
+              console.log('[useThreadConnection] Received memory.created event', serverEvent);
               const memoryEvent = serverEvent as MemoryCreatedEvent;
               onMemoryCreatedRef.current?.(memoryEvent);
               return;
             }
             if (serverEvent.type === 'memory.updated') {
+              console.log('[useThreadConnection] Received memory.updated event', serverEvent);
               const memoryEvent = serverEvent as MemoryUpdatedEvent;
               onMemoryUpdatedRef.current?.(memoryEvent);
               return;
             }
             if (serverEvent.type === 'memory.deleted') {
+              console.log('[useThreadConnection] Received memory.deleted event', serverEvent);
               const memoryEvent = serverEvent as MemoryDeletedEvent;
               onMemoryDeletedRef.current?.(memoryEvent);
               return;

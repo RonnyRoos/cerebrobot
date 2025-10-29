@@ -151,15 +151,26 @@ export function useMemories(): UseMemoriesResult {
    * Updates the memory in the local state when edited via API or by another client
    */
   const handleMemoryUpdated = useCallback((event: MemoryUpdatedEvent) => {
+    console.log('[useMemories] memory.updated event received', event);
+
     setMemories((current) => {
       const index = current.findIndex((m) => m.id === event.memory.id);
       if (index === -1) {
         // Memory not in current list - could be filtered or paginated
+        console.log('[useMemories] Memory not found in current list', {
+          memoryId: event.memory.id,
+          currentMemoryIds: current.map((m) => m.id),
+        });
         return current;
       }
       // Replace with updated memory
       const updated = [...current];
       updated[index] = event.memory;
+      console.log('[useMemories] Memory updated in list', {
+        memoryId: event.memory.id,
+        oldContent: current[index].content.substring(0, 50),
+        newContent: event.memory.content.substring(0, 50),
+      });
       return updated;
     });
 
@@ -180,6 +191,8 @@ export function useMemories(): UseMemoriesResult {
    * Removes the memory from local state when deleted via API or by another client
    */
   const handleMemoryDeleted = useCallback((event: MemoryDeletedEvent) => {
+    console.log('[useMemories] memory.deleted event received', event);
+
     setMemories((current) => current.filter((m) => m.id !== event.memoryId));
 
     // Also remove from search results if they exist

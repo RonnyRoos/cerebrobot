@@ -309,6 +309,11 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       const userId = updatedMemory.namespace[1]; // Extract userId from namespace
       const agentId = updatedMemory.namespace[3]; // Extract agentId from namespace
 
+      logger.debug(
+        { memoryId, namespace: updatedMemory.namespace, userId, agentId },
+        'Extracting userId/agentId from namespace',
+      );
+
       // Find thread for this memory (T046)
       const thread = await prisma.thread.findFirst({
         where: {
@@ -316,6 +321,11 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
           userId,
         },
       });
+
+      logger.debug(
+        { memoryId, userId, agentId, threadFound: !!thread, threadId: thread?.id },
+        'Thread lookup result',
+      );
 
       // Emit memory.updated event if ConnectionManager and thread available (T046)
       if (connectionManager && thread) {
@@ -326,14 +336,25 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
             memory: updatedMemory,
             threadId: thread.id,
           };
+          logger.info(
+            { memoryId, threadId: thread.id, eventType: event.type },
+            'Broadcasting memory.updated event',
+          );
           connectionManager.broadcastMemoryEvent(thread.id, event);
-          logger.debug({ memoryId, threadId: thread.id }, 'memory.updated event emitted');
+          logger.info({ memoryId, threadId: thread.id }, 'memory.updated event broadcast complete');
         } catch (eventError) {
           logger.warn(
             { error: eventError, memoryId, threadId: thread.id },
             'Failed to broadcast memory.updated event',
           );
         }
+      } else if (!thread) {
+        logger.warn(
+          { memoryId, userId, agentId },
+          'No thread found for memory - cannot broadcast event',
+        );
+      } else if (!connectionManager) {
+        logger.warn({ memoryId }, 'ConnectionManager not available - cannot broadcast event');
       }
 
       logger.debug({ memoryId }, 'Memory update successful');
