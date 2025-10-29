@@ -309,11 +309,6 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       const agentId = updatedMemory.namespace[1]; // Extract agentId from namespace
       const userId = updatedMemory.namespace[2]; // Extract userId from namespace
 
-      logger.debug(
-        { memoryId, namespace: updatedMemory.namespace, agentId, userId },
-        'Extracting agentId/userId from namespace',
-      );
-
       // Find ALL threads for this user/agent combination (T046)
       // Memories are agent-scoped, not thread-scoped, so we broadcast to all threads
       const threads = await prisma.thread.findMany({
@@ -323,11 +318,6 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
         },
       });
 
-      logger.debug(
-        { memoryId, userId, agentId, threadCount: threads.length },
-        'Thread lookup result - broadcasting to all matching threads',
-      );
-
       // Emit memory.updated event to ALL threads for this user/agent (T046)
       if (connectionManager && threads.length > 0) {
         const event = {
@@ -336,14 +326,12 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
           memory: updatedMemory,
         };
 
-        let broadcastCount = 0;
         for (const thread of threads) {
           try {
             connectionManager.broadcastMemoryEvent(thread.id, {
               ...event,
               threadId: thread.id,
             });
-            broadcastCount++;
           } catch (eventError) {
             logger.warn(
               { error: eventError, memoryId, threadId: thread.id },
@@ -351,18 +339,6 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
             );
           }
         }
-
-        logger.info(
-          { memoryId, threadCount: threads.length, broadcastCount },
-          'memory.updated event broadcast to all threads',
-        );
-      } else if (threads.length === 0) {
-        logger.warn(
-          { memoryId, userId, agentId },
-          'No threads found for memory - cannot broadcast event',
-        );
-      } else if (!connectionManager) {
-        logger.warn({ memoryId }, 'ConnectionManager not available - cannot broadcast event');
       }
 
       logger.debug({ memoryId }, 'Memory update successful');
@@ -449,14 +425,12 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
           memoryId,
         };
 
-        let broadcastCount = 0;
         for (const thread of threads) {
           try {
             connectionManager.broadcastMemoryEvent(thread.id, {
               ...event,
               threadId: thread.id,
             });
-            broadcastCount++;
           } catch (eventError) {
             logger.warn(
               { error: eventError, memoryId, threadId: thread.id },
@@ -464,11 +438,6 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
             );
           }
         }
-
-        logger.info(
-          { memoryId, threadCount: threads.length, broadcastCount },
-          'memory.deleted event broadcast to all threads',
-        );
       }
 
       logger.debug({ memoryId }, 'Memory deletion successful');

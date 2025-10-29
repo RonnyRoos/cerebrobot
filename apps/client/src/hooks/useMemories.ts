@@ -116,15 +116,11 @@ export function useMemories(): UseMemoriesResult {
   );
 
   const updateMemory = useCallback(async (memoryId: string, content: string) => {
-    console.log('[useMemories] updateMemory called', { memoryId, content });
     try {
       setError(null);
-      console.log('[useMemories] Calling memoryApi.updateMemory');
       await memoryApi.updateMemory({ memoryId, request: { content } });
-      console.log('[useMemories] API call successful');
-      // Note: User Story 3 will implement optimistic updates
+      // Note: UI updates via WebSocket event (memory.updated)
     } catch (err) {
-      console.error('[useMemories] API call failed', err);
       setError(err instanceof Error ? err : new Error('Failed to update memory'));
       throw err; // Re-throw so the caller can handle it
     }
@@ -134,9 +130,10 @@ export function useMemories(): UseMemoriesResult {
     try {
       setError(null);
       await memoryApi.deleteMemory(memoryId);
-      // Note: User Story 3 will implement optimistic updates
+      // Note: UI updates via WebSocket event (memory.deleted)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to delete memory'));
+      throw err; // Re-throw so the caller can handle it
     }
   }, []);
 
@@ -156,26 +153,11 @@ export function useMemories(): UseMemoriesResult {
    * Updates the memory in the local state when edited via API or by another client
    */
   const handleMemoryUpdated = useCallback((event: MemoryUpdatedEvent) => {
-    console.log('[useMemories] memory.updated event received', event);
-
     setMemories((current) => {
       const index = current.findIndex((m) => m.id === event.memory.id);
-      if (index === -1) {
-        // Memory not in current list - could be filtered or paginated
-        console.log('[useMemories] Memory not found in current list', {
-          memoryId: event.memory.id,
-          currentMemoryIds: current.map((m) => m.id),
-        });
-        return current;
-      }
-      // Replace with updated memory
+      if (index === -1) return current; // Memory not in current list
       const updated = [...current];
       updated[index] = event.memory;
-      console.log('[useMemories] Memory updated in list', {
-        memoryId: event.memory.id,
-        oldContent: current[index].content.substring(0, 50),
-        newContent: event.memory.content.substring(0, 50),
-      });
       return updated;
     });
 
@@ -196,8 +178,6 @@ export function useMemories(): UseMemoriesResult {
    * Removes the memory from local state when deleted via API or by another client
    */
   const handleMemoryDeleted = useCallback((event: MemoryDeletedEvent) => {
-    console.log('[useMemories] memory.deleted event received', event);
-
     setMemories((current) => current.filter((m) => m.id !== event.memoryId));
 
     // Also remove from search results if they exist
