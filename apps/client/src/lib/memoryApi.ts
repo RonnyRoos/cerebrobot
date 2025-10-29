@@ -51,12 +51,16 @@ export const memoryApi = {
   async searchMemories(params: {
     threadId: string;
     query: string;
+    offset?: number;
     limit?: number;
+    threshold?: number;
   }): Promise<MemorySearchResponse> {
     const queryParams = new URLSearchParams({
       threadId: params.threadId,
-      q: params.query,
+      query: params.query,
+      ...(params.offset !== undefined && { offset: params.offset.toString() }),
       ...(params.limit !== undefined && { limit: params.limit.toString() }),
+      ...(params.threshold !== undefined && { threshold: params.threshold.toString() }),
     });
 
     return getJson<MemorySearchResponse>(`/api/memory/search?${queryParams}`);

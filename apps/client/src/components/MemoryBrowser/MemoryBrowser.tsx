@@ -5,25 +5,39 @@
  * Features:
  * - Toggle open/closed with localStorage persistence
  * - Real-time updates via memory.created WebSocket events
+ * - Semantic search with similarity scores (US2: T039)
  * - Displays chronological list of memories
  */
 
 import { useState, useEffect } from 'react';
-import type { MemoryEntry } from '@cerebrobot/chat-shared';
+import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import { MemoryList } from './MemoryList.js';
+import { MemorySearch } from './MemorySearch.js';
 
 interface MemoryBrowserProps {
   /** Array of memory entries to display */
   memories: MemoryEntry[];
 
+  /** Search results (when search is active) */
+  searchResults?: MemorySearchResult[] | null;
+
   /** Loading state */
   isLoading?: boolean;
+
+  /** Search loading state */
+  isSearching?: boolean;
 
   /** Error message if fetch failed */
   error?: string | null;
 
   /** Signal to auto-open sidebar (e.g., when new memory created) */
   autoOpen?: boolean;
+
+  /** Callback to search memories */
+  onSearch?: (query: string) => void;
+
+  /** Callback to clear search */
+  onClearSearch?: () => void;
 }
 
 const STORAGE_KEY = 'cerebrobot:memory-browser:open';
@@ -53,11 +67,23 @@ function saveState(isOpen: boolean): void {
 
 export function MemoryBrowser({
   memories,
+  searchResults = null,
   isLoading,
+  isSearching = false,
   error,
   autoOpen = false,
+  onSearch,
+  onClearSearch,
 }: MemoryBrowserProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(loadInitialState);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Determine if search is active and what to display
+  const isSearchActive = searchResults !== null;
+  const displayMemories: (MemoryEntry | MemorySearchResult)[] = isSearchActive
+    ? searchResults
+    : memories;
+  const displayLoading = isSearchActive ? isSearching : isLoading;
 
   // Save state changes to localStorage
   useEffect(() => {
@@ -73,6 +99,16 @@ export function MemoryBrowser({
 
   const toggleSidebar = (): void => {
     setIsOpen((prev) => !prev);
+  };
+
+  const handleSearch = (query: string): void => {
+    setSearchQuery(query);
+    onSearch?.(query);
+  };
+
+  const handleClearSearch = (): void => {
+    setSearchQuery('');
+    onClearSearch?.();
   };
 
   return (
@@ -157,7 +193,22 @@ export function MemoryBrowser({
               padding: '1rem',
             }}
           >
-            <MemoryList memories={memories} isLoading={isLoading} error={error} />
+            {/* Search Component (US2: T039) */}
+            <MemorySearch
+              onSearch={handleSearch}
+              onClear={handleClearSearch}
+              isSearchActive={isSearchActive}
+              isLoading={isSearching}
+            />
+
+            {/* Memory List (displays either all memories or search results) */}
+            <MemoryList
+              memories={displayMemories}
+              isLoading={displayLoading}
+              error={error}
+              isSearchResults={isSearchActive}
+              searchQuery={searchQuery}
+            />
           </div>
         </aside>
       )}

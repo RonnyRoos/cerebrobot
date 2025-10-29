@@ -6,20 +6,27 @@
  * - Empty state with onboarding hint
  * - Chronological sorting (newest first by default)
  * - Readable timestamp formatting
+ * - Similarity scores for search results
  */
 
 import { useState } from 'react';
-import type { MemoryEntry } from '@cerebrobot/chat-shared';
+import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 
 interface MemoryListProps {
   /** Array of memory entries to display */
-  memories: MemoryEntry[];
+  memories: (MemoryEntry | MemorySearchResult)[];
 
   /** Loading state */
   isLoading?: boolean;
 
   /** Error message if fetch failed */
   error?: string | null;
+
+  /** Whether displaying search results */
+  isSearchResults?: boolean;
+
+  /** Search query (for empty search state) */
+  searchQuery?: string;
 }
 
 /**
@@ -47,7 +54,13 @@ function formatRelativeTime(date: Date | string): string {
   });
 }
 
-export function MemoryList({ memories, isLoading, error }: MemoryListProps): JSX.Element {
+export function MemoryList({
+  memories,
+  isLoading,
+  error,
+  isSearchResults = false,
+  searchQuery,
+}: MemoryListProps): JSX.Element {
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
 
   // Loading state
@@ -88,6 +101,29 @@ export function MemoryList({ memories, isLoading, error }: MemoryListProps): JSX
 
   // Empty state
   if (memories.length === 0) {
+    // Empty search results (T036)
+    if (isSearchResults) {
+      return (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '2rem 1rem',
+            color: '#9ca3af',
+          }}
+        >
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔍</div>
+          <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>
+            No matching memories found
+          </p>
+          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', lineHeight: '1.5' }}>
+            {searchQuery ? `No memories match "${searchQuery}".` : 'No memories match your search.'}{' '}
+            Try different terms or browse all memories.
+          </p>
+        </div>
+      );
+    }
+
+    // Empty memory list
     return (
       <div
         style={{
@@ -159,64 +195,91 @@ export function MemoryList({ memories, isLoading, error }: MemoryListProps): JSX
           padding: 0,
         }}
       >
-        {sortedMemories.map((memory) => (
-          <li
-            key={memory.id}
-            style={{
-              padding: '0.75rem',
-              marginBottom: '0.5rem',
-              backgroundColor: '#f9fafb',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.375rem',
-            }}
-          >
-            {/* Memory content */}
-            <p
+        {sortedMemories.map((memory) => {
+          // Type guard to check if this is a search result with similarity
+          const isSearchResult = 'similarity' in memory;
+          const similarity = isSearchResult ? (memory as MemorySearchResult).similarity : undefined;
+
+          return (
+            <li
+              key={memory.id}
               style={{
-                margin: 0,
-                fontSize: '0.875rem',
-                color: '#111827',
-                lineHeight: '1.5',
+                padding: '0.75rem',
+                marginBottom: '0.5rem',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.375rem',
               }}
             >
-              {memory.content}
-            </p>
-
-            {/* Timestamp */}
-            <time
-              dateTime={
-                typeof memory.createdAt === 'string'
-                  ? memory.createdAt
-                  : memory.createdAt.toISOString()
-              }
-              style={{
-                display: 'block',
-                marginTop: '0.5rem',
-                fontSize: '0.75rem',
-                color: '#6b7280',
-              }}
-            >
-              {formatRelativeTime(memory.createdAt)}
-            </time>
-
-            {/* Optional: Show key if it's meaningful (not a UUID) */}
-            {memory.key &&
-              !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                memory.key,
-              ) && (
+              {/* Similarity score badge (T035) */}
+              {similarity !== undefined && (
                 <div
                   style={{
-                    marginTop: '0.5rem',
+                    display: 'inline-block',
+                    marginBottom: '0.5rem',
+                    padding: '0.125rem 0.5rem',
                     fontSize: '0.6875rem',
-                    color: '#9ca3af',
-                    fontFamily: 'monospace',
+                    fontWeight: '600',
+                    color:
+                      similarity >= 0.9 ? '#059669' : similarity >= 0.7 ? '#3b82f6' : '#6b7280',
+                    backgroundColor:
+                      similarity >= 0.9 ? '#d1fae5' : similarity >= 0.7 ? '#dbeafe' : '#f3f4f6',
+                    borderRadius: '0.25rem',
                   }}
+                  title={`Similarity score: ${similarity.toFixed(3)}`}
                 >
-                  {memory.key}
+                  {Math.round(similarity * 100)}% match
                 </div>
               )}
-          </li>
-        ))}
+
+              {/* Memory content */}
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.875rem',
+                  color: '#111827',
+                  lineHeight: '1.5',
+                }}
+              >
+                {memory.content}
+              </p>
+
+              {/* Timestamp */}
+              <time
+                dateTime={
+                  typeof memory.createdAt === 'string'
+                    ? memory.createdAt
+                    : memory.createdAt.toISOString()
+                }
+                style={{
+                  display: 'block',
+                  marginTop: '0.5rem',
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                }}
+              >
+                {formatRelativeTime(memory.createdAt)}
+              </time>
+
+              {/* Optional: Show key if it's meaningful (not a UUID) */}
+              {memory.key &&
+                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                  memory.key,
+                ) && (
+                  <div
+                    style={{
+                      marginTop: '0.5rem',
+                      fontSize: '0.6875rem',
+                      color: '#9ca3af',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {memory.key}
+                  </div>
+                )}
+            </li>
+          );
+        })}
       </ul>
     </>
   );

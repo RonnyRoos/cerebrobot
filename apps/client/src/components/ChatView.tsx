@@ -73,9 +73,30 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   }, [activeThreadId, threadPromise]);
 
   // Memory management
-  const { memories, error: memoryError, fetchMemories } = useMemories();
+  const {
+    memories,
+    searchResults,
+    error: memoryError,
+    fetchMemories,
+    searchMemories,
+    clearSearch,
+  } = useMemories();
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [autoOpenMemory, setAutoOpenMemory] = useState(false);
+
+  // Handle memory search (US2: T039)
+  const handleSearchMemories = async (query: string) => {
+    if (!activeThreadId) return;
+    setIsSearching(true);
+    await searchMemories(activeThreadId, query);
+    setIsSearching(false);
+  };
+
+  // Handle clear search (US2: T039)
+  const handleClearSearch = () => {
+    clearSearch();
+  };
 
   // Fetch memories when threadId changes
   useEffect(() => {
@@ -360,9 +381,13 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       {/* Memory Browser Sidebar */}
       <MemoryBrowser
         memories={memories}
+        searchResults={searchResults}
         isLoading={isLoadingMemories}
+        isSearching={isSearching}
         error={memoryError?.message || null}
         autoOpen={autoOpenMemory}
+        onSearch={handleSearchMemories}
+        onClearSearch={handleClearSearch}
       />
     </section>
   );
