@@ -4,6 +4,7 @@ import { useThreadHistory } from '../hooks/useThreadHistory.js';
 import { useMemories } from '../hooks/useMemories.js';
 import { useMemo, useEffect, useCallback, useState } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
+import { Toast } from './Toast.js';
 import type { MemoryCreatedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
@@ -90,6 +91,8 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [autoOpenMemory, setAutoOpenMemory] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [highlightMemoryId, setHighlightMemoryId] = useState<string | null>(null);
 
   // Handle memory search (US2: T039)
   const handleSearchMemories = async (query: string) => {
@@ -104,10 +107,12 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     clearSearch();
   };
 
-  // Handle create memory (US4: T062)
+  // Handle create memory (US4: T062, T067)
   const handleCreateMemory = async (content: string) => {
     if (!activeThreadId) return;
     await createMemory(activeThreadId, content);
+    // Show success toast (T067)
+    setToastMessage('Memory created successfully');
   };
 
   // Fetch memories when threadId changes
@@ -136,8 +141,12 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       // Signal to auto-open the memory sidebar
       setAutoOpenMemory(true);
 
-      // Reset auto-open signal after a short delay
+      // Highlight the new memory (T068)
+      setHighlightMemoryId(event.memory.id);
+
+      // Reset auto-open and highlight after short delays
       setTimeout(() => setAutoOpenMemory(false), 100);
+      setTimeout(() => setHighlightMemoryId(null), 2000); // Clear highlight after 2s
     },
     [handleMemoryCreated],
   );
@@ -398,12 +407,18 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         isSearching={isSearching}
         error={memoryError?.message || null}
         autoOpen={autoOpenMemory}
+        highlightMemoryId={highlightMemoryId}
         onSearch={handleSearchMemories}
         onClearSearch={handleClearSearch}
         onCreateMemory={handleCreateMemory}
         onUpdateMemory={updateMemory}
         onDeleteMemory={deleteMemory}
       />
+
+      {/* Success Toast (US4: T067) */}
+      {toastMessage && (
+        <Toast message={toastMessage} type="success" onDismiss={() => setToastMessage(null)} />
+      )}
     </section>
   );
 }

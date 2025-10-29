@@ -31,6 +31,9 @@ interface MemoryListProps {
   /** Search query (for empty search state) */
   searchQuery?: string;
 
+  /** Memory ID to highlight temporarily (US4: T068) */
+  highlightMemoryId?: string | null;
+
   /** Callback to update a memory (US3: T054) */
   onUpdateMemory?: (memoryId: string, content: string) => Promise<void>;
 
@@ -69,6 +72,7 @@ export function MemoryList({
   error,
   isSearchResults = false,
   searchQuery,
+  highlightMemoryId = null,
   onUpdateMemory,
   onDeleteMemory,
 }: MemoryListProps): JSX.Element {
@@ -262,6 +266,7 @@ export function MemoryList({
           const isSearchResult = 'similarity' in memory;
           const similarity = isSearchResult ? (memory as MemorySearchResult).similarity : undefined;
           const isEditing = editingMemoryId === memory.id;
+          const isHighlighted = highlightMemoryId === memory.id;
 
           return (
             <li
@@ -269,9 +274,10 @@ export function MemoryList({
               style={{
                 padding: '0.75rem',
                 marginBottom: '0.5rem',
-                backgroundColor: '#f9fafb',
-                border: '1px solid #e5e7eb',
+                backgroundColor: isHighlighted ? '#d1fae5' : '#f9fafb',
+                border: `1px solid ${isHighlighted ? '#10b981' : '#e5e7eb'}`,
                 borderRadius: '0.375rem',
+                transition: 'all 0.3s ease-out',
               }}
             >
               {/* Similarity score badge (T035) */}

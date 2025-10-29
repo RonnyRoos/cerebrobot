@@ -34,6 +34,9 @@ interface MemoryBrowserProps {
   /** Signal to auto-open sidebar (e.g., when new memory created) */
   autoOpen?: boolean;
 
+  /** Memory ID to highlight temporarily (US4: T068) */
+  highlightMemoryId?: string | null;
+
   /** Callback to search memories */
   onSearch?: (query: string) => void;
 
@@ -82,6 +85,7 @@ export function MemoryBrowser({
   isSearching = false,
   error,
   autoOpen = false,
+  highlightMemoryId = null,
   onSearch,
   onClearSearch,
   onUpdateMemory,
@@ -250,6 +254,7 @@ export function MemoryBrowser({
               error={error}
               isSearchResults={isSearchActive}
               searchQuery={searchQuery}
+              highlightMemoryId={highlightMemoryId}
               onUpdateMemory={onUpdateMemory}
               onDeleteMemory={onDeleteMemory}
             />
@@ -276,9 +281,6 @@ export function MemoryBrowser({
             zIndex: 2000,
           }}
           onClick={() => setShowCreateModal(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowCreateModal(false);
-          }}
         >
           <div
             role="document"
@@ -291,7 +293,6 @@ export function MemoryBrowser({
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
             }}
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
           >
             <h3
               id="create-memory-title"
