@@ -304,14 +304,14 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       const updatedMemory = await memoryService.updateMemory(memoryId, content);
 
       // Get threadId from memory namespace for event broadcast
-      // Namespace format: ['user', userId, 'agent', agentId]
+      // Namespace format: ['memories', agentId, userId]
       // We need to query Thread table to find thread with matching agentId and userId
-      const userId = updatedMemory.namespace[1]; // Extract userId from namespace
-      const agentId = updatedMemory.namespace[3]; // Extract agentId from namespace
+      const agentId = updatedMemory.namespace[1]; // Extract agentId from namespace
+      const userId = updatedMemory.namespace[2]; // Extract userId from namespace
 
       logger.debug(
-        { memoryId, namespace: updatedMemory.namespace, userId, agentId },
-        'Extracting userId/agentId from namespace',
+        { memoryId, namespace: updatedMemory.namespace, agentId, userId },
+        'Extracting agentId/userId from namespace',
       );
 
       // Find thread for this memory (T046)
@@ -420,8 +420,9 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       await memoryService.deleteMemory(memoryId);
 
       // Get threadId from memory namespace for event broadcast
-      const userId = memoryToDelete.namespace[1];
-      const agentId = memoryToDelete.namespace[3];
+      // Namespace format: ['memories', agentId, userId]
+      const agentId = memoryToDelete.namespace[1];
+      const userId = memoryToDelete.namespace[2];
 
       // Find thread for this memory (T047)
       const thread = await prisma.thread.findFirst({
