@@ -80,6 +80,8 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     fetchMemories,
     searchMemories,
     clearSearch,
+    updateMemory,
+    deleteMemory,
     handleMemoryUpdated,
     handleMemoryDeleted,
   } = useMemories();
@@ -392,6 +394,8 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         autoOpen={autoOpenMemory}
         onSearch={handleSearchMemories}
         onClearSearch={handleClearSearch}
+        onUpdateMemory={updateMemory}
+        onDeleteMemory={deleteMemory}
       />
     </section>
   );

@@ -38,6 +38,12 @@ interface MemoryBrowserProps {
 
   /** Callback to clear search */
   onClearSearch?: () => void;
+
+  /** Callback to update a memory (US3: T054) */
+  onUpdateMemory?: (memoryId: string, content: string) => Promise<void>;
+
+  /** Callback to delete a memory (US3: T054) */
+  onDeleteMemory?: (memoryId: string) => Promise<void>;
 }
 
 const STORAGE_KEY = 'cerebrobot:memory-browser:open';
@@ -74,6 +80,8 @@ export function MemoryBrowser({
   autoOpen = false,
   onSearch,
   onClearSearch,
+  onUpdateMemory,
+  onDeleteMemory,
 }: MemoryBrowserProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(loadInitialState);
   const [searchQuery, setSearchQuery] = useState('');
@@ -208,6 +216,8 @@ export function MemoryBrowser({
               error={error}
               isSearchResults={isSearchActive}
               searchQuery={searchQuery}
+              onUpdateMemory={onUpdateMemory}
+              onDeleteMemory={onDeleteMemory}
             />
           </div>
         </aside>

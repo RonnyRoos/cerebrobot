@@ -7,10 +7,13 @@
  * - Chronological sorting (newest first by default)
  * - Readable timestamp formatting
  * - Similarity scores for search results
+ * - Inline editing and deletion (US3: T054)
  */
 
 import { useState } from 'react';
 import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
+import { MemoryEditor } from './MemoryEditor.js';
+import { ConfirmDialog } from './ConfirmDialog.js';
 
 interface MemoryListProps {
   /** Array of memory entries to display */
@@ -27,6 +30,12 @@ interface MemoryListProps {
 
   /** Search query (for empty search state) */
   searchQuery?: string;
+
+  /** Callback to update a memory (US3: T054) */
+  onUpdateMemory?: (memoryId: string, content: string) => Promise<void>;
+
+  /** Callback to delete a memory (US3: T054) */
+  onDeleteMemory?: (memoryId: string) => Promise<void>;
 }
 
 /**
@@ -60,8 +69,61 @@ export function MemoryList({
   error,
   isSearchResults = false,
   searchQuery,
+  onUpdateMemory,
+  onDeleteMemory,
 }: MemoryListProps): JSX.Element {
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  const [deletingMemoryId, setDeletingMemoryId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [operationError, setOperationError] = useState<string | null>(null);
+
+  // Handle edit save (US3: T054)
+  const handleEditSave = async (content: string) => {
+    if (!editingMemoryId || !onUpdateMemory) return;
+
+    setIsSaving(true);
+    setOperationError(null);
+
+    try {
+      await onUpdateMemory(editingMemoryId, content);
+      setEditingMemoryId(null);
+    } catch (err) {
+      setOperationError(err instanceof Error ? err.message : 'Failed to update memory');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle edit cancel
+  const handleEditCancel = () => {
+    setEditingMemoryId(null);
+    setOperationError(null);
+  };
+
+  // Handle delete confirm (US3: T054)
+  const handleDeleteConfirm = async () => {
+    if (!deletingMemoryId || !onDeleteMemory) return;
+
+    setIsDeleting(true);
+    setOperationError(null);
+
+    try {
+      await onDeleteMemory(deletingMemoryId);
+      setDeletingMemoryId(null);
+    } catch (err) {
+      setOperationError(err instanceof Error ? err.message : 'Failed to delete memory');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Handle delete cancel
+  const handleDeleteCancel = () => {
+    setDeletingMemoryId(null);
+    setOperationError(null);
+  };
 
   // Loading state
   if (isLoading) {
@@ -199,6 +261,7 @@ export function MemoryList({
           // Type guard to check if this is a search result with similarity
           const isSearchResult = 'similarity' in memory;
           const similarity = isSearchResult ? (memory as MemorySearchResult).similarity : undefined;
+          const isEditing = editingMemoryId === memory.id;
 
           return (
             <li
@@ -232,55 +295,128 @@ export function MemoryList({
                 </div>
               )}
 
-              {/* Memory content */}
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.875rem',
-                  color: '#111827',
-                  lineHeight: '1.5',
-                }}
-              >
-                {memory.content}
-              </p>
-
-              {/* Timestamp */}
-              <time
-                dateTime={
-                  typeof memory.createdAt === 'string'
-                    ? memory.createdAt
-                    : memory.createdAt.toISOString()
-                }
-                style={{
-                  display: 'block',
-                  marginTop: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#6b7280',
-                }}
-              >
-                {formatRelativeTime(memory.createdAt)}
-              </time>
-
-              {/* Optional: Show key if it's meaningful (not a UUID) */}
-              {memory.key &&
-                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                  memory.key,
-                ) && (
-                  <div
+              {/* Editing mode */}
+              {isEditing ? (
+                <MemoryEditor
+                  memory={memory}
+                  onSave={handleEditSave}
+                  onCancel={handleEditCancel}
+                  isSaving={isSaving}
+                  error={operationError}
+                />
+              ) : (
+                <>
+                  {/* Memory content */}
+                  <p
                     style={{
-                      marginTop: '0.5rem',
-                      fontSize: '0.6875rem',
-                      color: '#9ca3af',
-                      fontFamily: 'monospace',
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: '#111827',
+                      lineHeight: '1.5',
                     }}
                   >
-                    {memory.key}
+                    {memory.content}
+                  </p>
+
+                  {/* Footer with timestamp and action buttons */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '0.5rem',
+                    }}
+                  >
+                    {/* Timestamp */}
+                    <time
+                      dateTime={
+                        typeof memory.createdAt === 'string'
+                          ? memory.createdAt
+                          : memory.createdAt.toISOString()
+                      }
+                      style={{
+                        fontSize: '0.75rem',
+                        color: '#6b7280',
+                      }}
+                    >
+                      {formatRelativeTime(memory.createdAt)}
+                    </time>
+
+                    {/* Edit/Delete buttons (US3: T054) */}
+                    {(onUpdateMemory || onDeleteMemory) && (
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {onUpdateMemory && (
+                          <button
+                            onClick={() => setEditingMemoryId(memory.id)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.75rem',
+                              color: '#3b82f6',
+                              backgroundColor: 'transparent',
+                              border: '1px solid #3b82f6',
+                              borderRadius: '0.25rem',
+                              cursor: 'pointer',
+                            }}
+                            aria-label="Edit memory"
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
+                        {onDeleteMemory && (
+                          <button
+                            onClick={() => setDeletingMemoryId(memory.id)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.75rem',
+                              color: '#ef4444',
+                              backgroundColor: 'transparent',
+                              border: '1px solid #ef4444',
+                              borderRadius: '0.25rem',
+                              cursor: 'pointer',
+                            }}
+                            aria-label="Delete memory"
+                          >
+                            🗑️ Delete
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Optional: Show key if it's meaningful (not a UUID) */}
+                  {memory.key &&
+                    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                      memory.key,
+                    ) && (
+                      <div
+                        style={{
+                          marginTop: '0.5rem',
+                          fontSize: '0.6875rem',
+                          color: '#9ca3af',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {memory.key}
+                      </div>
+                    )}
+                </>
+              )}
             </li>
           );
         })}
       </ul>
+
+      {/* Delete confirmation dialog (US3: T053) */}
+      <ConfirmDialog
+        isOpen={deletingMemoryId !== null}
+        title="Delete Memory"
+        message="Are you sure you want to delete this memory? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isProcessing={isDeleting}
+      />
     </>
   );
 }
