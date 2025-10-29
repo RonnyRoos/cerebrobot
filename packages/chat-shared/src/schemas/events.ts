@@ -44,20 +44,55 @@ export const MemoryCreatedEventSchema = BaseWebSocketEventSchema.extend({
 
 export type MemoryCreatedEvent = z.infer<typeof MemoryCreatedEventSchema>;
 
+/**
+ * Memory Updated Event Schema (T045)
+ *
+ * Emitted when a memory is edited by the operator.
+ * Allows UI to update displayed memories in real-time.
+ */
+export const MemoryUpdatedEventSchema = BaseWebSocketEventSchema.extend({
+  type: z.literal('memory.updated'),
+
+  /** The updated memory entry */
+  memory: MemoryEntrySchema,
+
+  /** Thread ID where memory was updated */
+  threadId: z.string().uuid(),
+}).strict();
+
+export type MemoryUpdatedEvent = z.infer<typeof MemoryUpdatedEventSchema>;
+
+/**
+ * Memory Deleted Event Schema (T045)
+ *
+ * Emitted when a memory is deleted by the operator.
+ * Allows UI to remove memories from display in real-time.
+ */
+export const MemoryDeletedEventSchema = BaseWebSocketEventSchema.extend({
+  type: z.literal('memory.deleted'),
+
+  /** ID of the deleted memory */
+  memoryId: z.string().uuid(),
+
+  /** Thread ID where memory was deleted */
+  threadId: z.string().uuid(),
+}).strict();
+
+export type MemoryDeletedEvent = z.infer<typeof MemoryDeletedEventSchema>;
+
 // ============================================================================
-// Event Union (Future: memory.updated, memory.deleted, etc.)
+// Event Union
 // ============================================================================
 
 /**
  * All WebSocket event types
  *
- * Currently only memory.created is defined.
- * Future events will be added here as union members.
+ * Includes memory lifecycle events: created, updated, deleted
  */
 export const WebSocketEventSchema = z.union([
   MemoryCreatedEventSchema,
-  // Future: MemoryUpdatedEventSchema,
-  // Future: MemoryDeletedEventSchema,
+  MemoryUpdatedEventSchema,
+  MemoryDeletedEventSchema,
 ]);
 
 export type WebSocketEvent = z.infer<typeof WebSocketEventSchema>;

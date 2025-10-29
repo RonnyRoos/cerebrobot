@@ -292,6 +292,7 @@ export function buildServer(options: BuildServerOptions): {
       logger: logger.child({ component: 'memory-routes' }),
       memoryService,
       prisma,
+      connectionManager,
     });
 
     registerChatRoutes(fastifyInstance, {

@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import fastify from 'fastify';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Memory } from '@prisma/client';
 import type { Logger } from 'pino';
 import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import { registerMemoryRoutes } from '../routes.js';
@@ -42,6 +42,12 @@ describe('Memory Routes - GET /api/memory', () => {
     mockPrisma = {
       thread: {
         findUnique: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          agentId: 'test-agent',
+          userId: 'test-user',
+          createdAt: new Date(),
+        }),
       },
     } as unknown as PrismaClient;
 
@@ -511,7 +517,16 @@ describe('Memory Routes - PUT /api/memory/:id', () => {
       updateMemory: vi.fn(),
     } as unknown as MemoryService;
 
-    mockPrisma = {} as unknown as PrismaClient;
+    mockPrisma = {
+      thread: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          agentId: 'test-agent',
+          userId: 'test-user',
+          createdAt: new Date(),
+        }),
+      },
+    } as unknown as PrismaClient;
 
     registerMemoryRoutes(app, {
       logger: mockLogger,
@@ -585,7 +600,7 @@ describe('Memory Routes - PUT /api/memory/:id', () => {
     const memoryId = '550e8400-e29b-41d4-a716-446655440001';
     const updatedMemory: MemoryEntry = {
       id: memoryId,
-      namespace: ['user', 'test-user'],
+      namespace: ['user', 'test-user', 'agent', 'test-agent'],
       key: memoryId,
       content: 'Updated content',
       createdAt: new Date('2024-01-01'),
@@ -630,7 +645,19 @@ describe('Memory Routes - DELETE /api/memory/:id', () => {
       deleteMemory: vi.fn(),
     } as unknown as MemoryService;
 
-    mockPrisma = {} as unknown as PrismaClient;
+    mockPrisma = {
+      memory: {
+        findUnique: vi.fn(),
+      },
+      thread: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          agentId: 'test-agent',
+          userId: 'test-user',
+          createdAt: new Date(),
+        }),
+      },
+    } as unknown as PrismaClient;
 
     registerMemoryRoutes(app, {
       logger: mockLogger,
@@ -658,9 +685,9 @@ describe('Memory Routes - DELETE /api/memory/:id', () => {
 
   it('should return 404 if memory does not exist (T044)', async () => {
     const memoryId = '550e8400-e29b-41d4-a716-446655440001';
-    vi.mocked(mockMemoryService.deleteMemory).mockRejectedValue(
-      new Error(`Memory ${memoryId} not found`),
-    );
+
+    // Mock prisma.memory.findUnique to return null (memory not found)
+    vi.mocked(mockPrisma.memory.findUnique).mockResolvedValue(null);
 
     const response = await app.inject({
       method: 'DELETE',
@@ -674,6 +701,19 @@ describe('Memory Routes - DELETE /api/memory/:id', () => {
 
   it('should delete memory successfully (T041)', async () => {
     const memoryId = '550e8400-e29b-41d4-a716-446655440001';
+
+    // Mock prisma.memory.findUnique to return memory with proper namespace
+    const mockMemory: Memory = {
+      id: memoryId,
+      namespace: ['user', 'test-user', 'agent', 'test-agent'],
+      key: memoryId,
+      content: 'Test content',
+      metadata: {},
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-02'),
+    };
+    vi.mocked(mockPrisma.memory.findUnique).mockResolvedValue(mockMemory);
+
     vi.mocked(mockMemoryService.deleteMemory).mockResolvedValue(undefined);
 
     const response = await app.inject({

@@ -14,11 +14,13 @@ import {
   MemorySearchResponseSchema,
 } from '@cerebrobot/chat-shared';
 import type { MemoryService } from './service.js';
+import type { ConnectionManager } from '../../chat/connection-manager.js';
 
 interface MemoryRoutesOptions {
   readonly logger: Logger;
   readonly memoryService: MemoryService;
   readonly prisma: PrismaClient;
+  readonly connectionManager?: ConnectionManager;
 }
 
 // Query parameter validation schemas
@@ -57,7 +59,7 @@ const MemoryIdParamSchema = z.object({
  * - DELETE /api/memory/:id - Delete memory (US3: T041)
  */
 export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutesOptions): void {
-  const { logger, memoryService, prisma } = options;
+  const { logger, memoryService, prisma, connectionManager } = options;
 
   /**
    * GET /api/memory
@@ -301,6 +303,39 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       // Update memory via service
       const updatedMemory = await memoryService.updateMemory(memoryId, content);
 
+      // Get threadId from memory namespace for event broadcast
+      // Namespace format: ['user', userId, 'agent', agentId]
+      // We need to query Thread table to find thread with matching agentId and userId
+      const userId = updatedMemory.namespace[1]; // Extract userId from namespace
+      const agentId = updatedMemory.namespace[3]; // Extract agentId from namespace
+
+      // Find thread for this memory (T046)
+      const thread = await prisma.thread.findFirst({
+        where: {
+          agentId,
+          userId,
+        },
+      });
+
+      // Emit memory.updated event if ConnectionManager and thread available (T046)
+      if (connectionManager && thread) {
+        try {
+          const event = {
+            type: 'memory.updated' as const,
+            timestamp: new Date().toISOString(),
+            memory: updatedMemory,
+            threadId: thread.id,
+          };
+          connectionManager.broadcastMemoryEvent(thread.id, event);
+          logger.debug({ memoryId, threadId: thread.id }, 'memory.updated event emitted');
+        } catch (eventError) {
+          logger.warn(
+            { error: eventError, memoryId, threadId: thread.id },
+            'Failed to broadcast memory.updated event',
+          );
+        }
+      }
+
       logger.debug({ memoryId }, 'Memory update successful');
 
       return reply.status(200).send({
@@ -348,8 +383,51 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
     try {
       logger.info({ memoryId }, 'Deleting memory');
 
+      // Fetch memory first to get namespace for event broadcast (T047)
+      const memoryToDelete = await prisma.memory.findUnique({
+        where: { id: memoryId },
+      });
+
+      if (!memoryToDelete) {
+        return reply.status(404).send({
+          error: 'Memory not found',
+          message: `Memory ${memoryId} does not exist`,
+        });
+      }
+
       // Delete memory via service
       await memoryService.deleteMemory(memoryId);
+
+      // Get threadId from memory namespace for event broadcast
+      const userId = memoryToDelete.namespace[1];
+      const agentId = memoryToDelete.namespace[3];
+
+      // Find thread for this memory (T047)
+      const thread = await prisma.thread.findFirst({
+        where: {
+          agentId,
+          userId,
+        },
+      });
+
+      // Emit memory.deleted event if ConnectionManager and thread available (T047)
+      if (connectionManager && thread) {
+        try {
+          const event = {
+            type: 'memory.deleted' as const,
+            timestamp: new Date().toISOString(),
+            memoryId,
+            threadId: thread.id,
+          };
+          connectionManager.broadcastMemoryEvent(thread.id, event);
+          logger.debug({ memoryId, threadId: thread.id }, 'memory.deleted event emitted');
+        } catch (eventError) {
+          logger.warn(
+            { error: eventError, memoryId, threadId: thread.id },
+            'Failed to broadcast memory.deleted event',
+          );
+        }
+      }
 
       logger.debug({ memoryId }, 'Memory deletion successful');
 

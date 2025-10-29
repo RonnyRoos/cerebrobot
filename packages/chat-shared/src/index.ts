@@ -37,11 +37,18 @@ export type { ConnectionState, RequestStatus, ConnectionInfo } from './types/con
 // Event schemas (WebSocket)
 export {
   MemoryCreatedEventSchema,
+  MemoryUpdatedEventSchema,
+  MemoryDeletedEventSchema,
   WebSocketEventSchema,
   BaseWebSocketEventSchema,
 } from './schemas/events.js';
 
-export type { MemoryCreatedEvent, WebSocketEvent } from './schemas/events.js';
+export type {
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+  WebSocketEvent,
+} from './schemas/events.js';
 
 // User schemas
 export { CreateUserRequestSchema, CreateUserResponseSchema } from './schemas/user.js';
