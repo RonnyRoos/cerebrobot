@@ -289,3 +289,121 @@ export class MemoryStorageError extends MemoryError {
     this.name = 'MemoryStorageError';
   }
 }
+
+// ============================================================================
+// API Request/Response Schemas
+// ============================================================================
+
+/**
+ * Memory List Response Schema
+ *
+ * Response for GET /api/memory endpoint
+ */
+export const MemoryListResponseSchema = z.object({
+  /** Array of memory entries */
+  memories: z.array(MemoryEntrySchema),
+
+  /** Total count (for pagination) */
+  total: z.number().int().min(0),
+
+  /** Pagination offset */
+  offset: z.number().int().min(0),
+
+  /** Page size limit */
+  limit: z.number().int().min(1),
+});
+
+export type MemoryListResponse = z.infer<typeof MemoryListResponseSchema>;
+
+/**
+ * Memory Search Response Schema
+ *
+ * Response for GET /api/memory/search endpoint
+ */
+export const MemorySearchResponseSchema = z.object({
+  /** Array of search results with similarity scores */
+  results: z.array(MemorySearchResultSchema),
+
+  /** Search query that was executed */
+  query: z.string(),
+
+  /** Total number of results found */
+  total: z.number().int().min(0),
+});
+
+export type MemorySearchResponse = z.infer<typeof MemorySearchResponseSchema>;
+
+/**
+ * Memory Stats Response Schema
+ *
+ * Response for GET /api/memory/stats endpoint
+ */
+export const MemoryStatsResponseSchema = z.object({
+  /** Total number of memories */
+  count: z.number().int().min(0),
+
+  /** Maximum memories allowed */
+  maxMemories: z.number().int().min(1),
+
+  /** Capacity percentage (0-1) */
+  capacityPercent: z.number().min(0).max(1),
+
+  /** Warning threshold (0-1) */
+  warningThreshold: z.number().min(0).max(1),
+
+  /** Whether capacity warning should be shown */
+  showWarning: z.boolean(),
+});
+
+export type MemoryStatsResponse = z.infer<typeof MemoryStatsResponseSchema>;
+
+/**
+ * Memory Create Request Schema
+ *
+ * Request body for POST /api/memory endpoint
+ */
+export const MemoryCreateRequestSchema = z.object({
+  /** Memory content (required) */
+  content: z.string().min(1).max(8192),
+
+  /** Optional metadata */
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type MemoryCreateRequest = z.infer<typeof MemoryCreateRequestSchema>;
+
+/**
+ * Memory Update Request Schema
+ *
+ * Request body for PUT /api/memory/:id endpoint
+ */
+export const MemoryUpdateRequestSchema = z.object({
+  /** Updated content */
+  content: z.string().min(1).max(8192),
+
+  /** Optional updated metadata */
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type MemoryUpdateRequest = z.infer<typeof MemoryUpdateRequestSchema>;
+
+/**
+ * Memory Operation Response Schema
+ *
+ * Generic success response for create/update/delete operations
+ */
+export const MemoryOperationResponseSchema = z.object({
+  /** Operation success indicator */
+  success: z.boolean(),
+
+  /** Affected memory ID */
+  memoryId: z.string().uuid(),
+
+  /** Human-readable message */
+  message: z.string(),
+
+  /** Optionally return the updated/created memory */
+  memory: MemoryEntrySchema.optional(),
+});
+
+export type MemoryOperationResponse = z.infer<typeof MemoryOperationResponseSchema>;

@@ -25,9 +25,9 @@
 
 **Purpose**: Configuration and shared schema foundation
 
-- [ ] T001 [P] Add memory capacity environment variables to apps/server/src/config.ts (MEMORY_MAX_PER_USER=1000, MEMORY_DUPLICATE_THRESHOLD=0.95, MEMORY_CAPACITY_WARN_PCT=0.80)
-- [ ] T002 [P] Extend MemoryEntry schema in packages/chat-shared/src/schemas/memory.ts with API request/response types
-- [ ] T003 [P] Create memory API response schemas (MemoryListResponse, MemorySearchResponse, MemoryStatsResponse) in packages/chat-shared/src/schemas/memory.ts
+- [X] T001 [P] Add memory capacity environment variables to apps/server/src/config.ts (MEMORY_MAX_PER_USER=1000, MEMORY_DUPLICATE_THRESHOLD=0.95, MEMORY_CAPACITY_WARN_PCT=0.80)
+- [X] T002 [P] Extend MemoryEntry schema in packages/chat-shared/src/schemas/memory.ts with API request/response types
+- [X] T003 [P] Create memory API response schemas (MemoryListResponse, MemorySearchResponse, MemoryStatsResponse) in packages/chat-shared/src/schemas/memory.ts
 
 ---
 

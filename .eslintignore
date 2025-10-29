@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Test coverage
+coverage/
+
+# Generated files
+*.min.js
+*.bundle.js
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+
+# Package manager
+.pnpm-store/
+.corepack/
+
+# Prisma generated
+apps/server/src/generated/
+
+# MCP
+.playwright-mcp/
