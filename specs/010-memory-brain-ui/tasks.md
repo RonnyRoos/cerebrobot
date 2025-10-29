@@ -58,9 +58,9 @@
 
 #### Backend - Memory List Endpoint
 
-- [ ] T010 [P] [US1] Implement GET /api/memory endpoint in apps/server/src/routes/memory.ts (list memories by threadId with pagination)
-- [ ] T011 [P] [US1] Unit test for GET /api/memory pagination in apps/server/__tests__/routes/memory.test.ts
-- [ ] T012 [P] [US1] Add Pino logging for memory list operations in apps/server/src/routes/memory.ts
+- [X] T010 [P] [US1] Implement GET /api/memory endpoint in apps/server/src/routes/memory.ts (list memories by threadId with pagination)
+- [X] T011 [P] [US1] Unit test for GET /api/memory pagination in apps/server/__tests__/routes/memory.test.ts
+- [X] T012 [P] [US1] Add Pino logging for memory list operations in apps/server/src/routes/memory.ts
 
 #### Backend - WebSocket Events
 

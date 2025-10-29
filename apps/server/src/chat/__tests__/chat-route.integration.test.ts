@@ -48,10 +48,19 @@ describe('Chat routes', () => {
   it('registers only the WebSocket streaming endpoint for chat streaming', async () => {
     const agent = createAgent();
     const mockCheckpointer = {} as BaseCheckpointSaver;
-    const { server: app } = buildServer({
+    const { server: app} = buildServer({
       threadManager,
       getAgent: async () => agent,
       checkpointer: mockCheckpointer,
+      infrastructureConfig: {
+        port: 3000,
+        persistence: { provider: 'memory' },
+        memory: {
+          maxPerUser: 1000,
+          duplicateThreshold: 0.95,
+          capacityWarnPercent: 0.8,
+        },
+      },
     });
     await app.ready();
 
@@ -81,6 +90,15 @@ describe('Chat routes', () => {
       threadManager,
       getAgent: async () => agent,
       checkpointer: mockCheckpointer,
+      infrastructureConfig: {
+        port: 3000,
+        persistence: { provider: 'memory' },
+        memory: {
+          maxPerUser: 1000,
+          duplicateThreshold: 0.95,
+          capacityWarnPercent: 0.8,
+        },
+      },
     });
     await app.ready();
 

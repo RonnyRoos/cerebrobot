@@ -7,7 +7,7 @@
 
 import type { Logger } from 'pino';
 import type { PrismaClient } from '@prisma/client';
-import type { BaseStore } from '@cerebrobot/chat-shared';
+import type { BaseStore, MemoryEntry } from '@cerebrobot/chat-shared';
 import type { MemoryConfig as InfraMemoryConfig } from '../../config.js';
 
 export interface MemoryCapacityCheck {
@@ -86,13 +86,80 @@ export class MemoryService {
   }
 
   /**
-   * Check if adding a new memory would exceed capacity
+   * Check if a memory can be added without exceeding capacity
    *
    * @param namespace - Memory namespace
-   * @returns True if within capacity, false if at limit
+   * @returns True if memory can be added, false if at capacity
    */
   async canAddMemory(namespace: string[]): Promise<boolean> {
     const capacity = await this.checkCapacity(namespace);
     return !capacity.atCapacity;
+  }
+
+  /**
+   * List memories in a namespace with pagination
+   *
+   * @param namespace - Memory namespace
+   * @param offset - Pagination offset (default: 0)
+   * @param limit - Page size (default: 20, max: 100)
+   * @returns Paginated memory list with total count
+   */
+  async listMemories(
+    namespace: string[],
+    offset: number = 0,
+    limit: number = 20,
+  ): Promise<{ memories: MemoryEntry[]; total: number }> {
+    try {
+      // Count total memories in namespace using $queryRaw (namespace is text[] in Postgres)
+      const countResult = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*) as count
+        FROM memories
+        WHERE namespace = ${namespace}
+      `;
+      const total = Number(countResult[0].count);
+
+      // Query memories with pagination (newest first)
+      const records = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          namespace: string[];
+          key: string;
+          content: string;
+          metadata: unknown;
+          created_at: Date;
+          updated_at: Date;
+        }>
+      >`
+        SELECT id, namespace, key, content, metadata, created_at, updated_at
+        FROM memories
+        WHERE namespace = ${namespace}
+        ORDER BY created_at DESC
+        LIMIT ${Math.min(limit, 100)}
+        OFFSET ${offset}
+      `;
+
+      const memories: MemoryEntry[] = records.map((record) => ({
+        id: record.id,
+        namespace: record.namespace,
+        key: record.key,
+        content: record.content,
+        metadata: (record.metadata as Record<string, unknown>) ?? undefined,
+        createdAt: record.created_at,
+        updatedAt: record.updated_at,
+        // Embedding is optional in MemoryEntry schema
+      }));
+
+      this.logger.debug(
+        { namespace, offset, limit, total, returnedCount: memories.length },
+        'Listed memories with pagination',
+      );
+
+      return { memories, total };
+    } catch (error) {
+      this.logger.error({ error, namespace, offset, limit }, 'Failed to list memories');
+      throw new Error(
+        `Failed to list memories: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 }

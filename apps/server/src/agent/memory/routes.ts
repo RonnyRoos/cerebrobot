@@ -6,12 +6,23 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { Logger } from 'pino';
+import { z } from 'zod';
+import type { PrismaClient } from '@prisma/client';
+import { buildAgentMemoryNamespace, MemoryListResponseSchema } from '@cerebrobot/chat-shared';
 import type { MemoryService } from './service.js';
 
 interface MemoryRoutesOptions {
   readonly logger: Logger;
   readonly memoryService: MemoryService;
+  readonly prisma: PrismaClient;
 }
+
+// Query parameter validation schemas
+const GetMemoriesQuerySchema = z.object({
+  threadId: z.string().uuid('Invalid threadId format'),
+  offset: z.coerce.number().int().min(0).default(0).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
+});
 
 /**
  * Register memory API routes
@@ -25,9 +36,7 @@ interface MemoryRoutesOptions {
  * - DELETE /api/memory/:id - Delete memory (US3: T041)
  */
 export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutesOptions): void {
-  const { logger } = options;
-  // Note: memoryService will be used in user story implementations
-  const _memoryService = options.memoryService;
+  const { logger, memoryService, prisma } = options;
 
   /**
    * GET /api/memory
@@ -36,11 +45,74 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
    * Implementation: User Story 1 (T010)
    */
   app.get('/api/memory', async (request, reply) => {
-    logger.debug('GET /api/memory - placeholder for US1 implementation');
-    return reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Memory list endpoint will be implemented in User Story 1 (T010)',
-    });
+    // Validate query parameters
+    const queryParse = GetMemoriesQuerySchema.safeParse(request.query);
+
+    if (!queryParse.success) {
+      logger.warn({ errors: queryParse.error }, 'Invalid query parameters for GET /api/memory');
+      return reply.status(400).send({
+        error: 'Invalid query parameters',
+        details: queryParse.error.issues,
+      });
+    }
+
+    const { threadId, offset = 0, limit = 20 } = queryParse.data;
+
+    try {
+      // Look up thread to get agentId and userId
+      const thread = await prisma.thread.findUnique({
+        where: { id: threadId },
+        select: { agentId: true, userId: true },
+      });
+
+      if (!thread) {
+        logger.warn({ threadId }, 'Thread not found for GET /api/memory');
+        return reply.status(404).send({
+          error: 'Thread not found',
+          message: `Thread ${threadId} does not exist`,
+        });
+      }
+
+      if (!thread.userId) {
+        logger.warn({ threadId }, 'Thread has no userId - cannot list memories');
+        return reply.status(400).send({
+          error: 'Invalid thread',
+          message: 'Thread must have a userId to access memories',
+        });
+      }
+
+      // Build memory namespace
+      const namespace = buildAgentMemoryNamespace(thread.agentId, thread.userId);
+
+      logger.debug(
+        { threadId, agentId: thread.agentId, userId: thread.userId, namespace, offset, limit },
+        'Fetching memories for thread',
+      );
+
+      // Fetch memories from service
+      const result = await memoryService.listMemories(namespace, offset, limit);
+
+      logger.info(
+        { threadId, total: result.total, returned: result.memories.length, offset, limit },
+        'Successfully fetched memories',
+      );
+
+      // Format and validate response
+      const response = MemoryListResponseSchema.parse({
+        memories: result.memories,
+        total: result.total,
+        offset,
+        limit,
+      });
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      logger.error({ error, threadId, offset, limit }, 'Failed to fetch memories');
+      return reply.status(500).send({
+        error: 'Failed to fetch memories',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   });
 
   /**
