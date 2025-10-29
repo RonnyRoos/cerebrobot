@@ -37,12 +37,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create MemoryService in apps/server/src/agent/memory/service.ts with capacity checking method
-- [ ] T005 Create memory REST route handler skeleton in apps/server/src/routes/memory.ts
-- [ ] T006 Register memory routes in apps/server/src/app.ts
-- [ ] T007 Create memory API client skeleton in apps/client/src/services/memoryApi.ts
-- [ ] T008 Create useMemories React hook skeleton in apps/client/src/hooks/useMemories.ts
-- [ ] T009 Unit test for MemoryService capacity validation in apps/server/__tests__/agent/memory/service.test.ts
+- [X] T004 Create MemoryService in apps/server/src/agent/memory/service.ts with capacity checking method
+- [X] T005 Create memory REST route handler skeleton in apps/server/src/agent/memory/routes.ts
+- [X] T006 Register memory routes in apps/server/src/app.ts
+- [X] T007 Create memory API client skeleton in apps/client/src/lib/memoryApi.ts
+- [X] T008 Create useMemories React hook skeleton in apps/client/src/hooks/useMemories.ts
+- [X] T009 Unit test for MemoryService capacity validation in apps/server/src/agent/memory/__tests__/service.test.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

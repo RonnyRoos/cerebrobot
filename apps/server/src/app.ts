@@ -5,13 +5,17 @@ import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import { PrismaClient } from '@prisma/client';
 import type { ChatAgent } from './chat/chat-agent.js';
 import type { ThreadManager } from './thread-manager/thread-manager.js';
+import type { InfrastructureConfig } from './config.js';
 import { registerThreadRoutes as registerThreadCreationRoutes } from './thread-manager/routes.js';
 import { registerChatRoutes } from './chat/routes.js';
 import { registerAgentRoutes } from './agent/routes.js';
 import { registerUserRoutes } from './user/routes.js';
 import { registerThreadRoutes } from './thread/routes.js';
+import { registerMemoryRoutes } from './agent/memory/routes.js';
 import { createThreadService } from './thread/service.js';
 import { ConnectionManager } from './chat/connection-manager.js';
+import { createMemoryStore } from './agent/memory/index.js';
+import { MemoryService } from './agent/memory/service.js';
 import {
   EventStore,
   OutboxStore,
@@ -34,6 +38,7 @@ export interface BuildServerOptions {
   readonly threadManager: ThreadManager;
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
   readonly checkpointer: BaseCheckpointSaver;
+  readonly infrastructureConfig: InfrastructureConfig;
   readonly logger?: Logger;
 }
 
@@ -271,6 +276,24 @@ export function buildServer(options: BuildServerOptions): {
     registerAgentRoutes(fastifyInstance);
     registerThreadCreationRoutes(fastifyInstance, options.threadManager);
     registerUserRoutes(fastifyInstance, { logger });
+
+    // Initialize memory infrastructure (Phase 2: Foundational)
+    const memoryStore = createMemoryStore(
+      logger.child({ component: 'memory-store' }),
+      undefined,
+      prisma,
+    );
+    const memoryService = new MemoryService(
+      memoryStore,
+      prisma,
+      options.infrastructureConfig.memory,
+      logger.child({ component: 'memory-service' }),
+    );
+    registerMemoryRoutes(fastifyInstance, {
+      logger: logger.child({ component: 'memory-routes' }),
+      memoryService,
+    });
+
     registerChatRoutes(fastifyInstance, {
       threadManager: options.threadManager,
       getAgent: options.getAgent,

@@ -62,6 +62,7 @@ export async function bootstrap(): Promise<void> {
     threadManager,
     getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     checkpointer,
+    infrastructureConfig,
     logger: logger.child({ component: 'fastify' }),
   });
 
