@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import fastify from 'fastify';
-import type { PrismaClient, Memory } from '@prisma/client';
+import type { PrismaClient, Memory, Thread } from '@prisma/client';
 import type { Logger } from 'pino';
 import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import { registerMemoryRoutes } from '../routes.js';
@@ -766,6 +766,7 @@ describe('Memory Routes - POST /api/memory', () => {
       canAddMemory: vi.fn(),
       checkCapacity: vi.fn(),
       createMemory: vi.fn(),
+      findDuplicates: vi.fn().mockResolvedValue([]), // Default: no duplicates found
     } as unknown as MemoryService;
 
     mockPrisma = {
@@ -990,5 +991,224 @@ describe('Memory Routes - POST /api/memory', () => {
     expect(body.success).toBe(true);
     expect(body.memory.metadata.source).toBe('manual');
     expect(body.memory.metadata.createdBy).toBe('operator');
+  });
+});
+
+describe('Memory Routes - GET /api/memory/stats', () => {
+  let app: FastifyInstance;
+  let mockMemoryService: MemoryService;
+  let mockPrisma: PrismaClient;
+  let mockLogger: Logger;
+
+  beforeEach(async () => {
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    } as unknown as Logger;
+
+    mockMemoryService = {
+      checkCapacity: vi.fn(),
+    } as unknown as MemoryService;
+
+    mockPrisma = {
+      thread: {
+        findUnique: vi.fn(),
+      },
+    } as unknown as PrismaClient;
+
+    app = fastify({ logger: false });
+    registerMemoryRoutes(app, {
+      logger: mockLogger,
+      memoryService: mockMemoryService,
+      prisma: mockPrisma,
+    });
+
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 if threadId is missing', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/memory/stats',
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid query parameters');
+  });
+
+  it('should return 400 if threadId is not a valid UUID', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/memory/stats?threadId=invalid',
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid query parameters');
+  });
+
+  it('should return 404 if thread does not exist', async () => {
+    const threadId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(null);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/stats?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Thread not found');
+  });
+
+  it('should return memory stats with no warning below 80%', async () => {
+    const threadId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+    const thread = {
+      id: threadId,
+      agentId: 'agent-123',
+      userId: 'user-456',
+    };
+
+    const capacityInfo = {
+      count: 500,
+      maxMemories: 1000,
+      capacityPercent: 0.5,
+      warningThreshold: 0.8,
+      showWarning: false,
+      atCapacity: false,
+    };
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(thread as Thread);
+    vi.mocked(mockMemoryService.checkCapacity).mockResolvedValue(capacityInfo);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/stats?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toEqual({
+      count: 500,
+      maxMemories: 1000,
+      capacityPercent: 0.5,
+      warningThreshold: 0.8,
+      showWarning: false,
+    });
+  });
+
+  it('should return memory stats with warning at 80%', async () => {
+    const threadId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+    const thread = {
+      id: threadId,
+      agentId: 'agent-123',
+      userId: 'user-456',
+    };
+
+    const capacityInfo = {
+      count: 800,
+      maxMemories: 1000,
+      capacityPercent: 0.8,
+      warningThreshold: 0.8,
+      showWarning: true,
+      atCapacity: false,
+    };
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(thread as Thread);
+    vi.mocked(mockMemoryService.checkCapacity).mockResolvedValue(capacityInfo);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/stats?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toEqual({
+      count: 800,
+      maxMemories: 1000,
+      capacityPercent: 0.8,
+      warningThreshold: 0.8,
+      showWarning: true,
+    });
+  });
+
+  it('should return memory stats with warning above 80%', async () => {
+    const threadId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+    const thread = {
+      id: threadId,
+      agentId: 'agent-123',
+      userId: 'user-456',
+    };
+
+    const capacityInfo = {
+      count: 950,
+      maxMemories: 1000,
+      capacityPercent: 0.95,
+      warningThreshold: 0.8,
+      showWarning: true,
+      atCapacity: false,
+    };
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(thread as Thread);
+    vi.mocked(mockMemoryService.checkCapacity).mockResolvedValue(capacityInfo);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/stats?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.showWarning).toBe(true);
+    expect(body.capacityPercent).toBe(0.95);
+  });
+
+  it('should return 500 if thread is missing agentId', async () => {
+    const threadId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+    const thread = {
+      id: threadId,
+      agentId: null,
+      userId: 'user-456',
+    };
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(thread as Thread);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/stats?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(500);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid thread state');
+  });
+
+  it('should return 500 if thread is missing userId', async () => {
+    const threadId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+    const thread = {
+      id: threadId,
+      agentId: 'agent-123',
+      userId: null,
+    };
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(thread as Thread);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/stats?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(500);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid thread state');
   });
 });

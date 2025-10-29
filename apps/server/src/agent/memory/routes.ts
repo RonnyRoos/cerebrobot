@@ -246,20 +246,6 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
   });
 
   /**
-   * GET /api/memory/stats
-   *
-   * Get memory capacity statistics
-   * Implementation: User Story 5 (T073)
-   */
-  app.get('/api/memory/stats', async (request, reply) => {
-    logger.debug('GET /api/memory/stats - placeholder for US5 implementation');
-    return reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Memory stats endpoint will be implemented in User Story 5 (T073)',
-    });
-  });
-
-  /**
    * POST /api/memory
    *
    * Create a new memory manually
@@ -626,6 +612,89 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       return reply.status(500).send({
         error: 'Failed to delete memory',
         message: 'An error occurred while deleting the memory',
+      });
+    }
+  });
+
+  /**
+   * GET /api/memory/stats
+   *
+   * Get memory statistics for a thread (count and capacity)
+   * Implementation: User Story 5 (T073)
+   */
+  app.get('/api/memory/stats', async (request, reply) => {
+    // Validate query parameters
+    const queryValidation = MemoryThreadQuerySchema.safeParse(request.query);
+    if (!queryValidation.success) {
+      logger.warn(
+        { errors: queryValidation.error },
+        'Invalid query parameters for GET /api/memory/stats',
+      );
+      return reply.status(400).send({
+        error: 'Invalid query parameters',
+        details: queryValidation.error.issues,
+      });
+    }
+
+    const { threadId } = queryValidation.data;
+
+    try {
+      logger.debug({ threadId }, 'Fetching memory statistics');
+
+      // Get thread to extract agentId and userId
+      const thread = await prisma.thread.findUnique({
+        where: { id: threadId },
+      });
+
+      if (!thread) {
+        logger.warn({ threadId }, 'Thread not found for memory stats');
+        return reply.status(404).send({
+          error: 'Thread not found',
+          message: `Thread ${threadId} does not exist`,
+        });
+      }
+
+      // Validate thread has required fields
+      if (!thread.agentId || !thread.userId) {
+        logger.error(
+          { threadId, agentId: thread.agentId, userId: thread.userId },
+          'Thread missing required fields',
+        );
+        return reply.status(500).send({
+          error: 'Invalid thread state',
+          message: 'Thread is missing agentId or userId',
+        });
+      }
+
+      // Build namespace: ['memories', agentId, userId]
+      const namespace = ['memories', thread.agentId, thread.userId];
+
+      // Get capacity stats
+      const capacity = await memoryService.checkCapacity(namespace);
+
+      logger.info(
+        {
+          threadId,
+          namespace,
+          count: capacity.count,
+          capacityPercent: capacity.capacityPercent,
+          showWarning: capacity.showWarning,
+        },
+        'Memory statistics retrieved',
+      );
+
+      return reply.status(200).send({
+        count: capacity.count,
+        maxMemories: capacity.maxMemories,
+        capacityPercent: capacity.capacityPercent,
+        warningThreshold: capacity.warningThreshold,
+        showWarning: capacity.showWarning,
+      });
+    } catch (error) {
+      logger.error({ error, threadId }, 'Failed to retrieve memory statistics');
+      return reply.status(500).send({
+        error: 'Failed to retrieve memory statistics',
+        message: 'An error occurred while retrieving memory statistics',
       });
     }
   });
