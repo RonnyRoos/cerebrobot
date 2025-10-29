@@ -24,9 +24,10 @@ interface MemoryListProps {
 /**
  * Format timestamp as relative time (e.g., "2 minutes ago")
  */
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  const diffMs = now.getTime() - dateObj.getTime();
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHour = Math.floor(diffMin / 60);
@@ -38,10 +39,10 @@ function formatRelativeTime(date: Date): string {
   if (diffDay < 7) return `${diffDay} ${diffDay === 1 ? 'day' : 'days'} ago`;
 
   // For older entries, show date
-  return date.toLocaleDateString(undefined, {
+  return dateObj.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    year: dateObj.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
   });
 }
 
@@ -137,7 +138,11 @@ export function MemoryList({ memories, isLoading, error }: MemoryListProps): JSX
 
           {/* Timestamp */}
           <time
-            dateTime={memory.createdAt.toISOString()}
+            dateTime={
+              typeof memory.createdAt === 'string'
+                ? memory.createdAt
+                : memory.createdAt.toISOString()
+            }
             style={{
               display: 'block',
               marginTop: '0.5rem',

@@ -10,12 +10,13 @@
     "apiBase": "https://api.deepinfra.com/v1/openai"
   },
   "memory": {
-    "hotPathLimit": 1000,
-    "hotPathTokenBudget": 1024,
-    "recentMessageFloor": 2,
-    "hotPathMarginPct": 0.3,
+    "hotPathLimit": 16,
+    "hotPathTokenBudget": 3000,
+    "recentMessageFloor": 4,
+    "hotPathMarginPct": 0.1,
     "embeddingModel": "Qwen/Qwen3-Embedding-8B",
     "embeddingEndpoint": "https://api.deepinfra.com/v1/openai",
+    "apiKey": "YOUR_DEEPINFRA_API_KEY_HERE",
     "similarityThreshold": 0.5,
     "maxTokens": 2048,
     "injectionBudget": 1000,
