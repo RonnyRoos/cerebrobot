@@ -6,7 +6,13 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { MemoryEntry, MemorySearchResult, MemoryStatsResponse } from '@cerebrobot/chat-shared';
+import type {
+  MemoryEntry,
+  MemorySearchResult,
+  MemoryStatsResponse,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+} from '@cerebrobot/chat-shared';
 import { memoryApi } from '../lib/memoryApi.js';
 
 interface UseMemoriesResult {
@@ -39,6 +45,12 @@ interface UseMemoriesResult {
 
   /** Delete memory (US3: T051) */
   deleteMemory: (memoryId: string) => Promise<void>;
+
+  /** Handle memory.updated WebSocket event (US3: T052) */
+  handleMemoryUpdated: (event: MemoryUpdatedEvent) => void;
+
+  /** Handle memory.deleted WebSocket event (US3: T052) */
+  handleMemoryDeleted: (event: MemoryDeletedEvent) => void;
 
   /** Fetch capacity stats (US5: T077) */
   fetchStats: (threadId: string) => Promise<void>;
@@ -134,6 +146,49 @@ export function useMemories(): UseMemoriesResult {
     }
   }, []);
 
+  /**
+   * Handle memory.updated WebSocket event (T052)
+   * Updates the memory in the local state when edited via API or by another client
+   */
+  const handleMemoryUpdated = useCallback((event: MemoryUpdatedEvent) => {
+    setMemories((current) => {
+      const index = current.findIndex((m) => m.id === event.memory.id);
+      if (index === -1) {
+        // Memory not in current list - could be filtered or paginated
+        return current;
+      }
+      // Replace with updated memory
+      const updated = [...current];
+      updated[index] = event.memory;
+      return updated;
+    });
+
+    // Also update search results if they exist
+    setSearchResults((current) => {
+      if (!current) return null;
+      const index = current.findIndex((r) => r.id === event.memory.id);
+      if (index === -1) return current;
+      const updated = [...current];
+      // Preserve similarity score when updating search result
+      updated[index] = { ...event.memory, similarity: updated[index].similarity };
+      return updated;
+    });
+  }, []);
+
+  /**
+   * Handle memory.deleted WebSocket event (T052)
+   * Removes the memory from local state when deleted via API or by another client
+   */
+  const handleMemoryDeleted = useCallback((event: MemoryDeletedEvent) => {
+    setMemories((current) => current.filter((m) => m.id !== event.memoryId));
+
+    // Also remove from search results if they exist
+    setSearchResults((current) => {
+      if (!current) return null;
+      return current.filter((r) => r.id !== event.memoryId);
+    });
+  }, []);
+
   return {
     memories,
     searchResults,
@@ -145,6 +200,8 @@ export function useMemories(): UseMemoriesResult {
     createMemory,
     updateMemory,
     deleteMemory,
+    handleMemoryUpdated,
+    handleMemoryDeleted,
     fetchStats,
   };
 }

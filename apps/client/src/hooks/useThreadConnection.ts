@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChatStreamEvent, MemoryCreatedEvent } from '@cerebrobot/chat-shared';
+import type {
+  ChatStreamEvent,
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+} from '@cerebrobot/chat-shared';
 import { WS_CLOSE_CODES } from '@cerebrobot/chat-shared';
 
 /**
@@ -36,6 +41,8 @@ export function useThreadConnection(
   onAutonomousToken?: (requestId: string, token: string) => void,
   onAutonomousComplete?: (requestId: string, message: string, latencyMs?: number) => void,
   onMemoryCreated?: (event: MemoryCreatedEvent) => void,
+  onMemoryUpdated?: (event: MemoryUpdatedEvent) => void,
+  onMemoryDeleted?: (event: MemoryDeletedEvent) => void,
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const inflightRequestsRef = useRef<Map<string, ResponseHandler>>(new Map());
@@ -47,6 +54,8 @@ export function useThreadConnection(
   const onAutonomousTokenRef = useRef(onAutonomousToken);
   const onAutonomousCompleteRef = useRef(onAutonomousComplete);
   const onMemoryCreatedRef = useRef(onMemoryCreated);
+  const onMemoryUpdatedRef = useRef(onMemoryUpdated);
+  const onMemoryDeletedRef = useRef(onMemoryDeleted);
 
   // Update callback refs when props change
   useEffect(() => {
@@ -54,7 +63,16 @@ export function useThreadConnection(
     onAutonomousTokenRef.current = onAutonomousToken;
     onAutonomousCompleteRef.current = onAutonomousComplete;
     onMemoryCreatedRef.current = onMemoryCreated;
-  }, [onAutonomousMessage, onAutonomousToken, onAutonomousComplete, onMemoryCreated]);
+    onMemoryUpdatedRef.current = onMemoryUpdated;
+    onMemoryDeletedRef.current = onMemoryDeleted;
+  }, [
+    onAutonomousMessage,
+    onAutonomousToken,
+    onAutonomousComplete,
+    onMemoryCreated,
+    onMemoryUpdated,
+    onMemoryDeleted,
+  ]);
 
   /**
    * Resolve WebSocket URL from environment or default
@@ -159,13 +177,29 @@ export function useThreadConnection(
 
       ws.addEventListener('message', (event) => {
         try {
-          const serverEvent = JSON.parse(event.data) as ChatStreamEvent | MemoryCreatedEvent;
+          const serverEvent = JSON.parse(event.data) as
+            | ChatStreamEvent
+            | MemoryCreatedEvent
+            | MemoryUpdatedEvent
+            | MemoryDeletedEvent;
 
           // Handle memory events (no requestId correlation needed)
-          if ('type' in serverEvent && serverEvent.type === 'memory.created') {
-            const memoryEvent = serverEvent as MemoryCreatedEvent;
-            onMemoryCreatedRef.current?.(memoryEvent);
-            return;
+          if ('type' in serverEvent) {
+            if (serverEvent.type === 'memory.created') {
+              const memoryEvent = serverEvent as MemoryCreatedEvent;
+              onMemoryCreatedRef.current?.(memoryEvent);
+              return;
+            }
+            if (serverEvent.type === 'memory.updated') {
+              const memoryEvent = serverEvent as MemoryUpdatedEvent;
+              onMemoryUpdatedRef.current?.(memoryEvent);
+              return;
+            }
+            if (serverEvent.type === 'memory.deleted') {
+              const memoryEvent = serverEvent as MemoryDeletedEvent;
+              onMemoryDeletedRef.current?.(memoryEvent);
+              return;
+            }
           }
 
           // Handle chat stream events (require requestId correlation)

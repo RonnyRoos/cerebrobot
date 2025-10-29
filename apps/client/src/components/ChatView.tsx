@@ -80,6 +80,8 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     fetchMemories,
     searchMemories,
     clearSearch,
+    handleMemoryUpdated,
+    handleMemoryDeleted,
   } = useMemories();
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -150,6 +152,8 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     getActiveThreadId,
     initialMessages,
     onMemoryCreated: handleMemoryCreated,
+    onMemoryUpdated: handleMemoryUpdated,
+    onMemoryDeleted: handleMemoryDeleted,
   });
 
   const startNewThread = useCallback(
