@@ -11,6 +11,15 @@ Cerebrobot's defining characteristic is its transparent, inspectable memory syst
 
 **Core Value Proposition**: Operators gain unprecedented visibility into what their AI agent knows, believes, and remembers about them, with the power to correct, enhance, or prune memories as needed.
 
+## Clarifications
+
+### Session 2025-10-29
+
+- Q: What similarity threshold should trigger duplicate prevention? → A: 0.95 (95% similar)
+- Q: How should memory creation notifications be displayed to operators? → A: Sidebar panel updates (memory browser auto-opens or highlights new entries)
+- Q: At what point should the system warn operators about approaching capacity? → A: 80% capacity (800/1000 memories)
+- Q: Should the memory browser sidebar be open or closed by default when operators start a conversation? → A: Closed by default, toggle button to open
+
 ## Problem Statement
 
 ### Current Pain Points
@@ -60,9 +69,9 @@ As an operator having a conversation with my agent, I want to see what facts the
 
 **Acceptance Scenarios**:
 
-1. **Given** I am chatting with my agent, **When** the agent stores a new memory during our conversation (e.g., "User prefers dark mode"), **Then** I see an immediate notification showing what was just learned
-2. **Given** I am viewing my conversation, **When** I want to see all memories the agent has about me, **Then** I can access a memory browser showing all stored facts in chronological order
-3. **Given** I am viewing the memory list, **When** I look at a memory entry, **Then** I can see its content, when it was created, and when it was last updated
+1. **Given** I am chatting with my agent, **When** the agent stores a new memory during our conversation (e.g., "User prefers dark mode"), **Then** the memory browser sidebar auto-opens or highlights the new entry to show what was just learned
+2. **Given** I am viewing my conversation, **When** I want to see all memories the agent has about me, **Then** I can click a toggle button to open the memory browser sidebar showing all stored facts in chronological order
+3. **Given** I am viewing the memory list in the sidebar, **When** I look at a memory entry, **Then** I can see its content, when it was created, and when it was last updated
 4. **Given** the agent stores multiple memories during a conversation, **When** I view the memory browser, **Then** I see all new memories appear in real-time without refreshing
 5. **Given** I have an active conversation in one browser tab and the memory browser open in another, **When** the agent stores a new memory, **Then** both views update simultaneously
 
@@ -135,7 +144,7 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 2. **Given** I have identified duplicate memories, **When** I select multiple similar memories, **Then** I can choose to keep the best one and remove the others
 3. **Given** the agent is about to store a new memory, **When** a very similar memory already exists, **Then** the system prevents duplicate storage and may update the existing memory instead
 4. **Given** I am viewing my memories, **When** I look at the list, **Then** I can see indicators of memory quality or importance to help me prioritize what to keep
-5. **Given** I have many memories in my knowledge base, **When** I reach a certain limit, **Then** I receive a warning to review and clean up old or less important memories
+5. **Given** I have many memories in my knowledge base, **When** I reach 80% capacity (800 memories), **Then** I receive a warning to review and clean up old or less important memories
 
 ---
 
@@ -180,14 +189,14 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 
 #### Visibility & Discovery
 
-- **FR-001**: System MUST display all memories stored by the agent for the current operator in a browsable interface
-- **FR-002**: System MUST show real-time notifications when the agent stores a new memory during an active conversation
+- **FR-001**: System MUST display all memories stored by the agent for the current operator in a sidebar memory browser interface that is closed by default with a toggle button to open
+- **FR-002**: System MUST auto-open or highlight new entries in the memory browser sidebar when the agent stores a new memory during an active conversation
 - **FR-003**: System MUST display for each memory: its content, creation timestamp, and last update timestamp
 - **FR-004**: System MUST allow operators to search for memories using natural language queries
 - **FR-005**: System MUST rank search results by semantic relevance to the query
 - **FR-006**: System MUST indicate the relevance or match quality for each search result
 - **FR-007**: System MUST update all open views when memories are created, edited, or deleted without requiring manual refresh
-- **FR-008**: System MUST persist the memory browser state across browser sessions (e.g., last viewed position, search query)
+- **FR-008**: System MUST persist the memory browser sidebar state (open/closed) across browser sessions
 
 #### Memory Management
 
@@ -200,8 +209,8 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 
 #### Quality & Organization
 
-- **FR-015**: System MUST prevent storing near-duplicate memories when similarity exceeds a threshold
-- **FR-016**: System MUST provide visual indicators when memories are very similar to each other
+- **FR-015**: System MUST prevent storing near-duplicate memories when similarity exceeds 0.95 (95% threshold)
+- **FR-016**: System MUST provide visual indicators when memories are very similar to each other (similarity ≥ 0.90)
 - **FR-017**: System MUST allow operators to view memories in chronological order (newest first or oldest first)
 - **FR-018**: System MUST display a count of total memories stored for the operator
 
@@ -210,7 +219,7 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 - **FR-019**: Memory browser MUST remain responsive when displaying collections of 100+ memories
 - **FR-020**: Search results MUST return within 3 seconds for typical memory collections (up to 1000 memories)
 - **FR-021**: System MUST handle up to 1000 memories per operator without degradation
-- **FR-022**: System MUST warn operators when approaching memory capacity limits
+- **FR-022**: System MUST warn operators when reaching 80% capacity (800 memories) to allow time for cleanup before hitting limits
 
 #### User Experience
 
@@ -218,7 +227,7 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 - **FR-024**: System MUST provide clear messaging when searches return zero results
 - **FR-025**: System MUST handle multiple browser tabs viewing memories without conflicts
 - **FR-026**: System MUST recover gracefully from failed operations and inform the operator
-- **FR-027**: Notification system MUST avoid overwhelming operators when multiple memories are stored in quick succession
+- **FR-027**: Memory browser sidebar MUST batch or throttle highlighting when multiple memories are stored in quick succession to avoid overwhelming operators
 
 ### Key Entities
 
@@ -228,7 +237,7 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 
 - **Search Query**: A natural language question or keyword phrase submitted by an operator to find relevant memories. Processed semantically to find matches beyond exact keyword matching.
 
-- **Memory Notification**: A real-time alert shown to operators when the agent stores new knowledge during conversation. Contains the memory content and timestamp, displayed non-intrusively.
+- **Memory Notification**: A real-time alert shown to operators when the agent stores new knowledge during conversation. Displayed by auto-opening or highlighting the entry in the memory browser sidebar panel. Contains the memory content and timestamp.
 
 - **Duplicate Detection Result**: Identification of memories with high semantic similarity. Includes similarity scores and suggestions for consolidation.
 
