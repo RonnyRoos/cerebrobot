@@ -80,8 +80,10 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     fetchMemories,
     searchMemories,
     clearSearch,
+    createMemory,
     updateMemory,
     deleteMemory,
+    handleMemoryCreated,
     handleMemoryUpdated,
     handleMemoryDeleted,
   } = useMemories();
@@ -102,6 +104,12 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     clearSearch();
   };
 
+  // Handle create memory (US4: T062)
+  const handleCreateMemory = async (content: string) => {
+    if (!activeThreadId) return;
+    await createMemory(activeThreadId, content);
+  };
+
   // Fetch memories when threadId changes
   useEffect(() => {
     if (!activeThreadId) {
@@ -118,22 +126,20 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   }, [activeThreadId, fetchMemories]);
 
   // Handle memory.created events from WebSocket
-  const handleMemoryCreated = useCallback(
+  const handleMemoryCreatedEvent = useCallback(
     (event: MemoryCreatedEvent) => {
       console.log('[ChatView] Memory created event received', event);
+
+      // Update local state via hook handler
+      handleMemoryCreated(event);
 
       // Signal to auto-open the memory sidebar
       setAutoOpenMemory(true);
 
-      // Re-fetch memories to include the new one
-      if (activeThreadId) {
-        void fetchMemories(activeThreadId);
-      }
-
       // Reset auto-open signal after a short delay
       setTimeout(() => setAutoOpenMemory(false), 100);
     },
-    [activeThreadId, fetchMemories],
+    [handleMemoryCreated],
   );
 
   const {
@@ -153,7 +159,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     userId,
     getActiveThreadId,
     initialMessages,
-    onMemoryCreated: handleMemoryCreated,
+    onMemoryCreated: handleMemoryCreatedEvent,
     onMemoryUpdated: handleMemoryUpdated,
     onMemoryDeleted: handleMemoryDeleted,
   });
@@ -394,6 +400,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         autoOpen={autoOpenMemory}
         onSearch={handleSearchMemories}
         onClearSearch={handleClearSearch}
+        onCreateMemory={handleCreateMemory}
         onUpdateMemory={updateMemory}
         onDeleteMemory={deleteMemory}
       />

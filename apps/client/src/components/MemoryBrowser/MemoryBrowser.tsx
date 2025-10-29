@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import { MemoryList } from './MemoryList.js';
 import { MemorySearch } from './MemorySearch.js';
+import { MemoryCreateForm } from './MemoryCreateForm.js';
 
 interface MemoryBrowserProps {
   /** Array of memory entries to display */
@@ -44,6 +45,9 @@ interface MemoryBrowserProps {
 
   /** Callback to delete a memory (US3: T054) */
   onDeleteMemory?: (memoryId: string) => Promise<void>;
+
+  /** Callback to create a memory (US4: T062) */
+  onCreateMemory?: (content: string) => Promise<void>;
 }
 
 const STORAGE_KEY = 'cerebrobot:memory-browser:open';
@@ -82,9 +86,11 @@ export function MemoryBrowser({
   onClearSearch,
   onUpdateMemory,
   onDeleteMemory,
+  onCreateMemory,
 }: MemoryBrowserProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(loadInitialState);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Determine if search is active and what to display
   const isSearchActive = searchResults !== null;
@@ -172,25 +178,53 @@ export function MemoryBrowser({
               backgroundColor: '#f9fafb',
             }}
           >
-            <h2
+            <div
               style={{
-                margin: 0,
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                color: '#111827',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '0.5rem',
               }}
             >
-              🧠 Agent Memory
-            </h2>
-            <p
-              style={{
-                margin: '0.25rem 0 0 0',
-                fontSize: '0.75rem',
-                color: '#6b7280',
-              }}
-            >
-              Real-time memory as the agent learns
-            </p>
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '1.125rem',
+                    fontWeight: '600',
+                    color: '#111827',
+                  }}
+                >
+                  🧠 Agent Memory
+                </h2>
+                <p
+                  style={{
+                    margin: '0.25rem 0 0 0',
+                    fontSize: '0.75rem',
+                    color: '#6b7280',
+                  }}
+                >
+                  Real-time memory as the agent learns
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: '500',
+                  whiteSpace: 'nowrap',
+                }}
+                title="Create a new memory"
+              >
+                + Create
+              </button>
+            </div>
           </header>
 
           {/* Memory List Container */}
@@ -221,6 +255,64 @@ export function MemoryBrowser({
             />
           </div>
         </aside>
+      )}
+
+      {/* Create Memory Modal (US4: T063) */}
+      {showCreateModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-memory-title"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+          onClick={() => setShowCreateModal(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowCreateModal(false);
+          }}
+        >
+          <div
+            role="document"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '0.5rem',
+              padding: '1.5rem',
+              maxWidth: '32rem',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="create-memory-title"
+              style={{
+                margin: '0 0 1rem 0',
+                fontSize: '1.125rem',
+                fontWeight: '600',
+                color: '#111827',
+              }}
+            >
+              Create New Memory
+            </h3>
+            <MemoryCreateForm
+              onSave={async (content: string) => {
+                await onCreateMemory?.(content);
+                setShowCreateModal(false);
+              }}
+              onCancel={() => setShowCreateModal(false)}
+            />
+          </div>
+        </div>
       )}
     </>
   );

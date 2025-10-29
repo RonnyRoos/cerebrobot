@@ -10,6 +10,7 @@ import type {
   MemoryEntry,
   MemorySearchResult,
   MemoryStatsResponse,
+  MemoryCreatedEvent,
   MemoryUpdatedEvent,
   MemoryDeletedEvent,
 } from '@cerebrobot/chat-shared';
@@ -45,6 +46,9 @@ interface UseMemoriesResult {
 
   /** Delete memory (US3: T051) */
   deleteMemory: (memoryId: string) => Promise<void>;
+
+  /** Handle memory.created WebSocket event (US4: T065) */
+  handleMemoryCreated: (event: MemoryCreatedEvent) => void;
 
   /** Handle memory.updated WebSocket event (US3: T052) */
   handleMemoryUpdated: (event: MemoryUpdatedEvent) => void;
@@ -101,19 +105,16 @@ export function useMemories(): UseMemoriesResult {
     setSearchResults(null);
   }, []);
 
-  const createMemory = useCallback(
-    async (threadId: string, content: string) => {
-      try {
-        setError(null);
-        await memoryApi.createMemory({ threadId, request: { content } });
-        // Refresh memory list after creation
-        await fetchMemories(threadId);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to create memory'));
-      }
-    },
-    [fetchMemories],
-  );
+  const createMemory = useCallback(async (threadId: string, content: string) => {
+    try {
+      setError(null);
+      await memoryApi.createMemory({ threadId, request: { content } });
+      // Note: UI updates via WebSocket event (memory.created)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to create memory'));
+      throw err; // Re-throw so the caller can handle it
+    }
+  }, []);
 
   const updateMemory = useCallback(async (memoryId: string, content: string) => {
     try {
@@ -146,6 +147,14 @@ export function useMemories(): UseMemoriesResult {
       setError(err instanceof Error ? err : new Error('Failed to fetch memory stats'));
       setStats(null);
     }
+  }, []);
+
+  /**
+   * Handle memory.created WebSocket event (T065)
+   * Adds the new memory to the local state when created via API or by another client
+   */
+  const handleMemoryCreated = useCallback((event: MemoryCreatedEvent) => {
+    setMemories((current) => [event.memory, ...current]); // Add to beginning (newest first)
   }, []);
 
   /**
@@ -198,6 +207,7 @@ export function useMemories(): UseMemoriesResult {
     createMemory,
     updateMemory,
     deleteMemory,
+    handleMemoryCreated,
     handleMemoryUpdated,
     handleMemoryDeleted,
     fetchStats,
