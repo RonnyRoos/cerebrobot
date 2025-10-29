@@ -28,7 +28,7 @@ Surface the agent's long-term memory graph through a real-time, inspectable, and
 - Max 1000 memories per operator (warn at 800)
 - WebSocket 1MB payload cap (@fastify/websocket default)
 - Semantic search uses DeepInfra embeddings (OpenAI-compatible API)
-- Must work offline-first for viewing cached memories (stretch goal)
+- Real-time WebSocket sync required (no offline mode for P1-P5)
 **Scale/Scope**:
 - Single operator per deployment
 - 100-1000 memories typical usage

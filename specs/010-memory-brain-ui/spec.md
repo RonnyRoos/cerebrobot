@@ -216,18 +216,18 @@ As an operator maintaining my agent's knowledge base over time, I want to identi
 
 #### Performance & Limits
 
-- **FR-019**: Memory browser MUST remain responsive when displaying collections of 100+ memories
-- **FR-020**: Search results MUST return within 3 seconds for typical memory collections (up to 1000 memories)
+- **FR-019**: Memory browser MUST remain responsive when displaying collections of 100+ memories (interactions complete within 1 second per SC-007)
+- **FR-020**: Search results MUST return within 2 seconds for 95% of queries (up to 1000 memories), within 3 seconds for 99% of queries
 - **FR-021**: System MUST handle up to 1000 memories per operator without degradation
-- **FR-022**: System MUST warn operators when reaching 80% capacity (800 memories) to allow time for cleanup before hitting limits
+- **FR-022**: System MUST warn operators when reaching 80% capacity (800 memories) to allow time for cleanup before hitting hard limit at 1000 (800-1000 is operational warning range, degradation occurs beyond 1000)
 
 #### User Experience
 
 - **FR-023**: System MUST provide clear empty state guidance when no memories exist yet
 - **FR-024**: System MUST provide clear messaging when searches return zero results
-- **FR-025**: System MUST handle multiple browser tabs viewing memories without conflicts
+- **FR-025**: System MUST handle multiple browser tabs viewing memories without conflicts (via WebSocket synchronization - last write wins for concurrent edits)
 - **FR-026**: System MUST recover gracefully from failed operations and inform the operator
-- **FR-027**: Memory browser sidebar MUST batch or throttle highlighting when multiple memories are stored in quick succession to avoid overwhelming operators
+- **FR-027**: Memory browser sidebar MUST batch or throttle highlighting when multiple memories are stored in quick succession (batch updates within 500ms windows to avoid overwhelming operators)
 
 ### Key Entities
 

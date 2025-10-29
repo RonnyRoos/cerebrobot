@@ -83,8 +83,8 @@
 #### User Story 1 Polish
 
 - [ ] T025 [US1] Implement auto-open sidebar on memory.created event in apps/client/src/components/MemoryBrowser/MemoryBrowser.tsx
-- [ ] T026 [US1] Add empty state UI in apps/client/src/components/MemoryBrowser/MemoryList.tsx (no memories yet)
-- [ ] T027 [US1] Add chronological sorting (newest first) to memory list in apps/client/src/components/MemoryBrowser/MemoryList.tsx
+- [ ] T026 [US1] Add empty state UI in apps/client/src/components/MemoryBrowser/MemoryList.tsx (no memories yet - include onboarding hint: "Memories will appear here as your agent learns about you")
+- [ ] T027 [US1] Add chronological sorting (newest first default, with toggle for oldest first) to memory list in apps/client/src/components/MemoryBrowser/MemoryList.tsx
 
 **Checkpoint**: User Story 1 complete - operators can view memories in real-time with sidebar toggle
 
@@ -110,8 +110,8 @@
 - [ ] T032 [P] [US2] Create MemorySearch component in apps/client/src/components/MemoryBrowser/MemorySearch.tsx (search input with submit)
 - [ ] T033 [US2] Implement searchMemories API client method in apps/client/src/services/memoryApi.ts
 - [ ] T034 [US2] Add search query state to useMemories hook in apps/client/src/hooks/useMemories.ts
-- [ ] T035 [US2] Display search results with similarity scores in apps/client/src/components/MemoryBrowser/MemoryList.tsx
-- [ ] T036 [P] [US2] Add empty search results message in apps/client/src/components/MemoryBrowser/MemoryList.tsx
+- [ ] T035 [US2] Display search results with similarity scores in apps/client/src/components/MemoryBrowser/MemoryList.tsx (format as percentage: "92% match" with tooltip)
+- [ ] T036 [P] [US2] Add empty search results message in apps/client/src/components/MemoryBrowser/MemoryList.tsx (include suggestion: "Try different terms or browse all memories")
 - [ ] T037 [P] [US2] Unit test for MemorySearch component in apps/client/__tests__/components/MemoryBrowser/MemorySearch.test.tsx
 
 #### User Story 2 Polish
@@ -160,7 +160,7 @@
 
 - [ ] T056 [US3] Add success toast notification after edit in apps/client/src/components/MemoryBrowser/MemoryEditor.tsx
 - [ ] T057 [US3] Add success toast notification after delete in apps/client/src/components/MemoryBrowser/MemoryList.tsx
-- [ ] T058 [US3] Add error recovery UI for failed operations in apps/client/src/components/MemoryBrowser/MemoryBrowser.tsx
+- [ ] T058 [US3] Add error recovery UI for failed operations in apps/client/src/components/MemoryBrowser/MemoryBrowser.tsx (with retry button and operation context)
 
 **Checkpoint**: User Story 3 complete - operators can edit/delete memories with confirmation and feedback
 
@@ -245,7 +245,7 @@
 - [ ] T086 [P] Add memory count badge to sidebar toggle button in apps/client/src/components/ChatView.tsx
 - [ ] T087 [P] Extend Postgres validation test for semantic search pagination in apps/server/__tests__/agent/memory/store.test.ts
 - [ ] T088 [P] Add comprehensive error logging for all memory operations in apps/server/src/routes/memory.ts
-- [ ] T089 Create manual smoke test checklist in specs/010-memory-brain-ui/quickstart.md (real LLM memory formation, real embeddings, WebSocket sync)
+- [ ] T089 Create manual smoke test checklist in specs/010-memory-brain-ui/quickstart.md (real LLM memory formation, real embeddings, WebSocket sync, verify agent uses edited memories in responses, measure repetition reduction per SC-011/SC-012)
 - [ ] T090 Run hygiene loop (pnpm lint → pnpm format:write → pnpm test) and fix all failures
 - [ ] T091 Update project documentation in README.md with memory browser feature
 
