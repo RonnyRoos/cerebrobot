@@ -75,6 +75,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   // Memory management
   const { memories, error: memoryError, fetchMemories } = useMemories();
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
+  const [autoOpenMemory, setAutoOpenMemory] = useState(false);
 
   // Fetch memories when threadId changes
   useEffect(() => {
@@ -96,10 +97,16 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     (event: MemoryCreatedEvent) => {
       console.log('[ChatView] Memory created event received', event);
 
+      // Signal to auto-open the memory sidebar
+      setAutoOpenMemory(true);
+
       // Re-fetch memories to include the new one
       if (activeThreadId) {
         void fetchMemories(activeThreadId);
       }
+
+      // Reset auto-open signal after a short delay
+      setTimeout(() => setAutoOpenMemory(false), 100);
     },
     [activeThreadId, fetchMemories],
   );
@@ -355,6 +362,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         memories={memories}
         isLoading={isLoadingMemories}
         error={memoryError?.message || null}
+        autoOpen={autoOpenMemory}
       />
     </section>
   );

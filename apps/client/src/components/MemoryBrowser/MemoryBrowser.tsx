@@ -21,6 +21,9 @@ interface MemoryBrowserProps {
 
   /** Error message if fetch failed */
   error?: string | null;
+
+  /** Signal to auto-open sidebar (e.g., when new memory created) */
+  autoOpen?: boolean;
 }
 
 const STORAGE_KEY = 'cerebrobot:memory-browser:open';
@@ -48,13 +51,25 @@ function saveState(isOpen: boolean): void {
   }
 }
 
-export function MemoryBrowser({ memories, isLoading, error }: MemoryBrowserProps): JSX.Element {
+export function MemoryBrowser({
+  memories,
+  isLoading,
+  error,
+  autoOpen = false,
+}: MemoryBrowserProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(loadInitialState);
 
   // Save state changes to localStorage
   useEffect(() => {
     saveState(isOpen);
   }, [isOpen]);
+
+  // Auto-open sidebar when autoOpen prop changes to true
+  useEffect(() => {
+    if (autoOpen && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [autoOpen, isOpen]);
 
   const toggleSidebar = (): void => {
     setIsOpen((prev) => !prev);

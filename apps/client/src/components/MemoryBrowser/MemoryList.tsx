@@ -8,6 +8,7 @@
  * - Readable timestamp formatting
  */
 
+import { useState } from 'react';
 import type { MemoryEntry } from '@cerebrobot/chat-shared';
 
 interface MemoryListProps {
@@ -47,6 +48,8 @@ function formatRelativeTime(date: Date | string): string {
 }
 
 export function MemoryList({ memories, isLoading, error }: MemoryListProps): JSX.Element {
+  const [sortNewestFirst, setSortNewestFirst] = useState(true);
+
   // Loading state
   if (isLoading) {
     return (
@@ -104,71 +107,117 @@ export function MemoryList({ memories, isLoading, error }: MemoryListProps): JSX
     );
   }
 
+  // Sort memories based on toggle state
+  const sortedMemories = [...memories].sort((a, b) => {
+    const dateA = typeof a.createdAt === 'string' ? new Date(a.createdAt) : a.createdAt;
+    const dateB = typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt;
+
+    return sortNewestFirst
+      ? dateB.getTime() - dateA.getTime() // Newest first
+      : dateA.getTime() - dateB.getTime(); // Oldest first
+  });
+
   // Memory list
   return (
-    <ul
-      style={{
-        listStyle: 'none',
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      {memories.map((memory) => (
-        <li
-          key={memory.id}
+    <>
+      {/* Sort Toggle */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '0.75rem',
+          paddingBottom: '0.75rem',
+          borderBottom: '1px solid #e5e7eb',
+        }}
+      >
+        <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '500' }}>
+          {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
+        </span>
+        <button
+          onClick={() => setSortNewestFirst((prev) => !prev)}
           style={{
-            padding: '0.75rem',
-            marginBottom: '0.5rem',
-            backgroundColor: '#f9fafb',
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.375rem',
+            fontSize: '0.75rem',
+            color: '#3b82f6',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.25rem 0.5rem',
+            borderRadius: '0.25rem',
+            fontWeight: '500',
           }}
+          aria-label={`Sort by ${sortNewestFirst ? 'oldest' : 'newest'} first`}
         >
-          {/* Memory content */}
-          <p
+          {sortNewestFirst ? '↓ Newest first' : '↑ Oldest first'}
+        </button>
+      </div>
+
+      <ul
+        style={{
+          listStyle: 'none',
+          margin: 0,
+          padding: 0,
+        }}
+      >
+        {sortedMemories.map((memory) => (
+          <li
+            key={memory.id}
             style={{
-              margin: 0,
-              fontSize: '0.875rem',
-              color: '#111827',
-              lineHeight: '1.5',
+              padding: '0.75rem',
+              marginBottom: '0.5rem',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.375rem',
             }}
           >
-            {memory.content}
-          </p>
+            {/* Memory content */}
+            <p
+              style={{
+                margin: 0,
+                fontSize: '0.875rem',
+                color: '#111827',
+                lineHeight: '1.5',
+              }}
+            >
+              {memory.content}
+            </p>
 
-          {/* Timestamp */}
-          <time
-            dateTime={
-              typeof memory.createdAt === 'string'
-                ? memory.createdAt
-                : memory.createdAt.toISOString()
-            }
-            style={{
-              display: 'block',
-              marginTop: '0.5rem',
-              fontSize: '0.75rem',
-              color: '#6b7280',
-            }}
-          >
-            {formatRelativeTime(memory.createdAt)}
-          </time>
+            {/* Timestamp */}
+            <time
+              dateTime={
+                typeof memory.createdAt === 'string'
+                  ? memory.createdAt
+                  : memory.createdAt.toISOString()
+              }
+              style={{
+                display: 'block',
+                marginTop: '0.5rem',
+                fontSize: '0.75rem',
+                color: '#6b7280',
+              }}
+            >
+              {formatRelativeTime(memory.createdAt)}
+            </time>
 
-          {/* Optional: Show key if it's meaningful (not a UUID) */}
-          {memory.key &&
-            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memory.key) && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  fontSize: '0.6875rem',
-                  color: '#9ca3af',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {memory.key}
-              </div>
-            )}
-        </li>
-      ))}
-    </ul>
+            {/* Optional: Show key if it's meaningful (not a UUID) */}
+            {memory.key &&
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                memory.key,
+              ) && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.6875rem',
+                    color: '#9ca3af',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {memory.key}
+                </div>
+              )}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
