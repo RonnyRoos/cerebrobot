@@ -102,6 +102,33 @@ export function createUpsertMemoryTool(
         const memoryKey = key ?? randomUUID();
         const memoryId = randomUUID();
 
+        // Check for duplicate memories before generating expensive embedding (T071)
+        // Use 0.95 similarity threshold to detect near-duplicates
+        const DUPLICATE_THRESHOLD = 0.95;
+        const duplicates = await store.search(namespace, content, {
+          threshold: DUPLICATE_THRESHOLD,
+        });
+
+        if (duplicates.length > 0) {
+          const topDuplicate = duplicates[0];
+          logger.warn(
+            {
+              agentId,
+              userId,
+              content: content.substring(0, 100),
+              duplicateCount: duplicates.length,
+              topSimilarity: topDuplicate.similarity,
+              duplicateId: topDuplicate.id,
+            },
+            'Duplicate memory detected - preventing LLM storage',
+          );
+          return {
+            success: false,
+            memoryId: '',
+            message: `This information is already stored in memory (${(topDuplicate.similarity * 100).toFixed(0)}% similarity). No need to store it again.`,
+          };
+        }
+
         // Generate embedding
         const embedding = await generateEmbedding(content, config, logger);
 

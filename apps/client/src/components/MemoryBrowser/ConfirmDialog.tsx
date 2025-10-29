@@ -62,7 +62,6 @@ export function ConfirmDialog({
         justifyContent: 'center',
         zIndex: 1000,
       }}
-      onClick={onCancel}
     >
       <div
         style={{
@@ -73,7 +72,6 @@ export function ConfirmDialog({
           width: '90%',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Title */}
         <h2

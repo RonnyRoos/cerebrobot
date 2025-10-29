@@ -362,4 +362,51 @@ export class MemoryService {
       );
     }
   }
+
+  /**
+   * Find duplicate memories based on semantic similarity
+   * Implementation: User Story 5 (T069)
+   *
+   * @param namespace - Memory namespace to search within
+   * @param content - Content to check for duplicates
+   * @param threshold - Similarity threshold (default: config.duplicateThreshold = 0.95)
+   * @returns Array of duplicate memories with similarity scores
+   */
+  async findDuplicates(
+    namespace: string[],
+    content: string,
+    threshold?: number,
+  ): Promise<MemorySearchResult[]> {
+    const effectiveThreshold = threshold ?? this.config.duplicateThreshold;
+
+    try {
+      this.logger.debug(
+        { namespace, contentLength: content.length, threshold: effectiveThreshold },
+        'Checking for duplicate memories',
+      );
+
+      // Use store's semantic search with high similarity threshold
+      const duplicates = await this.store.search(namespace, content, {
+        threshold: effectiveThreshold,
+      });
+
+      this.logger.info(
+        {
+          namespace,
+          contentLength: content.length,
+          threshold: effectiveThreshold,
+          duplicatesFound: duplicates.length,
+          topSimilarities: duplicates.slice(0, 3).map((d) => d.similarity.toFixed(3)),
+        },
+        duplicates.length > 0 ? 'Duplicate memories found' : 'No duplicates found',
+      );
+
+      return duplicates;
+    } catch (error) {
+      this.logger.error({ error, namespace, content, threshold }, 'Failed to find duplicates');
+      throw new Error(
+        `Failed to find duplicates: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
 }

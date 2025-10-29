@@ -337,6 +337,32 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
         });
       }
 
+      // Check for duplicate memories (User Story 5 - T070)
+      const duplicates = await memoryService.findDuplicates(namespace, content);
+      if (duplicates.length > 0) {
+        const topDuplicate = duplicates[0];
+        logger.warn(
+          {
+            threadId,
+            namespace,
+            content: content.substring(0, 100),
+            duplicateCount: duplicates.length,
+            topSimilarity: topDuplicate.similarity,
+            duplicateId: topDuplicate.id,
+          },
+          'Duplicate memory detected - preventing creation',
+        );
+        return reply.status(409).send({
+          error: 'Duplicate memory',
+          message: `Similar memory already exists (${(topDuplicate.similarity * 100).toFixed(0)}% similarity)`,
+          duplicate: {
+            id: topDuplicate.id,
+            content: topDuplicate.content,
+            similarity: topDuplicate.similarity,
+          },
+        });
+      }
+
       // Generate IDs for new memory
       const memoryId = randomUUID();
       const key = randomUUID();
