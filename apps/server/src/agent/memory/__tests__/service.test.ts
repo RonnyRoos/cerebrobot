@@ -180,4 +180,155 @@ describe('MemoryService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('findDuplicates', () => {
+    it('should find no duplicates when threshold not met', async () => {
+      // Mock search returns empty array when no results meet threshold
+      vi.mocked(mockStore.search).mockResolvedValue([]);
+
+      const result = await service.findDuplicates(
+        ['memories', 'agent1', 'user1'],
+        'User enjoys pizza',
+      );
+
+      expect(result).toEqual([]);
+      expect(mockStore.search).toHaveBeenCalledWith(
+        ['memories', 'agent1', 'user1'],
+        'User enjoys pizza',
+        { threshold: 0.95 },
+      );
+    });
+
+    it('should find duplicates at exactly 0.95 threshold', async () => {
+      const duplicateMemory = {
+        id: 'mem-1',
+        namespace: ['memories', 'agent1', 'user1'],
+        key: 'key-1',
+        content: 'User likes pizza',
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        similarity: 0.95, // At threshold
+      };
+
+      vi.mocked(mockStore.search).mockResolvedValue([duplicateMemory]);
+
+      const result = await service.findDuplicates(
+        ['memories', 'agent1', 'user1'],
+        'User likes pizza',
+      );
+
+      expect(result).toEqual([duplicateMemory]);
+      expect(result.length).toBe(1);
+      expect(result[0].similarity).toBe(0.95);
+    });
+
+    it('should find duplicates above 0.95 threshold', async () => {
+      const duplicateMemories = [
+        {
+          id: 'mem-1',
+          namespace: ['memories', 'agent1', 'user1'],
+          key: 'key-1',
+          content: 'User likes pizza',
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          similarity: 0.99,
+        },
+        {
+          id: 'mem-2',
+          namespace: ['memories', 'agent1', 'user1'],
+          key: 'key-2',
+          content: 'User enjoys pizza',
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          similarity: 0.96,
+        },
+      ];
+
+      vi.mocked(mockStore.search).mockResolvedValue(duplicateMemories);
+
+      const result = await service.findDuplicates(
+        ['memories', 'agent1', 'user1'],
+        'User likes pizza',
+      );
+
+      expect(result).toEqual(duplicateMemories);
+      expect(result.length).toBe(2);
+      expect(result[0].similarity).toBeGreaterThanOrEqual(0.95);
+    });
+
+    it('should use custom threshold when provided', async () => {
+      const duplicateMemory = {
+        id: 'mem-1',
+        namespace: ['memories', 'agent1', 'user1'],
+        key: 'key-1',
+        content: 'User likes coffee',
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        similarity: 0.85,
+      };
+
+      vi.mocked(mockStore.search).mockResolvedValue([duplicateMemory]);
+
+      const result = await service.findDuplicates(
+        ['memories', 'agent1', 'user1'],
+        'User enjoys coffee',
+        0.8, // Custom lower threshold
+      );
+
+      expect(result).toEqual([duplicateMemory]);
+      expect(mockStore.search).toHaveBeenCalledWith(
+        ['memories', 'agent1', 'user1'],
+        'User enjoys coffee',
+        { threshold: 0.8 },
+      );
+    });
+
+    it('should throw error if store.search fails', async () => {
+      vi.mocked(mockStore.search).mockRejectedValue(new Error('Search error'));
+
+      await expect(
+        service.findDuplicates(['memories', 'agent1', 'user1'], 'Test content'),
+      ).rejects.toThrow('Failed to find duplicates: Search error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.any(Error),
+          namespace: ['memories', 'agent1', 'user1'],
+        }),
+        'Failed to find duplicates',
+      );
+    });
+
+    it('should log duplicate findings appropriately', async () => {
+      const duplicateMemories = [
+        {
+          id: 'mem-1',
+          namespace: ['memories', 'agent1', 'user1'],
+          key: 'key-1',
+          content: 'User likes pizza',
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          similarity: 0.99,
+        },
+      ];
+
+      vi.mocked(mockStore.search).mockResolvedValue(duplicateMemories);
+
+      await service.findDuplicates(['memories', 'agent1', 'user1'], 'User likes pizza');
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          namespace: ['memories', 'agent1', 'user1'],
+          duplicatesFound: 1,
+          topSimilarities: ['0.990'],
+        }),
+        'Duplicate memories found',
+      );
+    });
+  });
 });
