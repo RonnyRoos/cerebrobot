@@ -7,7 +7,7 @@
 
 import type { Logger } from 'pino';
 import type { PrismaClient } from '@prisma/client';
-import type { BaseStore, MemoryEntry } from '@cerebrobot/chat-shared';
+import type { BaseStore, MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import type { MemoryConfig as InfraMemoryConfig } from '../../config.js';
 
 export interface MemoryCapacityCheck {
@@ -159,6 +159,63 @@ export class MemoryService {
       this.logger.error({ error, namespace, offset, limit }, 'Failed to list memories');
       throw new Error(
         `Failed to list memories: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
+   * Search memories by semantic similarity
+   *
+   * @param namespace - Memory namespace
+   * @param query - Natural language search query
+   * @param offset - Pagination offset (default: 0)
+   * @param limit - Page size (default: 20, max: 100)
+   * @param threshold - Minimum similarity threshold (default: 0.7)
+   * @returns Search results with similarity scores
+   */
+  async searchMemories(
+    namespace: string[],
+    query: string,
+    offset: number = 0,
+    limit: number = 20,
+    threshold: number = 0.7,
+  ): Promise<{ results: MemorySearchResult[]; total: number }> {
+    try {
+      const effectiveLimit = Math.min(limit, 100);
+
+      this.logger.debug(
+        { namespace, query: query.substring(0, 100), offset, limit: effectiveLimit, threshold },
+        'Searching memories with semantic similarity',
+      );
+
+      // Use store's search method (returns all results above threshold)
+      const allResults = await this.store.search(namespace, query, {
+        threshold,
+      });
+
+      const total = allResults.length;
+
+      // Apply pagination to results
+      const paginatedResults = allResults.slice(offset, offset + effectiveLimit);
+
+      this.logger.info(
+        {
+          namespace,
+          query: query.substring(0, 100),
+          total,
+          returnedCount: paginatedResults.length,
+          offset,
+          limit: effectiveLimit,
+          topSimilarities: paginatedResults.slice(0, 3).map((r) => r.similarity.toFixed(3)),
+        },
+        'Memory search completed',
+      );
+
+      return { results: paginatedResults, total };
+    } catch (error) {
+      this.logger.error({ error, namespace, query, offset, limit }, 'Failed to search memories');
+      throw new Error(
+        `Failed to search memories: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }

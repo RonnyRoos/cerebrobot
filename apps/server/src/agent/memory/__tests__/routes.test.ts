@@ -9,7 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import fastify from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import type { Logger } from 'pino';
-import type { MemoryEntry } from '@cerebrobot/chat-shared';
+import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import { registerMemoryRoutes } from '../routes.js';
 import type { MemoryService } from '../service.js';
 
@@ -35,6 +35,7 @@ describe('Memory Routes - GET /api/memory', () => {
     // Mock MemoryService
     mockMemoryService = {
       listMemories: vi.fn(),
+      searchMemories: vi.fn(),
     } as unknown as MemoryService;
 
     // Mock PrismaClient
@@ -270,5 +271,221 @@ describe('Memory Routes - GET /api/memory', () => {
     const body = JSON.parse(response.body);
     expect(body.error).toBe('Failed to fetch memories');
     expect(body.message).toContain('Database error');
+  });
+});
+
+describe('Memory Routes - GET /api/memory/search', () => {
+  let app: FastifyInstance;
+  let mockMemoryService: MemoryService;
+  let mockPrisma: PrismaClient;
+  let mockLogger: Logger;
+
+  beforeEach(async () => {
+    app = fastify({ logger: false });
+
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as Logger;
+
+    mockMemoryService = {
+      listMemories: vi.fn(),
+      searchMemories: vi.fn(),
+    } as unknown as MemoryService;
+
+    mockPrisma = {
+      thread: {
+        findUnique: vi.fn(),
+      },
+    } as unknown as PrismaClient;
+
+    registerMemoryRoutes(app, {
+      logger: mockLogger,
+      memoryService: mockMemoryService,
+      prisma: mockPrisma,
+    });
+
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 if threadId is missing', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/memory/search?query=test',
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid query parameters');
+  });
+
+  it('should return 400 if query is missing', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440001';
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/search?threadId=${threadId}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid query parameters');
+  });
+
+  it('should return search results ranked by similarity (T030)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440001';
+    const agentId = 'agent-123';
+    const userId = 'user-456';
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue({
+      id: threadId,
+      agentId,
+      userId,
+      createdAt: new Date(),
+    });
+
+    const mockResults: MemorySearchResult[] = [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        namespace: ['memories', agentId, userId],
+        key: 'memory-1',
+        content: 'User loves chocolate',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        similarity: 0.95, // Highest similarity
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440002',
+        namespace: ['memories', agentId, userId],
+        key: 'memory-2',
+        content: 'User likes sweets',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        similarity: 0.85,
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440003',
+        namespace: ['memories', agentId, userId],
+        key: 'memory-3',
+        content: 'User enjoys desserts',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        similarity: 0.75, // Lowest similarity
+      },
+    ];
+
+    vi.mocked(mockMemoryService.searchMemories).mockResolvedValue({
+      results: mockResults,
+      total: 3,
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/search?threadId=${threadId}&query=chocolate&threshold=0.7`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+
+    // Verify response structure
+    expect(body.results).toHaveLength(3);
+    expect(body.query).toBe('chocolate');
+    expect(body.total).toBe(3);
+
+    // Verify results are ranked by similarity (highest first)
+    expect(body.results[0].similarity).toBeGreaterThan(body.results[1].similarity);
+    expect(body.results[1].similarity).toBeGreaterThan(body.results[2].similarity);
+
+    // Verify searchMemories was called with correct parameters
+    expect(mockMemoryService.searchMemories).toHaveBeenCalledWith(
+      ['memories', agentId, userId],
+      'chocolate',
+      0, // offset
+      20, // limit
+      0.7, // threshold
+    );
+  });
+
+  it('should support pagination with offset and limit', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440001';
+    const agentId = 'agent-123';
+    const userId = 'user-456';
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue({
+      id: threadId,
+      agentId,
+      userId,
+      createdAt: new Date(),
+    });
+
+    const mockResults: MemorySearchResult[] = [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440011',
+        namespace: ['memories', agentId, userId],
+        key: 'memory-11',
+        content: 'Result 11',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        similarity: 0.8,
+      },
+    ];
+
+    vi.mocked(mockMemoryService.searchMemories).mockResolvedValue({
+      results: mockResults,
+      total: 25, // Total results above threshold
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/search?threadId=${threadId}&query=test&offset=10&limit=5`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+
+    expect(body.total).toBe(25);
+    expect(mockMemoryService.searchMemories).toHaveBeenCalledWith(
+      ['memories', agentId, userId],
+      'test',
+      10, // offset
+      5, // limit
+      0.7, // default threshold
+    );
+  });
+
+  it('should return empty results if no matches found', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440001';
+    const agentId = 'agent-123';
+    const userId = 'user-456';
+
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue({
+      id: threadId,
+      agentId,
+      userId,
+      createdAt: new Date(),
+    });
+
+    vi.mocked(mockMemoryService.searchMemories).mockResolvedValue({
+      results: [],
+      total: 0,
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/memory/search?threadId=${threadId}&query=nonexistent`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+
+    expect(body.results).toHaveLength(0);
+    expect(body.total).toBe(0);
+    expect(body.query).toBe('nonexistent');
   });
 });

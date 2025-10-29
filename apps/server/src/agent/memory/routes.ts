@@ -8,7 +8,11 @@ import type { FastifyInstance } from 'fastify';
 import type { Logger } from 'pino';
 import { z } from 'zod';
 import type { PrismaClient } from '@prisma/client';
-import { buildAgentMemoryNamespace, MemoryListResponseSchema } from '@cerebrobot/chat-shared';
+import {
+  buildAgentMemoryNamespace,
+  MemoryListResponseSchema,
+  MemorySearchResponseSchema,
+} from '@cerebrobot/chat-shared';
 import type { MemoryService } from './service.js';
 
 interface MemoryRoutesOptions {
@@ -22,6 +26,14 @@ const GetMemoriesQuerySchema = z.object({
   threadId: z.string().uuid('Invalid threadId format'),
   offset: z.coerce.number().int().min(0).default(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
+});
+
+const SearchMemoriesQuerySchema = z.object({
+  threadId: z.string().uuid('Invalid threadId format'),
+  query: z.string().min(1).max(500, 'Search query too long'),
+  offset: z.coerce.number().int().min(0).default(0).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
+  threshold: z.coerce.number().min(0).max(1).default(0.7).optional(),
 });
 
 /**
@@ -119,14 +131,100 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
    * GET /api/memory/search
    *
    * Search memories by semantic similarity
-   * Implementation: User Story 2 (T028)
+   * Implementation: User Story 2 (T028, T029, T031)
    */
   app.get('/api/memory/search', async (request, reply) => {
-    logger.debug('GET /api/memory/search - placeholder for US2 implementation');
-    return reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Memory search endpoint will be implemented in User Story 2 (T028)',
-    });
+    // Validate query parameters
+    const queryParse = SearchMemoriesQuerySchema.safeParse(request.query);
+
+    if (!queryParse.success) {
+      logger.warn(
+        { errors: queryParse.error },
+        'Invalid query parameters for GET /api/memory/search',
+      );
+      return reply.status(400).send({
+        error: 'Invalid query parameters',
+        details: queryParse.error.issues,
+      });
+    }
+
+    const { threadId, query, offset = 0, limit = 20, threshold = 0.7 } = queryParse.data;
+
+    try {
+      // Look up thread to get agentId and userId
+      const thread = await prisma.thread.findUnique({
+        where: { id: threadId },
+        select: { agentId: true, userId: true },
+      });
+
+      if (!thread) {
+        logger.warn({ threadId }, 'Thread not found for GET /api/memory/search');
+        return reply.status(404).send({
+          error: 'Thread not found',
+          message: `Thread ${threadId} does not exist`,
+        });
+      }
+
+      if (!thread.userId) {
+        logger.warn({ threadId }, 'Thread has no userId - cannot search memories');
+        return reply.status(400).send({
+          error: 'Invalid thread',
+          message: 'Thread must have a userId to search memories',
+        });
+      }
+
+      // Build memory namespace
+      const namespace = buildAgentMemoryNamespace(thread.agentId, thread.userId);
+
+      logger.debug(
+        {
+          threadId,
+          agentId: thread.agentId,
+          userId: thread.userId,
+          namespace,
+          query: query.substring(0, 100),
+          offset,
+          limit,
+          threshold,
+        },
+        'Searching memories for thread',
+      );
+
+      // Search memories using service
+      const result = await memoryService.searchMemories(namespace, query, offset, limit, threshold);
+
+      logger.info(
+        {
+          threadId,
+          query: query.substring(0, 100),
+          total: result.total,
+          returned: result.results.length,
+          offset,
+          limit,
+          threshold,
+          topSimilarities: result.results.slice(0, 3).map((r) => r.similarity.toFixed(3)),
+        },
+        'Memory search completed successfully',
+      );
+
+      // Format and validate response
+      const response = MemorySearchResponseSchema.parse({
+        results: result.results,
+        query,
+        total: result.total,
+      });
+
+      return reply.status(200).send(response);
+    } catch (error) {
+      logger.error(
+        { error, threadId, query, offset, limit, threshold },
+        'Failed to search memories',
+      );
+      return reply.status(500).send({
+        error: 'Failed to search memories',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   });
 
   /**
