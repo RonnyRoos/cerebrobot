@@ -1,7 +1,10 @@
 import { useThread } from '../hooks/useThread.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemories } from '../hooks/useMemories.js';
+import { useMemo, useEffect, useCallback, useState } from 'react';
+import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
+import type { MemoryCreatedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
   userId: string;
@@ -69,6 +72,38 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     }
   }, [activeThreadId, threadPromise]);
 
+  // Memory management
+  const { memories, error: memoryError, fetchMemories } = useMemories();
+  const [isLoadingMemories, setIsLoadingMemories] = useState(false);
+
+  // Fetch memories when threadId changes
+  useEffect(() => {
+    if (!activeThreadId) {
+      return;
+    }
+
+    const loadMemories = async () => {
+      setIsLoadingMemories(true);
+      await fetchMemories(activeThreadId);
+      setIsLoadingMemories(false);
+    };
+
+    void loadMemories();
+  }, [activeThreadId, fetchMemories]);
+
+  // Handle memory.created events from WebSocket
+  const handleMemoryCreated = useCallback(
+    (event: MemoryCreatedEvent) => {
+      console.log('[ChatView] Memory created event received', event);
+
+      // Re-fetch memories to include the new one
+      if (activeThreadId) {
+        void fetchMemories(activeThreadId);
+      }
+    },
+    [activeThreadId, fetchMemories],
+  );
+
   const {
     messages,
     isStreaming,
@@ -86,6 +121,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     userId,
     getActiveThreadId,
     initialMessages,
+    onMemoryCreated: handleMemoryCreated,
   });
 
   const startNewThread = useCallback(
@@ -313,6 +349,13 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
           </button>
         </div>
       </form>
+
+      {/* Memory Browser Sidebar */}
+      <MemoryBrowser
+        memories={memories}
+        isLoading={isLoadingMemories}
+        error={memoryError?.message || null}
+      />
     </section>
   );
 }
