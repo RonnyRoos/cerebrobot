@@ -6,12 +6,15 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { Logger } from 'pino';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { PrismaClient } from '@prisma/client';
 import {
   buildAgentMemoryNamespace,
   MemoryListResponseSchema,
   MemorySearchResponseSchema,
+  MemoryCreateRequestSchema,
+  type MemoryEntry,
 } from '@cerebrobot/chat-shared';
 import type { MemoryService } from './service.js';
 import type { ConnectionManager } from '../../chat/connection-manager.js';
@@ -36,6 +39,10 @@ const SearchMemoriesQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
   threshold: z.coerce.number().min(0).max(1).default(0.7).optional(),
+});
+
+const MemoryThreadQuerySchema = z.object({
+  threadId: z.string().uuid('Invalid threadId format'),
 });
 
 // Request body validation schemas
@@ -259,11 +266,144 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
    * Implementation: User Story 4 (T059)
    */
   app.post('/api/memory', async (request, reply) => {
-    logger.debug('POST /api/memory - placeholder for US4 implementation');
-    return reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Memory creation endpoint will be implemented in User Story 4 (T059)',
-    });
+    // Validate query parameters
+    const queryValidation = MemoryThreadQuerySchema.safeParse(request.query);
+    if (!queryValidation.success) {
+      logger.warn(
+        { errors: queryValidation.error },
+        'Invalid query parameters for POST /api/memory',
+      );
+      return reply.status(400).send({
+        error: 'Invalid query parameters',
+        details: queryValidation.error.issues,
+      });
+    }
+
+    // Validate request body
+    const bodyValidation = MemoryCreateRequestSchema.safeParse(request.body);
+    if (!bodyValidation.success) {
+      logger.warn({ errors: bodyValidation.error }, 'Invalid request body for POST /api/memory');
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        details: bodyValidation.error.issues,
+      });
+    }
+
+    const { threadId } = queryValidation.data;
+    const { content, metadata } = bodyValidation.data;
+
+    try {
+      logger.info({ threadId, contentLength: content.length }, 'Creating new memory');
+
+      // Get thread to extract agentId and userId
+      const thread = await prisma.thread.findUnique({
+        where: { id: threadId },
+      });
+
+      if (!thread) {
+        logger.warn({ threadId }, 'Thread not found for memory creation');
+        return reply.status(404).send({
+          error: 'Thread not found',
+          message: `Thread ${threadId} does not exist`,
+        });
+      }
+
+      // Validate thread has required fields
+      if (!thread.agentId || !thread.userId) {
+        logger.error(
+          { threadId, agentId: thread.agentId, userId: thread.userId },
+          'Thread missing required fields',
+        );
+        return reply.status(500).send({
+          error: 'Invalid thread state',
+          message: 'Thread is missing agentId or userId',
+        });
+      }
+
+      // Build namespace: ['memories', agentId, userId]
+      const namespace = ['memories', thread.agentId, thread.userId];
+
+      // Check capacity before creating
+      const canAdd = await memoryService.canAddMemory(namespace);
+      if (!canAdd) {
+        const capacity = await memoryService.checkCapacity(namespace);
+        logger.warn(
+          { threadId, namespace, count: capacity.count, maxMemories: capacity.maxMemories },
+          'Memory capacity limit reached',
+        );
+        return reply.status(409).send({
+          error: 'Memory capacity reached',
+          message: `Cannot create memory: limit of ${capacity.maxMemories} memories reached`,
+        });
+      }
+
+      // Generate IDs for new memory
+      const memoryId = randomUUID();
+      const key = randomUUID();
+      const now = new Date();
+
+      // Build memory entry with manual creation metadata
+      const memoryEntry: MemoryEntry = {
+        id: memoryId,
+        namespace,
+        key,
+        content,
+        createdAt: now,
+        updatedAt: now,
+        metadata: {
+          ...(metadata || {}),
+          source: 'manual',
+          createdBy: 'operator',
+        },
+      };
+
+      // Create memory via service
+      const createdMemory = await memoryService.createMemory(namespace, key, memoryEntry);
+
+      // Broadcast memory.created event to all threads for this user/agent
+      const threads = await prisma.thread.findMany({
+        where: {
+          agentId: thread.agentId,
+          userId: thread.userId,
+        },
+      });
+
+      if (connectionManager && threads.length > 0) {
+        const event = {
+          type: 'memory.created' as const,
+          timestamp: new Date().toISOString(),
+          memory: createdMemory,
+        };
+
+        for (const t of threads) {
+          try {
+            connectionManager.broadcastMemoryEvent(t.id, {
+              ...event,
+              threadId: t.id,
+            });
+          } catch (eventError) {
+            logger.warn(
+              { error: eventError, memoryId, threadId: t.id },
+              'Failed to broadcast memory.created event to thread',
+            );
+          }
+        }
+      }
+
+      logger.debug({ memoryId }, 'Memory creation successful');
+
+      return reply.status(201).send({
+        success: true,
+        memory: createdMemory,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error({ error, threadId }, 'Failed to create memory');
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: errorMessage,
+      });
+    }
   });
 
   /**

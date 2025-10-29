@@ -284,6 +284,50 @@ export class MemoryService {
   }
 
   /**
+   * Create a new memory manually
+   * Implementation: User Story 4 (T059)
+   *
+   * @param namespace - Memory namespace ['memories', agentId, userId]
+   * @param key - Unique key for the memory (UUID)
+   * @param memoryEntry - Memory entry to create
+   * @returns Created memory entry with embedding
+   */
+  async createMemory(
+    namespace: string[],
+    key: string,
+    memoryEntry: MemoryEntry,
+  ): Promise<MemoryEntry> {
+    try {
+      this.logger.debug(
+        { namespace, key, contentLength: memoryEntry.content.length },
+        'Creating new memory',
+      );
+
+      // Store memory (which handles embedding generation)
+      await this.store.put(namespace, key, memoryEntry);
+
+      // Retrieve created memory from store to get embedding
+      const result = await this.store.get(namespace, key);
+
+      if (!result) {
+        throw new Error('Failed to retrieve created memory from store');
+      }
+
+      this.logger.info(
+        { memoryId: memoryEntry.id, namespace, key, contentLength: memoryEntry.content.length },
+        'Memory created successfully',
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error({ error, namespace, key }, 'Failed to create memory');
+      throw new Error(
+        `Failed to create memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
    * Delete a memory
    * Implementation: User Story 3 (T041)
    *

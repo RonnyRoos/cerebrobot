@@ -525,6 +525,14 @@ describe('Memory Routes - PUT /api/memory/:id', () => {
           userId: 'test-user',
           createdAt: new Date(),
         }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            agentId: 'test-agent',
+            userId: 'test-user',
+            createdAt: new Date(),
+          },
+        ]),
       },
     } as unknown as PrismaClient;
 
@@ -656,6 +664,14 @@ describe('Memory Routes - DELETE /api/memory/:id', () => {
           userId: 'test-user',
           createdAt: new Date(),
         }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            agentId: 'test-agent',
+            userId: 'test-user',
+            createdAt: new Date(),
+          },
+        ]),
       },
     } as unknown as PrismaClient;
 
@@ -726,5 +742,253 @@ describe('Memory Routes - DELETE /api/memory/:id', () => {
     expect(body.success).toBe(true);
     expect(body.message).toBe('Memory deleted successfully');
     expect(mockMemoryService.deleteMemory).toHaveBeenCalledWith(memoryId);
+  });
+});
+
+describe('Memory Routes - POST /api/memory', () => {
+  let app: FastifyInstance;
+  let mockMemoryService: MemoryService;
+  let mockPrisma: PrismaClient;
+  let mockLogger: Logger;
+
+  beforeEach(async () => {
+    app = fastify({ logger: false });
+
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    } as unknown as Logger;
+
+    mockMemoryService = {
+      canAddMemory: vi.fn(),
+      checkCapacity: vi.fn(),
+      createMemory: vi.fn(),
+    } as unknown as MemoryService;
+
+    mockPrisma = {
+      thread: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          agentId: 'test-agent',
+          userId: 'test-user',
+          createdAt: new Date(),
+        }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            agentId: 'test-agent',
+            userId: 'test-user',
+            createdAt: new Date(),
+          },
+        ]),
+      },
+    } as unknown as PrismaClient;
+
+    registerMemoryRoutes(app, {
+      logger: mockLogger,
+      memoryService: mockMemoryService,
+      prisma: mockPrisma,
+    });
+
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 if threadId is missing (T061)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/memory',
+      payload: { content: 'New memory content' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid query parameters');
+  });
+
+  it('should return 400 if threadId is not a UUID (T061)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/memory?threadId=invalid-uuid',
+      payload: { content: 'New memory content' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid query parameters');
+  });
+
+  it('should return 400 if content is missing (T061)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440000';
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid request body');
+  });
+
+  it('should return 400 if content is too short (T061)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440000';
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: { content: '' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid request body');
+  });
+
+  it('should return 400 if content exceeds max length (T061)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440000';
+    const longContent = 'a'.repeat(8193); // Max is 8192
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: { content: longContent },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Invalid request body');
+  });
+
+  it('should return 404 if thread does not exist (T061)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440001';
+    vi.mocked(mockPrisma.thread.findUnique).mockResolvedValue(null);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: { content: 'New memory content' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Thread not found');
+  });
+
+  it('should return 409 if memory capacity is reached (T061)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440000';
+    vi.mocked(mockMemoryService.canAddMemory).mockResolvedValue(false);
+    vi.mocked(mockMemoryService.checkCapacity).mockResolvedValue({
+      count: 100,
+      maxMemories: 100,
+      capacityPercent: 1.0,
+      warningThreshold: 0.8,
+      showWarning: true,
+      atCapacity: true,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: { content: 'New memory content' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Memory capacity reached');
+  });
+
+  it('should create memory with correct namespace and metadata (T059, T060)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440000';
+    const content = 'New manually created memory';
+    const userMetadata = { category: 'important' };
+
+    vi.mocked(mockMemoryService.canAddMemory).mockResolvedValue(true);
+
+    const createdMemory: MemoryEntry = {
+      id: 'new-memory-id',
+      namespace: ['memories', 'test-agent', 'test-user'],
+      key: 'memory-key',
+      content,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata: {
+        ...userMetadata,
+        source: 'manual',
+        createdBy: 'operator',
+      },
+    };
+
+    vi.mocked(mockMemoryService.createMemory).mockResolvedValue(createdMemory);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: { content, metadata: userMetadata },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.memory).toBeDefined();
+    expect(body.memory.content).toBe(content);
+    expect(body.memory.metadata.source).toBe('manual');
+    expect(body.memory.metadata.createdBy).toBe('operator');
+    expect(body.memory.metadata.category).toBe('important');
+
+    // Verify createMemory was called with correct parameters
+    expect(mockMemoryService.createMemory).toHaveBeenCalledWith(
+      ['memories', 'test-agent', 'test-user'],
+      expect.any(String), // key (UUID)
+      expect.objectContaining({
+        id: expect.any(String), // id (UUID)
+        namespace: ['memories', 'test-agent', 'test-user'],
+        key: expect.any(String),
+        content,
+        metadata: expect.objectContaining({
+          source: 'manual',
+          createdBy: 'operator',
+          category: 'important',
+        }),
+      }),
+    );
+  });
+
+  it('should create memory without optional metadata (T059)', async () => {
+    const threadId = '550e8400-e29b-41d4-a716-446655440000';
+    const content = 'Simple memory';
+
+    vi.mocked(mockMemoryService.canAddMemory).mockResolvedValue(true);
+
+    const createdMemory: MemoryEntry = {
+      id: 'new-memory-id',
+      namespace: ['memories', 'test-agent', 'test-user'],
+      key: 'memory-key',
+      content,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata: {
+        source: 'manual',
+        createdBy: 'operator',
+      },
+    };
+
+    vi.mocked(mockMemoryService.createMemory).mockResolvedValue(createdMemory);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/memory?threadId=${threadId}`,
+      payload: { content },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.memory.metadata.source).toBe('manual');
+    expect(body.memory.metadata.createdBy).toBe('operator');
   });
 });
