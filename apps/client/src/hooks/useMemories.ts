@@ -116,12 +116,17 @@ export function useMemories(): UseMemoriesResult {
   );
 
   const updateMemory = useCallback(async (memoryId: string, content: string) => {
+    console.log('[useMemories] updateMemory called', { memoryId, content });
     try {
       setError(null);
+      console.log('[useMemories] Calling memoryApi.updateMemory');
       await memoryApi.updateMemory({ memoryId, request: { content } });
+      console.log('[useMemories] API call successful');
       // Note: User Story 3 will implement optimistic updates
     } catch (err) {
+      console.error('[useMemories] API call failed', err);
       setError(err instanceof Error ? err : new Error('Failed to update memory'));
+      throw err; // Re-throw so the caller can handle it
     }
   }, []);
 

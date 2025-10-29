@@ -81,15 +81,27 @@ export function MemoryList({
 
   // Handle edit save (US3: T054)
   const handleEditSave = async (content: string) => {
-    if (!editingMemoryId || !onUpdateMemory) return;
+    console.log('[MemoryList] handleEditSave called', {
+      editingMemoryId,
+      hasOnUpdateMemory: !!onUpdateMemory,
+      content,
+    });
+
+    if (!editingMemoryId || !onUpdateMemory) {
+      console.log('[MemoryList] Skipping update - missing memoryId or handler');
+      return;
+    }
 
     setIsSaving(true);
     setOperationError(null);
 
     try {
+      console.log('[MemoryList] Calling onUpdateMemory', { editingMemoryId, content });
       await onUpdateMemory(editingMemoryId, content);
+      console.log('[MemoryList] Update successful');
       setEditingMemoryId(null);
     } catch (err) {
+      console.error('[MemoryList] Update failed', err);
       setOperationError(err instanceof Error ? err.message : 'Failed to update memory');
     } finally {
       setIsSaving(false);

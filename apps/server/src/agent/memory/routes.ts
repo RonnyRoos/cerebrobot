@@ -314,8 +314,9 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
         'Extracting agentId/userId from namespace',
       );
 
-      // Find thread for this memory (T046)
-      const thread = await prisma.thread.findFirst({
+      // Find ALL threads for this user/agent combination (T046)
+      // Memories are agent-scoped, not thread-scoped, so we broadcast to all threads
+      const threads = await prisma.thread.findMany({
         where: {
           agentId,
           userId,
@@ -323,35 +324,42 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       });
 
       logger.debug(
-        { memoryId, userId, agentId, threadFound: !!thread, threadId: thread?.id },
-        'Thread lookup result',
+        { memoryId, userId, agentId, threadCount: threads.length },
+        'Thread lookup result - broadcasting to all matching threads',
       );
 
-      // Emit memory.updated event if ConnectionManager and thread available (T046)
-      if (connectionManager && thread) {
-        try {
-          const event = {
-            type: 'memory.updated' as const,
-            timestamp: new Date().toISOString(),
-            memory: updatedMemory,
-            threadId: thread.id,
-          };
-          logger.info(
-            { memoryId, threadId: thread.id, eventType: event.type },
-            'Broadcasting memory.updated event',
-          );
-          connectionManager.broadcastMemoryEvent(thread.id, event);
-          logger.info({ memoryId, threadId: thread.id }, 'memory.updated event broadcast complete');
-        } catch (eventError) {
-          logger.warn(
-            { error: eventError, memoryId, threadId: thread.id },
-            'Failed to broadcast memory.updated event',
-          );
+      // Emit memory.updated event to ALL threads for this user/agent (T046)
+      if (connectionManager && threads.length > 0) {
+        const event = {
+          type: 'memory.updated' as const,
+          timestamp: new Date().toISOString(),
+          memory: updatedMemory,
+        };
+
+        let broadcastCount = 0;
+        for (const thread of threads) {
+          try {
+            connectionManager.broadcastMemoryEvent(thread.id, {
+              ...event,
+              threadId: thread.id,
+            });
+            broadcastCount++;
+          } catch (eventError) {
+            logger.warn(
+              { error: eventError, memoryId, threadId: thread.id },
+              'Failed to broadcast memory.updated event to thread',
+            );
+          }
         }
-      } else if (!thread) {
+
+        logger.info(
+          { memoryId, threadCount: threads.length, broadcastCount },
+          'memory.updated event broadcast to all threads',
+        );
+      } else if (threads.length === 0) {
         logger.warn(
           { memoryId, userId, agentId },
-          'No thread found for memory - cannot broadcast event',
+          'No threads found for memory - cannot broadcast event',
         );
       } else if (!connectionManager) {
         logger.warn({ memoryId }, 'ConnectionManager not available - cannot broadcast event');
@@ -424,31 +432,43 @@ export function registerMemoryRoutes(app: FastifyInstance, options: MemoryRoutes
       const agentId = memoryToDelete.namespace[1];
       const userId = memoryToDelete.namespace[2];
 
-      // Find thread for this memory (T047)
-      const thread = await prisma.thread.findFirst({
+      // Find ALL threads for this user/agent combination (T047)
+      // Memories are agent-scoped, not thread-scoped, so we broadcast to all threads
+      const threads = await prisma.thread.findMany({
         where: {
           agentId,
           userId,
         },
       });
 
-      // Emit memory.deleted event if ConnectionManager and thread available (T047)
-      if (connectionManager && thread) {
-        try {
-          const event = {
-            type: 'memory.deleted' as const,
-            timestamp: new Date().toISOString(),
-            memoryId,
-            threadId: thread.id,
-          };
-          connectionManager.broadcastMemoryEvent(thread.id, event);
-          logger.debug({ memoryId, threadId: thread.id }, 'memory.deleted event emitted');
-        } catch (eventError) {
-          logger.warn(
-            { error: eventError, memoryId, threadId: thread.id },
-            'Failed to broadcast memory.deleted event',
-          );
+      // Emit memory.deleted event to ALL threads for this user/agent (T047)
+      if (connectionManager && threads.length > 0) {
+        const event = {
+          type: 'memory.deleted' as const,
+          timestamp: new Date().toISOString(),
+          memoryId,
+        };
+
+        let broadcastCount = 0;
+        for (const thread of threads) {
+          try {
+            connectionManager.broadcastMemoryEvent(thread.id, {
+              ...event,
+              threadId: thread.id,
+            });
+            broadcastCount++;
+          } catch (eventError) {
+            logger.warn(
+              { error: eventError, memoryId, threadId: thread.id },
+              'Failed to broadcast memory.deleted event to thread',
+            );
+          }
         }
+
+        logger.info(
+          { memoryId, threadCount: threads.length, broadcastCount },
+          'memory.deleted event broadcast to all threads',
+        );
       }
 
       logger.debug({ memoryId }, 'Memory deletion successful');

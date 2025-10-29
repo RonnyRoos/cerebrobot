@@ -95,11 +95,16 @@ export const memoryApi = {
     memoryId: string;
     request: MemoryUpdateRequest;
   }): Promise<MemoryOperationResponse> {
-    return fetchApi<MemoryOperationResponse>(`/api/memory/${params.memoryId}`, {
+    console.log('[memoryApi] updateMemory called', params);
+    const url = `/api/memory/${params.memoryId}`;
+    console.log('[memoryApi] Making PUT request to', url);
+    const result = await fetchApi<MemoryOperationResponse>(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params.request),
     });
+    console.log('[memoryApi] PUT request successful', result);
+    return result;
   },
 
   /**
