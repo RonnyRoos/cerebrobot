@@ -39,6 +39,7 @@ export interface BuildServerOptions {
   readonly getAgent: (agentId?: string) => Promise<ChatAgent>;
   readonly checkpointer: BaseCheckpointSaver;
   readonly infrastructureConfig: InfrastructureConfig;
+  readonly connectionManager: ConnectionManager;
   readonly logger?: Logger;
 }
 
@@ -69,10 +70,8 @@ export function buildServer(options: BuildServerOptions): {
 
   // Register routes after WebSocket plugin to ensure proper plugin ordering
   app.register(async (fastifyInstance) => {
-    // Create ConnectionManager for thread-persistent WebSocket connections
-    const connectionManager = new ConnectionManager(
-      logger.child({ component: 'connection-manager' }),
-    );
+    // Use ConnectionManager passed from options (created in index.ts)
+    const connectionManager = options.connectionManager;
 
     // Initialize Events & Effects architecture (spec 008)
     const eventStore = new EventStore(prisma);

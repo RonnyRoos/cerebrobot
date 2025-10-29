@@ -8,6 +8,7 @@ import { loadInfrastructureConfig } from './config.js';
 import { createAgentFactory } from './agent/agent-factory.js';
 import { createThreadManager } from './thread-manager/thread-manager.js';
 import { createCheckpointSaver } from './agent/checkpointer.js';
+import { ConnectionManager } from './chat/connection-manager.js';
 
 export async function bootstrap(): Promise<void> {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -46,10 +47,16 @@ export async function bootstrap(): Promise<void> {
   // Create shared checkpointer instance (only needs persistence config)
   const checkpointer = createCheckpointSaver(infrastructureConfig);
 
+  // Create ConnectionManager (needed by agent tools for WebSocket events)
+  const connectionManager = new ConnectionManager(
+    logger.child({ component: 'connection-manager' }),
+  );
+
   // Create agent factory (lazy loading - agents loaded from JSON, not .env)
   const agentFactory = createAgentFactory({
     logger: logger.child({ component: 'agent-factory' }),
     checkpointer,
+    connectionManager,
   });
 
   const threadManager = createThreadManager({
@@ -63,6 +70,7 @@ export async function bootstrap(): Promise<void> {
     getAgent: (agentId?: string) => agentFactory.getOrCreateAgent(agentId),
     checkpointer,
     infrastructureConfig,
+    connectionManager,
     logger: logger.child({ component: 'fastify' }),
   });
 

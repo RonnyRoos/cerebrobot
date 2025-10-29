@@ -34,6 +34,15 @@ export type { ChatMessage, CancellationSignal, ClientMessage } from './schemas/c
 // Connection types
 export type { ConnectionState, RequestStatus, ConnectionInfo } from './types/connection.js';
 
+// Event schemas (WebSocket)
+export {
+  MemoryCreatedEventSchema,
+  WebSocketEventSchema,
+  BaseWebSocketEventSchema,
+} from './schemas/events.js';
+
+export type { MemoryCreatedEvent, WebSocketEvent } from './schemas/events.js';
+
 // User schemas
 export { CreateUserRequestSchema, CreateUserResponseSchema } from './schemas/user.js';
 

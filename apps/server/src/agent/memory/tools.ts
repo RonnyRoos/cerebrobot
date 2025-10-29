@@ -14,6 +14,8 @@ import {
 } from '@cerebrobot/chat-shared';
 import { generateEmbedding, type MemoryConfig } from './index.js';
 import type { Logger } from 'pino';
+import type { ConnectionManager } from '../../chat/connection-manager.js';
+import type { MemoryCreatedEvent } from '@cerebrobot/chat-shared';
 
 /**
  * Create upsertMemory tool for LLM
@@ -21,7 +23,12 @@ import type { Logger } from 'pino';
  * Allows the LLM to store or update memories about the user.
  * Uses config.configurable.userId for user identification.
  */
-export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, logger: Logger) {
+export function createUpsertMemoryTool(
+  store: BaseStore,
+  config: MemoryConfig,
+  logger: Logger,
+  connectionManager?: ConnectionManager,
+) {
   return tool(
     async (input, runnableConfig) => {
       try {
@@ -135,6 +142,48 @@ export function createUpsertMemoryTool(store: BaseStore, config: MemoryConfig, l
           },
           'Memory stored successfully',
         );
+
+        // Emit memory.created event if ConnectionManager is available
+        if (connectionManager) {
+          const threadId = runnableConfig?.configurable?.thread_id as string | undefined;
+
+          if (threadId) {
+            const event: MemoryCreatedEvent = {
+              type: 'memory.created',
+              memory: {
+                id: memoryId,
+                namespace,
+                key: memoryKey,
+                content,
+                metadata,
+                embedding,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+              threadId,
+              timestamp: new Date().toISOString(),
+            };
+
+            try {
+              connectionManager.broadcastMemoryEvent(threadId, event);
+              logger.debug(
+                { memoryId, threadId, eventType: 'memory.created' },
+                'Memory creation event broadcasted',
+              );
+            } catch (broadcastError) {
+              // Log but don't fail the tool execution if broadcast fails
+              logger.warn(
+                { broadcastError, memoryId, threadId },
+                'Failed to broadcast memory.created event',
+              );
+            }
+          } else {
+            logger.warn(
+              { memoryId },
+              'threadId not found in config - skipping memory.created event broadcast',
+            );
+          }
+        }
 
         return {
           success: true,

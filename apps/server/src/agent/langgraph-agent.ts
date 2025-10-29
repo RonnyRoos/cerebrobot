@@ -13,6 +13,7 @@ import type { Logger } from 'pino';
 import type { BaseStore } from '@cerebrobot/chat-shared';
 import type { ChatAgent, ChatInvocationContext } from '../chat/chat-agent.js';
 import type { AgentConfig } from '../config/agent-config.js';
+import type { ConnectionManager } from '../chat/connection-manager.js';
 import { createMemoryStore } from './memory/index.js';
 import { createUpsertMemoryTool } from './memory/tools.js';
 import { toStringContent, extractLatestAssistantMessage } from './utils/message-utils.js';
@@ -32,6 +33,7 @@ export class LangGraphChatAgent implements ChatAgent {
     agentConfig: AgentConfig, // Agent config from JSON
     logger?: Logger,
     checkpointer?: BaseCheckpointSaver,
+    connectionManager?: ConnectionManager,
   ) {
     this.logger = logger;
     this.checkpointer = checkpointer;
@@ -108,6 +110,7 @@ export class LangGraphChatAgent implements ChatAgent {
             memoryStore,
             memoryConfig,
             this.logger ?? (console as unknown as Logger),
+            connectionManager,
           ),
         ];
 
@@ -333,6 +336,7 @@ export function createLangGraphChatAgent(
   agentConfig: AgentConfig, // Agent config from JSON file
   logger?: Logger,
   checkpointer?: BaseCheckpointSaver,
+  connectionManager?: ConnectionManager,
 ): LangGraphChatAgent {
-  return new LangGraphChatAgent(agentConfig, logger, checkpointer);
+  return new LangGraphChatAgent(agentConfig, logger, checkpointer, connectionManager);
 }
