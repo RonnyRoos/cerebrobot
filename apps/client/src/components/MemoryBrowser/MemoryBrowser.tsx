@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
+import type { MemoryEntry, MemorySearchResult, MemoryStatsResponse } from '@cerebrobot/chat-shared';
 import { MemoryList } from './MemoryList.js';
 import { MemorySearch } from './MemorySearch.js';
 import { MemoryCreateForm } from './MemoryCreateForm.js';
@@ -21,6 +21,9 @@ interface MemoryBrowserProps {
 
   /** Search results (when search is active) */
   searchResults?: MemorySearchResult[] | null;
+
+  /** Memory capacity stats (US5: T078) */
+  stats?: MemoryStatsResponse | null;
 
   /** Loading state */
   isLoading?: boolean;
@@ -81,6 +84,7 @@ function saveState(isOpen: boolean): void {
 export function MemoryBrowser({
   memories,
   searchResults = null,
+  stats = null,
   isLoading,
   isSearching = false,
   error,
@@ -208,7 +212,9 @@ export function MemoryBrowser({
                     color: '#6b7280',
                   }}
                 >
-                  Real-time memory as the agent learns
+                  {stats
+                    ? `${stats.count} ${stats.count === 1 ? 'memory' : 'memories'} stored`
+                    : 'Real-time memory as the agent learns'}
                 </p>
               </div>
               <button
@@ -230,6 +236,45 @@ export function MemoryBrowser({
               </button>
             </div>
           </header>
+
+          {/* Capacity Warning Banner (US5: T079) */}
+          {stats && stats.showWarning && (
+            <div
+              role="alert"
+              style={{
+                padding: '0.75rem 1rem',
+                backgroundColor: '#fef3c7',
+                borderBottom: '1px solid #fbbf24',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    color: '#92400e',
+                  }}
+                >
+                  Memory capacity at {Math.round(stats.capacityPercent * 100)}%
+                </p>
+                <p
+                  style={{
+                    margin: '0.125rem 0 0 0',
+                    fontSize: '0.75rem',
+                    color: '#78350f',
+                  }}
+                >
+                  {stats.count} of {stats.maxMemories} memories used. Consider deleting old
+                  memories.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Memory List Container */}
           <div

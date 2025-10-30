@@ -5,7 +5,7 @@ import { useMemories } from '../hooks/useMemories.js';
 import { useMemo, useEffect, useCallback, useState } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
 import { Toast } from './Toast.js';
-import type { MemoryCreatedEvent } from '@cerebrobot/chat-shared';
+import type { MemoryCreatedEvent, MemoryDeletedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
   userId: string;
@@ -77,8 +77,10 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   const {
     memories,
     searchResults,
+    stats,
     error: memoryError,
     fetchMemories,
+    fetchStats,
     searchMemories,
     clearSearch,
     createMemory,
@@ -124,11 +126,12 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     const loadMemories = async () => {
       setIsLoadingMemories(true);
       await fetchMemories(activeThreadId);
+      await fetchStats(activeThreadId); // US5: T077 - Fetch capacity stats
       setIsLoadingMemories(false);
     };
 
     void loadMemories();
-  }, [activeThreadId, fetchMemories]);
+  }, [activeThreadId, fetchMemories, fetchStats]);
 
   // Handle memory.created events from WebSocket
   const handleMemoryCreatedEvent = useCallback(
@@ -137,6 +140,11 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
 
       // Update local state via hook handler
       handleMemoryCreated(event);
+
+      // Refresh stats after creating memory (US5: T077)
+      if (activeThreadId) {
+        void fetchStats(activeThreadId);
+      }
 
       // Signal to auto-open the memory sidebar
       setAutoOpenMemory(true);
@@ -148,7 +156,18 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       setTimeout(() => setAutoOpenMemory(false), 100);
       setTimeout(() => setHighlightMemoryId(null), 2000); // Clear highlight after 2s
     },
-    [handleMemoryCreated],
+    [handleMemoryCreated, fetchStats, activeThreadId],
+  );
+
+  // Handle memory.deleted events and refresh stats (US5: T077)
+  const handleMemoryDeletedEvent = useCallback(
+    (event: MemoryDeletedEvent) => {
+      handleMemoryDeleted(event);
+      if (activeThreadId) {
+        void fetchStats(activeThreadId);
+      }
+    },
+    [handleMemoryDeleted, fetchStats, activeThreadId],
   );
 
   const {
@@ -170,7 +189,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     initialMessages,
     onMemoryCreated: handleMemoryCreatedEvent,
     onMemoryUpdated: handleMemoryUpdated,
-    onMemoryDeleted: handleMemoryDeleted,
+    onMemoryDeleted: handleMemoryDeletedEvent,
   });
 
   const startNewThread = useCallback(
@@ -403,6 +422,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       <MemoryBrowser
         memories={memories}
         searchResults={searchResults}
+        stats={stats}
         isLoading={isLoadingMemories}
         isSearching={isSearching}
         error={memoryError?.message || null}
