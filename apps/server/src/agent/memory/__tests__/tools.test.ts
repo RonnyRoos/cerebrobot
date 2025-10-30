@@ -17,7 +17,7 @@ describe('createUpsertMemoryTool', () => {
     store = {
       put: vi.fn(),
       get: vi.fn(),
-      search: vi.fn(),
+      search: vi.fn(async () => []), // Return no duplicates by default
       delete: vi.fn(),
       list: vi.fn(),
     };

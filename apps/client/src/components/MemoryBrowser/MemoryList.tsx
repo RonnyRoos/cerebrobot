@@ -274,13 +274,21 @@ export function MemoryList({
               style={{
                 padding: '0.75rem',
                 marginBottom: '0.5rem',
-                backgroundColor: isHighlighted ? '#d1fae5' : '#f9fafb',
-                border: `1px solid ${isHighlighted ? '#10b981' : '#e5e7eb'}`,
+                backgroundColor: isHighlighted
+                  ? '#d1fae5'
+                  : similarity !== undefined && similarity >= 0.9
+                    ? '#ecfdf5'
+                    : '#f9fafb',
+                border: `1px solid ${isHighlighted ? '#10b981' : similarity !== undefined && similarity >= 0.9 ? '#6ee7b7' : '#e5e7eb'}`,
                 borderRadius: '0.375rem',
                 transition: 'all 0.3s ease-out',
+                boxShadow:
+                  similarity !== undefined && similarity >= 0.9
+                    ? '0 1px 3px 0 rgba(16, 185, 129, 0.1)'
+                    : undefined,
               }}
             >
-              {/* Similarity score badge (T035) */}
+              {/* Similarity score badge (T035, enhanced in T075/T081) */}
               {similarity !== undefined && (
                 <div
                   style={{
@@ -292,11 +300,13 @@ export function MemoryList({
                     color:
                       similarity >= 0.9 ? '#059669' : similarity >= 0.7 ? '#3b82f6' : '#6b7280',
                     backgroundColor:
-                      similarity >= 0.9 ? '#d1fae5' : similarity >= 0.7 ? '#dbeafe' : '#f3f4f6',
+                      similarity >= 0.9 ? '#a7f3d0' : similarity >= 0.7 ? '#dbeafe' : '#f3f4f6',
                     borderRadius: '0.25rem',
+                    border: similarity >= 0.9 ? '1px solid #059669' : undefined,
                   }}
-                  title={`Similarity score: ${similarity.toFixed(3)}`}
+                  title={`Similarity: ${similarity.toFixed(3)} (${similarity >= 0.95 ? 'Exact match' : similarity >= 0.9 ? 'Very close match' : similarity >= 0.7 ? 'Related memory' : 'Weak match'})`}
                 >
+                  {similarity >= 0.9 ? '✨ ' : ''}
                   {Math.round(similarity * 100)}% match
                 </div>
               )}

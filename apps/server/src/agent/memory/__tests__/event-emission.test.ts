@@ -29,7 +29,7 @@ describe('Memory Event Emission', () => {
     store = {
       put: vi.fn(async () => {}),
       get: vi.fn(),
-      search: vi.fn(),
+      search: vi.fn(async () => []), // Return no duplicates by default
       delete: vi.fn(),
       list: vi.fn(),
     };

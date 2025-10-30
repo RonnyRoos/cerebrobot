@@ -25,6 +25,7 @@ export function MemoryCreateForm({ onSave, onCancel }: MemoryCreateFormProps): J
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(true);
 
   const isValid = content.length >= MIN_LENGTH && content.length <= MAX_LENGTH;
   const charCount = content.length;
@@ -45,6 +46,45 @@ export function MemoryCreateForm({ onSave, onCancel }: MemoryCreateFormProps): J
 
   return (
     <div>
+      {/* Duplicate warning banner (T082) - shown until dismissed */}
+      {showDuplicateWarning && content.length > 0 && (
+        <div
+          style={{
+            padding: '0.75rem',
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fde68a',
+            borderRadius: '0.375rem',
+            color: '#92400e',
+            fontSize: '0.875rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+          }}
+        >
+          <div>
+            <strong>💡 Tip:</strong> Duplicate memories are automatically detected and blocked.
+            Similar content (≥95%) will be rejected.
+          </div>
+          <button
+            onClick={() => setShowDuplicateWarning(false)}
+            style={{
+              marginLeft: '0.5rem',
+              padding: '0.125rem 0.25rem',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: '#92400e',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+            }}
+            aria-label="Dismiss warning"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
