@@ -186,55 +186,27 @@ export function MemoryBrowser({
               backgroundColor: '#f9fafb',
             }}
           >
-            <div
+            <h2
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '0.5rem',
+                margin: 0,
+                fontSize: '1.125rem',
+                fontWeight: '600',
+                color: '#111827',
               }}
             >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: '1.125rem',
-                    fontWeight: '600',
-                    color: '#111827',
-                  }}
-                >
-                  🧠 Agent Memory
-                </h2>
-                <p
-                  style={{
-                    margin: '0.25rem 0 0 0',
-                    fontSize: '0.75rem',
-                    color: '#6b7280',
-                  }}
-                >
-                  {stats
-                    ? `${stats.count} ${stats.count === 1 ? 'memory' : 'memories'} stored`
-                    : 'Real-time memory as the agent learns'}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  fontSize: '0.75rem',
-                  fontWeight: '500',
-                  whiteSpace: 'nowrap',
-                }}
-                title="Create a new memory"
-              >
-                + Create
-              </button>
-            </div>
+              🧠 Agent Memory
+            </h2>
+            <p
+              style={{
+                margin: '0.25rem 0 0 0',
+                fontSize: '0.75rem',
+                color: '#6b7280',
+              }}
+            >
+              {stats
+                ? `${stats.count} ${stats.count === 1 ? 'memory' : 'memories'} stored`
+                : 'Real-time memory as the agent learns'}
+            </p>
           </header>
 
           {/* Capacity Warning Banner (US5: T079) */}
@@ -304,6 +276,36 @@ export function MemoryBrowser({
               onDeleteMemory={onDeleteMemory}
             />
           </div>
+
+          {/* Create Button (Footer) */}
+          {onCreateMemory && (
+            <div 
+              style={{ 
+                padding: '1rem', 
+                borderTop: '1px solid #e5e7eb',
+                backgroundColor: 'white',
+              }}
+            >
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                }}
+                title="Create a new memory"
+              >
+                + Create Memory
+              </button>
+            </div>
+          )}
         </aside>
       )}
 
