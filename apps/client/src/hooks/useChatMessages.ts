@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TokenUsage } from '@cerebrobot/chat-shared';
+import type {
+  TokenUsage,
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+} from '@cerebrobot/chat-shared';
 import { useThreadConnection } from './useThreadConnection.js';
 
 /**
@@ -38,6 +43,9 @@ interface UseChatMessagesOptions {
   userId: string | null;
   getActiveThreadId: () => Promise<string | null>;
   initialMessages?: DisplayMessage[];
+  onMemoryCreated?: (event: MemoryCreatedEvent) => void;
+  onMemoryUpdated?: (event: MemoryUpdatedEvent) => void;
+  onMemoryDeleted?: (event: MemoryDeletedEvent) => void;
 }
 
 interface UseChatMessagesResult {
@@ -56,7 +64,14 @@ interface UseChatMessagesResult {
 }
 
 export function useChatMessages(options: UseChatMessagesOptions): UseChatMessagesResult {
-  const { userId, getActiveThreadId, initialMessages = [] } = options;
+  const {
+    userId,
+    getActiveThreadId,
+    initialMessages = [],
+    onMemoryCreated,
+    onMemoryUpdated,
+    onMemoryDeleted,
+  } = options;
 
   // State management
   const [messages, setMessages] = useState<DisplayMessage[]>(initialMessages);
@@ -134,6 +149,9 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
     handleAutonomousMessage,
     handleAutonomousToken,
     handleAutonomousComplete,
+    onMemoryCreated,
+    onMemoryUpdated,
+    onMemoryDeleted,
   );
 
   // Refs for stable references

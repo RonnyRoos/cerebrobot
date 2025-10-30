@@ -284,4 +284,66 @@ export class ConnectionManager {
     }
     return connectionIds;
   }
+
+  /**
+   * Broadcast a memory event to all connections for a specific thread
+   *
+   * @param threadId - The thread identifier
+   * @param event - The memory event to broadcast (e.g., memory.created)
+   */
+  broadcastMemoryEvent(threadId: string, event: Record<string, unknown>): void {
+    const connectionIds = this.getConnectionsByThread(threadId);
+
+    if (connectionIds.length === 0) {
+      this.logger.debug(
+        { threadId, eventType: event.type },
+        'No active connections for thread, skipping memory event broadcast',
+      );
+      return;
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const connectionId of connectionIds) {
+      const state = this.connections.get(connectionId);
+      if (!state) {
+        this.logger.warn({ connectionId, threadId }, 'Connection state not found during broadcast');
+        continue;
+      }
+
+      try {
+        const payload = JSON.stringify(event);
+        state.socket.send(payload);
+        successCount++;
+
+        this.logger.debug(
+          { connectionId, threadId, eventType: event.type },
+          'Memory event broadcast to connection',
+        );
+      } catch (error) {
+        errorCount++;
+        this.logger.error(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            connectionId,
+            threadId,
+            eventType: event.type,
+          },
+          'Failed to broadcast memory event',
+        );
+      }
+    }
+
+    this.logger.info(
+      {
+        threadId,
+        eventType: event.type,
+        totalConnections: connectionIds.length,
+        successCount,
+        errorCount,
+      },
+      'Memory event broadcast complete',
+    );
+  }
 }

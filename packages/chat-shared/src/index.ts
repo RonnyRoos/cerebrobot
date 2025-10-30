@@ -34,6 +34,22 @@ export type { ChatMessage, CancellationSignal, ClientMessage } from './schemas/c
 // Connection types
 export type { ConnectionState, RequestStatus, ConnectionInfo } from './types/connection.js';
 
+// Event schemas (WebSocket)
+export {
+  MemoryCreatedEventSchema,
+  MemoryUpdatedEventSchema,
+  MemoryDeletedEventSchema,
+  WebSocketEventSchema,
+  BaseWebSocketEventSchema,
+} from './schemas/events.js';
+
+export type {
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+  WebSocketEvent,
+} from './schemas/events.js';
+
 // User schemas
 export { CreateUserRequestSchema, CreateUserResponseSchema } from './schemas/user.js';
 
@@ -45,6 +61,12 @@ export {
   MemorySearchResultSchema,
   UpsertMemoryInputSchema,
   UpsertMemoryOutputSchema,
+  MemoryListResponseSchema,
+  MemorySearchResponseSchema,
+  MemoryStatsResponseSchema,
+  MemoryCreateRequestSchema,
+  MemoryUpdateRequestSchema,
+  MemoryOperationResponseSchema,
   validateMemoryContent,
   validateNamespace,
   buildAgentMemoryNamespace,
@@ -60,6 +82,12 @@ export type {
   MemorySearchResult,
   UpsertMemoryInput,
   UpsertMemoryOutput,
+  MemoryListResponse,
+  MemorySearchResponse,
+  MemoryStatsResponse,
+  MemoryCreateRequest,
+  MemoryUpdateRequest,
+  MemoryOperationResponse,
   BaseStore,
   StoreSearchOptions,
 } from './schemas/memory.js';

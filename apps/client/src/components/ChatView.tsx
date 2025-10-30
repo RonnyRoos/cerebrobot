@@ -1,7 +1,11 @@
 import { useThread } from '../hooks/useThread.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemories } from '../hooks/useMemories.js';
+import { useMemo, useEffect, useCallback, useState } from 'react';
+import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
+import { Toast } from './Toast.js';
+import type { MemoryCreatedEvent, MemoryDeletedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
   userId: string;
@@ -69,6 +73,103 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     }
   }, [activeThreadId, threadPromise]);
 
+  // Memory management
+  const {
+    memories,
+    searchResults,
+    stats,
+    error: memoryError,
+    fetchMemories,
+    fetchStats,
+    searchMemories,
+    clearSearch,
+    createMemory,
+    updateMemory,
+    deleteMemory,
+    handleMemoryCreated,
+    handleMemoryUpdated,
+    handleMemoryDeleted,
+  } = useMemories();
+  const [isLoadingMemories, setIsLoadingMemories] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [autoOpenMemory, setAutoOpenMemory] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [highlightMemoryId, setHighlightMemoryId] = useState<string | null>(null);
+
+  // Handle memory search (US2: T039)
+  const handleSearchMemories = async (query: string) => {
+    if (!activeThreadId) return;
+    setIsSearching(true);
+    await searchMemories(activeThreadId, query);
+    setIsSearching(false);
+  };
+
+  // Handle clear search (US2: T039)
+  const handleClearSearch = () => {
+    clearSearch();
+  };
+
+  // Handle create memory (US4: T062, T067)
+  const handleCreateMemory = async (content: string) => {
+    if (!activeThreadId) return;
+    await createMemory(activeThreadId, content);
+    // Show success toast (T067)
+    setToastMessage('Memory created successfully');
+  };
+
+  // Fetch memories when threadId changes
+  useEffect(() => {
+    if (!activeThreadId) {
+      return;
+    }
+
+    const loadMemories = async () => {
+      setIsLoadingMemories(true);
+      await fetchMemories(activeThreadId);
+      await fetchStats(activeThreadId); // US5: T077 - Fetch capacity stats
+      setIsLoadingMemories(false);
+    };
+
+    void loadMemories();
+  }, [activeThreadId, fetchMemories, fetchStats]);
+
+  // Handle memory.created events from WebSocket
+  const handleMemoryCreatedEvent = useCallback(
+    (event: MemoryCreatedEvent) => {
+      console.log('[ChatView] Memory created event received', event);
+
+      // Update local state via hook handler
+      handleMemoryCreated(event);
+
+      // Refresh stats after creating memory (US5: T077)
+      if (activeThreadId) {
+        void fetchStats(activeThreadId);
+      }
+
+      // Signal to auto-open the memory sidebar
+      setAutoOpenMemory(true);
+
+      // Highlight the new memory (T068)
+      setHighlightMemoryId(event.memory.id);
+
+      // Reset auto-open and highlight after short delays
+      setTimeout(() => setAutoOpenMemory(false), 100);
+      setTimeout(() => setHighlightMemoryId(null), 2000); // Clear highlight after 2s
+    },
+    [handleMemoryCreated, fetchStats, activeThreadId],
+  );
+
+  // Handle memory.deleted events and refresh stats (US5: T077)
+  const handleMemoryDeletedEvent = useCallback(
+    (event: MemoryDeletedEvent) => {
+      handleMemoryDeleted(event);
+      if (activeThreadId) {
+        void fetchStats(activeThreadId);
+      }
+    },
+    [handleMemoryDeleted, fetchStats, activeThreadId],
+  );
+
   const {
     messages,
     isStreaming,
@@ -86,6 +187,9 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     userId,
     getActiveThreadId,
     initialMessages,
+    onMemoryCreated: handleMemoryCreatedEvent,
+    onMemoryUpdated: handleMemoryUpdated,
+    onMemoryDeleted: handleMemoryDeletedEvent,
   });
 
   const startNewThread = useCallback(
@@ -313,6 +417,28 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
           </button>
         </div>
       </form>
+
+      {/* Memory Browser Sidebar */}
+      <MemoryBrowser
+        memories={memories}
+        searchResults={searchResults}
+        stats={stats}
+        isLoading={isLoadingMemories}
+        isSearching={isSearching}
+        error={memoryError?.message || null}
+        autoOpen={autoOpenMemory}
+        highlightMemoryId={highlightMemoryId}
+        onSearch={handleSearchMemories}
+        onClearSearch={handleClearSearch}
+        onCreateMemory={handleCreateMemory}
+        onUpdateMemory={updateMemory}
+        onDeleteMemory={deleteMemory}
+      />
+
+      {/* Success Toast (US4: T067) */}
+      {toastMessage && (
+        <Toast message={toastMessage} type="success" onDismiss={() => setToastMessage(null)} />
+      )}
     </section>
   );
 }

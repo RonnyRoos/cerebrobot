@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Test coverage
+coverage/
+
+# Lock files (generated, should not be formatted)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+
+# Package manager
+.pnpm-store/
+.corepack/
+
+# Prisma generated
+apps/server/src/generated/
+
+# MCP
+.playwright-mcp/
+
+# Markdown in specs (may have intentional formatting)
+specs/**/*.md

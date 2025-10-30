@@ -6,6 +6,15 @@ interface PostgresPersistenceConfig {
 }
 
 /**
+ * Memory capacity and quality configuration
+ */
+export interface MemoryConfig {
+  readonly maxPerUser: number;
+  readonly duplicateThreshold: number;
+  readonly capacityWarnPercent: number;
+}
+
+/**
  * Infrastructure configuration loaded from environment variables.
  * This does NOT include agent-specific settings (prompts, models, etc.)
  * which are loaded lazily from JSON config files.
@@ -16,19 +25,18 @@ export interface InfrastructureConfig {
     readonly provider: 'memory' | 'postgres';
     readonly postgres?: PostgresPersistenceConfig;
   };
+  readonly memory: MemoryConfig;
 }
 
 const InfrastructureConfigSchema = z.object({
   FASTIFY_PORT: z.coerce.number().int().min(1).default(3000),
   LANGGRAPH_PG_URL: z.string().optional(),
   LANGGRAPH_PG_SCHEMA: z.string().optional(),
+  MEMORY_MAX_PER_USER: z.coerce.number().int().min(1).default(1000),
+  MEMORY_DUPLICATE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.95),
+  MEMORY_CAPACITY_WARN_PCT: z.coerce.number().min(0).max(1).default(0.8),
 });
 
-/**
- * Load infrastructure configuration from environment variables.
- * Agent configurations are NOT loaded here - they are lazily loaded
- * from JSON files via AgentLoader.
- */
 export function loadInfrastructureConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): InfrastructureConfig {
@@ -48,5 +56,10 @@ export function loadInfrastructureConfig(
   return {
     port: parsed.FASTIFY_PORT,
     persistence,
+    memory: {
+      maxPerUser: parsed.MEMORY_MAX_PER_USER,
+      duplicateThreshold: parsed.MEMORY_DUPLICATE_THRESHOLD,
+      capacityWarnPercent: parsed.MEMORY_CAPACITY_WARN_PCT,
+    },
   };
 }

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChatStreamEvent } from '@cerebrobot/chat-shared';
+import type {
+  ChatStreamEvent,
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+} from '@cerebrobot/chat-shared';
 import { WS_CLOSE_CODES } from '@cerebrobot/chat-shared';
 
 /**
@@ -35,6 +40,9 @@ export function useThreadConnection(
   onAutonomousMessage?: (message: string) => void,
   onAutonomousToken?: (requestId: string, token: string) => void,
   onAutonomousComplete?: (requestId: string, message: string, latencyMs?: number) => void,
+  onMemoryCreated?: (event: MemoryCreatedEvent) => void,
+  onMemoryUpdated?: (event: MemoryUpdatedEvent) => void,
+  onMemoryDeleted?: (event: MemoryDeletedEvent) => void,
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const inflightRequestsRef = useRef<Map<string, ResponseHandler>>(new Map());
@@ -45,13 +53,26 @@ export function useThreadConnection(
   const onAutonomousMessageRef = useRef(onAutonomousMessage);
   const onAutonomousTokenRef = useRef(onAutonomousToken);
   const onAutonomousCompleteRef = useRef(onAutonomousComplete);
+  const onMemoryCreatedRef = useRef(onMemoryCreated);
+  const onMemoryUpdatedRef = useRef(onMemoryUpdated);
+  const onMemoryDeletedRef = useRef(onMemoryDeleted);
 
   // Update callback refs when props change
   useEffect(() => {
     onAutonomousMessageRef.current = onAutonomousMessage;
     onAutonomousTokenRef.current = onAutonomousToken;
     onAutonomousCompleteRef.current = onAutonomousComplete;
-  }, [onAutonomousMessage, onAutonomousToken, onAutonomousComplete]);
+    onMemoryCreatedRef.current = onMemoryCreated;
+    onMemoryUpdatedRef.current = onMemoryUpdated;
+    onMemoryDeletedRef.current = onMemoryDeleted;
+  }, [
+    onAutonomousMessage,
+    onAutonomousToken,
+    onAutonomousComplete,
+    onMemoryCreated,
+    onMemoryUpdated,
+    onMemoryDeleted,
+  ]);
 
   /**
    * Resolve WebSocket URL from environment or default
@@ -156,15 +177,41 @@ export function useThreadConnection(
 
       ws.addEventListener('message', (event) => {
         try {
-          const serverEvent = JSON.parse(event.data) as ChatStreamEvent;
+          const serverEvent = JSON.parse(event.data) as
+            | ChatStreamEvent
+            | MemoryCreatedEvent
+            | MemoryUpdatedEvent
+            | MemoryDeletedEvent;
+
+          // Handle memory events (no requestId correlation needed)
+          if ('type' in serverEvent) {
+            if (serverEvent.type === 'memory.created') {
+              const memoryEvent = serverEvent as MemoryCreatedEvent;
+              onMemoryCreatedRef.current?.(memoryEvent);
+              return;
+            }
+            if (serverEvent.type === 'memory.updated') {
+              const memoryEvent = serverEvent as MemoryUpdatedEvent;
+              onMemoryUpdatedRef.current?.(memoryEvent);
+              return;
+            }
+            if (serverEvent.type === 'memory.deleted') {
+              const memoryEvent = serverEvent as MemoryDeletedEvent;
+              onMemoryDeletedRef.current?.(memoryEvent);
+              return;
+            }
+          }
+
+          // Handle chat stream events (require requestId correlation)
+          const chatEvent = serverEvent as ChatStreamEvent;
 
           // Extract requestId from event
-          if (!('requestId' in serverEvent)) {
-            console.warn('[useThreadConnection] Received event without requestId', serverEvent);
+          if (!('requestId' in chatEvent)) {
+            console.warn('[useThreadConnection] Received event without requestId', chatEvent);
             return;
           }
 
-          const { requestId } = serverEvent;
+          const { requestId } = chatEvent;
           const handler = inflightRequestsRef.current.get(requestId);
 
           // Server-initiated messages (autonomous follow-ups) don't have handlers
@@ -172,38 +219,38 @@ export function useThreadConnection(
           if (!handler) {
             if (requestId.startsWith('followup_')) {
               // Autonomous message - stream tokens and notify on completion
-              switch (serverEvent.type) {
+              switch (chatEvent.type) {
                 case 'token':
                   // Stream token to parent for display
-                  onAutonomousTokenRef.current?.(requestId, serverEvent.value);
+                  onAutonomousTokenRef.current?.(requestId, chatEvent.value);
                   break;
 
                 case 'final':
                   // Notify completion with full message
                   console.log('[useThreadConnection] Autonomous message complete', {
                     requestId,
-                    messagePreview: serverEvent.message.slice(0, 50) + '...',
+                    messagePreview: chatEvent.message.slice(0, 50) + '...',
                   });
                   onAutonomousCompleteRef.current?.(
                     requestId,
-                    serverEvent.message,
-                    serverEvent.latencyMs,
+                    chatEvent.message,
+                    chatEvent.latencyMs,
                   );
                   // Also call legacy callback for backward compatibility
-                  onAutonomousMessageRef.current?.(serverEvent.message);
+                  onAutonomousMessageRef.current?.(chatEvent.message);
                   break;
 
                 case 'error':
                   console.error('[useThreadConnection] Autonomous message error', {
                     requestId,
-                    error: serverEvent.message,
+                    error: chatEvent.message,
                   });
                   break;
 
                 default:
                   console.log('[useThreadConnection] Autonomous message event', {
                     requestId,
-                    type: serverEvent.type,
+                    type: chatEvent.type,
                   });
               }
             } else {
@@ -213,18 +260,18 @@ export function useThreadConnection(
           }
 
           // Route event to appropriate handler callback
-          switch (serverEvent.type) {
+          switch (chatEvent.type) {
             case 'token':
-              handler.onToken?.(serverEvent.value);
+              handler.onToken?.(chatEvent.value);
               break;
 
             case 'final':
-              handler.onComplete?.(serverEvent.message, serverEvent.latencyMs);
+              handler.onComplete?.(chatEvent.message, chatEvent.latencyMs);
               cleanupHandler(requestId);
               break;
 
             case 'error':
-              handler.onError?.(serverEvent.message, serverEvent.retryable ?? false);
+              handler.onError?.(chatEvent.message, chatEvent.retryable ?? false);
               cleanupHandler(requestId);
               break;
 
@@ -234,7 +281,7 @@ export function useThreadConnection(
               break;
 
             default:
-              console.warn('[useThreadConnection] Unknown event type', serverEvent);
+              console.warn('[useThreadConnection] Unknown event type', chatEvent);
           }
         } catch (error) {
           console.error('[useThreadConnection] Failed to parse server message', {

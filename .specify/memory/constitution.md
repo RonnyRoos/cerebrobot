@@ -117,7 +117,7 @@ Technology choices MUST align with the approved stack; deviations require Archit
 
 **Approved Stack**:
 - **Runtime**: Node.js ≥20
-- **HTTP**: Fastify 5.6.1, fastify-sse-v2 4.2.1
+- **HTTP**: Fastify 5.6.1, @fastify/websocket 11.2.0
 - **LangGraph**: @langchain/langgraph 0.4.9, langchain 0.3.34, @langchain/core 0.3.77
 - **Schema**: Zod 4.1.11, zod-openapi 5.4.1
 - **Database**: Prisma (latest), Postgres (LangGraph default)

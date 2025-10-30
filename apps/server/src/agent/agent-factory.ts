@@ -8,12 +8,14 @@
 import type { Logger } from 'pino';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { ChatAgent } from '../chat/chat-agent.js';
+import type { ConnectionManager } from '../chat/connection-manager.js';
 import { discoverAgentConfigs, loadAgentConfig } from '../config/agent-loader.js';
 import { createLangGraphChatAgent } from './langgraph-agent.js';
 
 export interface AgentFactoryOptions {
   readonly logger?: Logger;
   readonly checkpointer?: BaseCheckpointSaver;
+  readonly connectionManager?: ConnectionManager;
 }
 
 /**
@@ -59,6 +61,7 @@ export class AgentFactory {
       agentConfig,
       this.options.logger,
       this.options.checkpointer,
+      this.options.connectionManager,
     );
 
     // Cache for reuse
