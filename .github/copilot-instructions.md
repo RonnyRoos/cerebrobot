@@ -57,3 +57,10 @@ specs/            # Feature specifications
 ---
 
 **⚠️ Important**: This is a summary only. For complete instructions, MCP server configs, working cadence, and detailed guidelines, see **[AGENTS.md](../AGENTS.md)**.
+
+## Active Technologies
+- TypeScript 5.5+, Node.js ≥20 + Fastify 5.6.1, React 18+, Prisma (latest), Zod 4.1.11 (011-agent-crud-ui)
+- PostgreSQL with JSON/JSONB suppor (011-agent-crud-ui)
+
+## Recent Changes
+- 011-agent-crud-ui: Added TypeScript 5.5+, Node.js ≥20 + Fastify 5.6.1, React 18+, Prisma (latest), Zod 4.1.11

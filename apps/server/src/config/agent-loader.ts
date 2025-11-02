@@ -1,29 +1,23 @@
 /**
  * Agent Configuration Loader
  *
- * Lazy loading of agent configurations with fail-fast validation.
- * Configs loaded on-demand (API requests, thread creation), not at startup.
+ * Database-backed agent loading (Spec 011).
+ * Agents are stored in PostgreSQL and loaded on-demand.
+ * Filesystem JSON configs deprecated - database is single source of truth.
  */
 
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { Logger } from 'pino';
-import {
-  AgentConfigSchema,
-  AgentMetadataSchema,
-  type AgentConfig,
-  type AgentMetadata,
-} from './agent-config.js';
-// NOTE: Agent configs should NOT fall back to .env
-// import { loadConfigFromEnv } from '../config.js';
+import { AgentConfigSchema, type Agent } from '@cerebrobot/chat-shared';
 
-// Resolve config directory relative to repository root (3 levels up from this file)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const CONFIG_DIR = path.resolve(__dirname, '../../../../config/agents');
-const TEMPLATE_FILE = 'template.json';
+// Local metadata schema (not in shared package)
+const AgentMetadataSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+});
+
+type AgentMetadata = z.infer<typeof AgentMetadataSchema>;
 
 /**
  * Reserved UUID for .env fallback agent configuration.
@@ -32,16 +26,16 @@ const TEMPLATE_FILE = 'template.json';
  * falls back to reading configuration from environment variables.
  *
  * Format: Uses version 5 UUID structure to indicate it's deterministic.
+ */
 /**
  * Options for AgentLoader constructor
  */
 export interface AgentLoaderOptions {
   /**
-   * Directory containing agent configuration JSON files.
-   * Defaults to CONFIG_DIR (config/agents) in production.
-   * Injectable for testing.
+   * Prisma client for database access.
+   * Required for database-backed agent loading.
    */
-  readonly configDir?: string;
+  readonly prisma: PrismaClient;
 
   /**
    * Optional logger for diagnostic messages
@@ -52,186 +46,158 @@ export interface AgentLoaderOptions {
 /**
  * Agent Configuration Loader
  *
- * Handles discovery and loading of agent configurations from filesystem.
- * Supports dependency injection for testing (configDir parameter).
+ * Handles discovery and loading of agent configurations from database.
+ * Database is the single source of truth (filesystem configs deprecated per Spec 011).
  */
 export class AgentLoader {
-  private readonly configDir: string;
+  private readonly prisma: PrismaClient;
   private readonly logger?: Logger;
 
-  constructor(options: AgentLoaderOptions = {}) {
-    this.configDir = options.configDir ?? CONFIG_DIR;
+  constructor(options: AgentLoaderOptions) {
+    this.prisma = options.prisma;
     this.logger = options.logger;
   }
 
   /**
-   * Discover all agent configurations with fail-fast validation.
+   * Discover all agent configurations from database.
    *
-   * Scans configDir, validates ALL .json files (except template.json).
+   * Queries agents table, validates ALL configs.
    * If ANY config is invalid, throws error (fail-fast).
-   * NO .env fallback - agent configs MUST be in JSON files.
    *
    * @returns Array of agent metadata (id, name only)
-   * @throws Error if any config file is invalid or unreadable
+   * @throws Error if any config is invalid or database query fails
    */
   async discoverAgentConfigs(): Promise<AgentMetadata[]> {
-    return this.discoverFromFilesystem();
+    return this.discoverFromDatabase();
   }
 
   /**
    * Load a specific agent configuration by ID with strict validation.
    *
-   * Reads file from configDir, validates against schema.
-   * NO .env fallback - agent configs MUST be in JSON files.
+   * Queries database, validates against schema.
    * If config invalid or not found, throws error (fail-fast).
    *
    * @param agentId - UUID of the agent to load
-   * @returns Validated agent configuration
-   * @throws Error if config not found, invalid, or unreadable
+   * @returns Validated agent WITH metadata (id, timestamps)
+   * @throws Error if config not found, invalid, or database query fails
    */
-  async loadAgentConfig(agentId: string): Promise<AgentConfig> {
-    return this.loadFromFilesystem(agentId);
+  async loadAgentConfig(agentId: string): Promise<Agent> {
+    return this.loadFromDatabase(agentId);
   }
 
   /**
-   * Discover agent configs from filesystem (internal implementation)
+   * Discover agent configs from database (internal implementation)
    */
-  private async discoverFromFilesystem(): Promise<AgentMetadata[]> {
-    const files = await fs.readdir(this.configDir);
-    const jsonFiles = files.filter(
-      (f) => f.endsWith('.json') && f !== TEMPLATE_FILE && !f.startsWith('.'),
-    );
+  private async discoverFromDatabase(): Promise<AgentMetadata[]> {
+    try {
+      const agents = await this.prisma.agent.findMany({
+        select: { id: true, name: true },
+        orderBy: { createdAt: 'desc' },
+      });
 
-    if (jsonFiles.length === 0) {
-      throw new Error(`No agent configs found in ${this.configDir}`);
-    }
-
-    // Validate ALL configs (fail-fast)
-    const metadataPromises = jsonFiles.map(async (filename) => {
-      const filePath = path.join(this.configDir, filename);
-      try {
-        const content = await fs.readFile(filePath, 'utf-8');
-        const json = JSON.parse(content);
-        const config = AgentConfigSchema.parse(json);
-
-        return AgentMetadataSchema.parse({ id: config.id, name: config.name });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          const issues = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
-          throw new Error(`Agent config validation failed in ${filename}: ${issues.join(', ')}`);
-        }
-        if (error instanceof SyntaxError) {
-          throw new Error(`Failed to parse JSON in ${filename}: ${error.message}`);
-        }
-        throw new Error(`Failed to read agent config ${filename}: ${String(error)}`);
+      // Return empty array if no agents (graceful - allows server to start)
+      if (agents.length === 0) {
+        this.logger?.warn('No agents found in database - server will start but autonomy disabled');
+        return [];
       }
-    });
 
-    return await Promise.all(metadataPromises);
-  }
-
-  /**
-   * Load specific agent config from filesystem (internal implementation)
-   */
-  private async loadFromFilesystem(agentId: string): Promise<AgentConfig> {
-    const files = await fs.readdir(this.configDir);
-    const jsonFiles = files.filter(
-      (f) => f.endsWith('.json') && f !== TEMPLATE_FILE && !f.startsWith('.'),
-    );
-
-    if (jsonFiles.length === 0) {
-      throw new Error(`No agent configs found in ${this.configDir}`);
-    }
-
-    // Find config file with matching ID
-    for (const filename of jsonFiles) {
-      const filePath = path.join(this.configDir, filename);
-      const content = await fs.readFile(filePath, 'utf-8');
-      const json = JSON.parse(content);
-
-      if (json.id === agentId) {
+      // Validate all metadata
+      return agents.map((agent) => {
         try {
-          return AgentConfigSchema.parse(json);
+          return AgentMetadataSchema.parse({ id: agent.id, name: agent.name });
         } catch (error) {
           if (error instanceof z.ZodError) {
             const issues = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
-            throw new Error(`Agent config validation failed in ${filename}: ${issues.join(', ')}`);
+            throw new Error(
+              `Agent metadata validation failed for ${agent.id}: ${issues.join(', ')}`,
+            );
           }
           throw error;
         }
-      }
+      });
+    } catch (error) {
+      throw new Error(`Failed to discover agents from database: ${String(error)}`);
     }
-
-    // Not found
-    throw new Error(`Agent configuration not found: ${agentId}`);
   }
 
   /**
-   * Execute operation with .env fallback on ENOENT errors
-   *
-   * DRY helper to eliminate duplicated fallback logic.
+   * Load specific agent config from database (internal implementation)
    */
-  private async withEnvFallback<T>(
-    operation: () => Promise<T>,
-    fallback: () => T,
-    context: string,
-  ): Promise<T> {
+  private async loadFromDatabase(agentId: string): Promise<Agent> {
     try {
-      return await operation();
-    } catch (error: unknown) {
-      // Directory missing or unreadable → fallback to .env
-      if (isNodeError(error) && error.code === 'ENOENT') {
-        this.logger?.info(`${context}, falling back to .env`);
-        return fallback();
+      const agent = await this.prisma.agent.findUnique({
+        where: { id: agentId },
+      });
+
+      if (!agent) {
+        throw new Error(`Agent configuration not found: ${agentId}`);
       }
 
-      // Validation errors and other errors → fail-fast
-      throw error;
+      // Parse and validate the config JSON
+      // Note: Database stores config WITHOUT id/timestamps (separate columns)
+      // AgentConfigSchema expects config fields only (no metadata)
+      try {
+        const validatedConfig = AgentConfigSchema.parse(agent.config);
+
+        // Return Agent type with metadata
+        return {
+          id: agent.id,
+          createdAt: agent.createdAt.toISOString(),
+          updatedAt: agent.updatedAt.toISOString(),
+          ...validatedConfig,
+        };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          const issues = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+          throw new Error(`Agent config validation failed for ${agentId}: ${issues.join(', ')}`);
+        }
+        throw error;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Agent config')) {
+        throw error; // Re-throw validation errors as-is
+      }
+      throw new Error(`Failed to load agent ${agentId} from database: ${String(error)}`);
     }
   }
 }
 
 /**
- * Discover all agent configurations with fail-fast validation.
+ * Discover all agent configurations from database.
  *
- * Module-level convenience function for backward compatibility.
- * Uses default CONFIG_DIR from environment.
+ * Module-level convenience function.
+ * Requires Prisma client instance.
  *
+ * @param prisma - Prisma client for database access
  * @param logger - Optional logger for warnings
  * @returns Array of agent metadata (id, name only)
- * @throws Error if any config file is invalid or unreadable
+ * @throws Error if any config is invalid or database query fails
  */
-export async function discoverAgentConfigs(logger?: Logger): Promise<AgentMetadata[]> {
-  const loader = new AgentLoader({ logger });
+export async function discoverAgentConfigs(
+  prisma: PrismaClient,
+  logger?: Logger,
+): Promise<AgentMetadata[]> {
+  const loader = new AgentLoader({ prisma, logger });
   return loader.discoverAgentConfigs();
 }
 
 /**
  * Load a specific agent configuration by ID with strict validation.
  *
- * Module-level convenience function for backward compatibility.
- * Uses default CONFIG_DIR from environment.
+ * Module-level convenience function.
+ * Requires Prisma client instance.
  *
  * @param agentId - UUID of the agent to load
+ * @param prisma - Prisma client for database access
  * @param logger - Optional logger for warnings
- * @returns Validated agent configuration
- * @throws Error if config not found, invalid, or unreadable
+ * @returns Validated agent WITH metadata (id, timestamps)
+ * @throws Error if config not found, invalid, or database query fails
  */
-export async function loadAgentConfig(agentId: string, logger?: Logger): Promise<AgentConfig> {
-  const loader = new AgentLoader({ logger });
+export async function loadAgentConfig(
+  agentId: string,
+  prisma: PrismaClient,
+  logger?: Logger,
+): Promise<Agent> {
+  const loader = new AgentLoader({ prisma, logger });
   return loader.loadAgentConfig(agentId);
-}
-
-/**
- * REMOVED: .env fallback logic
- *
- * Agent configs MUST be in JSON files. No fallback to .env.
- * Functions buildEnvFallbackMetadata() and buildEnvFallbackConfig() removed.
- */
-
-/**
- * Type guard for Node.js errors with code property
- */
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'code' in error;
 }

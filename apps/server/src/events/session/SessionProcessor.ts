@@ -14,7 +14,7 @@ import type { ConnectionManager } from '../../chat/connection-manager.js';
 import type { TimerStore } from '../../autonomy/timers/TimerStore.js';
 
 export class SessionProcessor {
-  private readonly agent: ChatAgent;
+  private readonly getAgent: (agentId: string) => Promise<ChatAgent>;
   private readonly outboxStore: OutboxStore;
   private readonly connectionManager: ConnectionManager;
   private readonly timerStore?: TimerStore;
@@ -22,14 +22,14 @@ export class SessionProcessor {
   private readonly logger?: Logger;
 
   constructor(
-    agent: ChatAgent,
+    getAgent: (agentId: string) => Promise<ChatAgent>,
     outboxStore: OutboxStore,
     connectionManager: ConnectionManager,
     config: SessionProcessorConfig = {},
     logger?: Logger,
     timerStore?: TimerStore,
   ) {
-    this.agent = agent;
+    this.getAgent = getAgent;
     this.outboxStore = outboxStore;
     this.connectionManager = connectionManager;
     this.timerStore = timerStore;
@@ -122,8 +122,11 @@ export class SessionProcessor {
       // Declare checkpointId variable
       let checkpointId: string | null = null;
 
+      // Get the correct agent for this session
+      const agent = await this.getAgent(agentId);
+
       // Stream the agent's response
-      const stream = this.agent.streamChat({
+      const stream = agent.streamChat({
         threadId,
         userId,
         message,

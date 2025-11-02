@@ -1,0 +1,33 @@
+/**
+ * MemoryConfigSection Styles
+ */
+
+.memory-config-section .section-description {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+.memory-config-section .subsection {
+  margin-bottom: 2rem;
+}
+
+.memory-config-section .subsection:last-child {
+  margin-bottom: 0;
+}
+
+.memory-config-section .subsection-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.memory-config-section .field-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}

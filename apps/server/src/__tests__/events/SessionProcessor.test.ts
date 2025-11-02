@@ -54,13 +54,16 @@ describe('SessionProcessor', () => {
       streamChat: vi.fn(),
     } as unknown as ChatAgent;
 
+    // Mock getAgent function that returns the mock agent
+    const mockGetAgent = vi.fn(async () => mockAgent);
+
     // Mock ConnectionManager
     const mockConnectionManager = {
       getConnectionsByThread: vi.fn(() => []),
       get: vi.fn(() => null),
     } as unknown as ConnectionManager;
 
-    sessionProcessor = new SessionProcessor(mockAgent, mockOutboxStore, mockConnectionManager);
+    sessionProcessor = new SessionProcessor(mockGetAgent, mockOutboxStore, mockConnectionManager);
   });
 
   const createEvent = (text: string, seq = 1): Event => ({
@@ -222,8 +225,10 @@ describe('SessionProcessor', () => {
         get: vi.fn(() => null),
       } as unknown as ConnectionManager;
 
+      const mockGetAgent = vi.fn(async () => mockAgent);
+
       const fastProcessor = new SessionProcessor(
-        mockAgent,
+        mockGetAgent,
         mockOutboxStore,
         mockConnectionManager,
         {

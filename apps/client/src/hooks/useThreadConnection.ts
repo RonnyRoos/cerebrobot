@@ -83,10 +83,12 @@ export function useThreadConnection(
       return envUrl;
     }
 
+    // In development, use the same host/port as the page (Vite will proxy)
+    // In production, construct URL from window.location
     if (typeof window !== 'undefined') {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.hostname || 'localhost';
-      return `${protocol}//${host}:3030/api/chat/ws`;
+      const host = window.location.host; // includes port if present
+      return `${protocol}//${host}/api/chat/ws`;
     }
 
     return 'ws://localhost:3030/api/chat/ws';

@@ -14,7 +14,9 @@
   "dependencies": {
     "@cerebrobot/chat-shared": "workspace:*",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "react-router-dom": "^7.9.5",
+    "zod": "4.1.11"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.4.5",

@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ChatView } from './components/ChatView';
 import { UserSetup } from './components/UserSetup';
 import { ThreadListView } from './components/ThreadListView';
 import { AgentPicker } from './components/AgentPicker';
+import { AgentsPage } from './pages/AgentsPage';
 import { useUserId } from './hooks/useUserId';
 
 /**
@@ -10,10 +11,16 @@ import { useUserId } from './hooks/useUserId';
  *
  * Routing logic:
  * 1. If no userId: Show UserSetup
- * 2. If userId and no activeThread: Show ThreadListView
+ * 2. If userId and URL path is /agents: Show AgentsPage
+ * 3. If userId and no activeThread: Show ThreadListView
  *    - agentContextMode = null: "All Threads" view (no filtering)
  *    - agentContextMode = uuid: "Agent Context Mode" (filtered to that agent)
- * 3. If userId and activeThread: Show ChatView
+ * 4. If userId and activeThread: Show ChatView
+ *
+ * URL-based routing:
+ * - / → ThreadListView
+ * - /agents → AgentsPage
+ * - Supports browser back/forward navigation
  *
  * Agent Context Mode:
  * - Activated when user selects agent for new conversation
@@ -25,12 +32,36 @@ import { useUserId } from './hooks/useUserId';
  */
 export function App(): JSX.Element {
   const { userId, showUserSetup, handleUserIdReady } = useUserId();
+
+  // Initialize showAgentsPage from URL path
+  const [showAgentsPage, setShowAgentsPage] = useState(window.location.pathname === '/agents');
   const [agentContextMode, setAgentContextMode] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<{ threadId: string; agentId: string } | null>(
     null,
   );
   const [showAgentPickerForNew, setShowAgentPickerForNew] = useState(false);
   const refreshThreadsRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Listen to URL changes for browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowAgentsPage(window.location.pathname === '/agents');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Navigation helpers
+  const navigateToAgents = useCallback(() => {
+    window.history.pushState({}, '', '/agents');
+    setShowAgentsPage(true);
+  }, []);
+
+  const navigateToThreads = useCallback(() => {
+    window.history.pushState({}, '', '/');
+    setShowAgentsPage(false);
+  }, []);
 
   // Handler for selecting a thread (receives both threadId and agentId)
   // Does NOT change agentContextMode - user returns to same view they came from
@@ -82,6 +113,16 @@ export function App(): JSX.Element {
     return <UserSetup onUserIdReady={handleUserIdReady} />;
   }
 
+  // Show agents management page
+  if (showAgentsPage && userId) {
+    return (
+      <div>
+        <button onClick={navigateToThreads}>← Back to Threads</button>
+        <AgentsPage />
+      </div>
+    );
+  }
+
   // Show agent picker for new conversation (only when NOT in Agent Context Mode)
   if (showAgentPickerForNew && !agentContextMode && userId) {
     return <AgentPicker selectedAgentId={null} onSelect={handleAgentSelectedForNew} />;
@@ -97,6 +138,7 @@ export function App(): JSX.Element {
         onNewThread={handleNewThread}
         onExitAgentContext={handleExitAgentContext}
         onRefreshReady={handleRefreshReady}
+        onNavigateToAgents={navigateToAgents}
       />
     );
   }

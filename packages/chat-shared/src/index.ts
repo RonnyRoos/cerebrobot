@@ -114,6 +114,7 @@ export {
   AgentListItemSchema,
   AgentListResponseSchema,
   AgentConfigSchema,
+  AgentSchema,
   AgentAutonomyConfigSchema,
 } from './schemas/agent.js';
 
@@ -121,6 +122,7 @@ export type {
   AgentListItem,
   AgentListResponse,
   AgentConfig,
+  Agent,
   AgentAutonomyConfig,
 } from './schemas/agent.js';
 

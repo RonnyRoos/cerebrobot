@@ -2,10 +2,12 @@
  * Agent Factory
  *
  * Lazy loading and caching of LangGraph agents based on configuration.
- * Configs are loaded on-demand (first use), not at startup.
+ * Configs are loaded on-demand from database (first use), not at startup.
+ * Database is single source of truth (Spec 011).
  */
 
 import type { Logger } from 'pino';
+import type { PrismaClient } from '@prisma/client';
 import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { ChatAgent } from '../chat/chat-agent.js';
 import type { ConnectionManager } from '../chat/connection-manager.js';
@@ -13,6 +15,7 @@ import { discoverAgentConfigs, loadAgentConfig } from '../config/agent-loader.js
 import { createLangGraphChatAgent } from './langgraph-agent.js';
 
 export interface AgentFactoryOptions {
+  readonly prisma: PrismaClient;
   readonly logger?: Logger;
   readonly checkpointer?: BaseCheckpointSaver;
   readonly connectionManager?: ConnectionManager;
@@ -55,7 +58,11 @@ export class AgentFactory {
       'Creating new agent instance (lazy loading)',
     );
 
-    const agentConfig = await loadAgentConfig(resolvedAgentId, this.options.logger);
+    const agentConfig = await loadAgentConfig(
+      resolvedAgentId,
+      this.options.prisma,
+      this.options.logger,
+    );
 
     const agent = createLangGraphChatAgent(
       agentConfig,
@@ -79,15 +86,13 @@ export class AgentFactory {
    * Get the default agent ID for Phase 1 (first available config).
    *
    * @returns Agent ID (first available)
-   * @throws Error if no agent configs are found
+   * @throws Error if no agent configs are found (graceful - tells user to create one)
    */
   private async getDefaultAgentId(): Promise<string> {
-    const configs = await discoverAgentConfigs(this.options.logger);
+    const configs = await discoverAgentConfigs(this.options.prisma, this.options.logger);
 
     if (configs.length === 0) {
-      throw new Error(
-        'No agent configurations found. Please create at least one agent config in config/agents/',
-      );
+      throw new Error('No agents configured. Please create your first agent via the UI at /agents');
     }
 
     // Phase 1: Use first available config

@@ -1,0 +1,31 @@
+/**
+ * FieldError Component Styles
+ *
+ * Inline field error display with icon and red styling.
+ */
+
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #dc2626;
+  line-height: 1.5;
+}
+
+.field-error-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.field-error-text {
+  flex: 1;
+}
+
+/* Ensure visibility */
+.field-error-icon,
+.field-error-text {
+  display: inline-block;
+}

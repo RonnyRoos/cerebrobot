@@ -1,0 +1,49 @@
+/**
+ * ValidationMessage Component Styles
+ *
+ * Provides visual styling for error and warning messages
+ * with clear distinction between severity levels.
+ */
+
+.validation-message {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.validation-error {
+  background-color: #fee;
+  border-left: 4px solid #dc2626;
+  color: #991b1b;
+}
+
+.validation-warning {
+  background-color: #fef3cd;
+  border-left: 4px solid #f59e0b;
+  color: #92400e;
+}
+
+.validation-message-text {
+  margin: 0;
+}
+
+.validation-message-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.validation-message-item {
+  margin: 0.25rem 0;
+}
+
+/* Ensure consistent spacing */
+.validation-message-item:first-child {
+  margin-top: 0;
+}
+
+.validation-message-item:last-child {
+  margin-bottom: 0;
+}

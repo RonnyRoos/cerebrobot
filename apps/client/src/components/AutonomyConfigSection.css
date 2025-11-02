@@ -1,0 +1,33 @@
+/**
+ * AutonomyConfigSection Styles
+ */
+
+.autonomy-config-section .autonomy-config {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.autonomy-config-section .subsection {
+  margin-bottom: 2rem;
+}
+
+.autonomy-config-section .subsection:last-child {
+  margin-bottom: 0;
+}
+
+.autonomy-config-section .subsection-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.autonomy-config-section .field-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}

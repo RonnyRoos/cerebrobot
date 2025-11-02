@@ -52,8 +52,9 @@ export async function bootstrap(): Promise<void> {
     logger.child({ component: 'connection-manager' }),
   );
 
-  // Create agent factory (lazy loading - agents loaded from JSON, not .env)
+  // Create agent factory (lazy loading - agents loaded from database per Spec 011)
   const agentFactory = createAgentFactory({
+    prisma,
     logger: logger.child({ component: 'agent-factory' }),
     checkpointer,
     connectionManager,

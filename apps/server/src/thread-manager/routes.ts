@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { ThreadManager } from './thread-manager.js';
 import { loadAgentConfig } from '../config/agent-loader.js';
@@ -11,7 +12,11 @@ const ThreadRequestSchema = z
   })
   .strict();
 
-export function registerThreadRoutes(app: FastifyInstance, threadManager: ThreadManager): void {
+export function registerThreadRoutes(
+  app: FastifyInstance,
+  threadManager: ThreadManager,
+  prisma: PrismaClient,
+): void {
   app.post('/api/thread', async (request, reply) => {
     const parseResult = ThreadRequestSchema.safeParse(request.body ?? {});
 
@@ -26,12 +31,13 @@ export function registerThreadRoutes(app: FastifyInstance, threadManager: Thread
 
     // Validate agentId exists by attempting to load config
     try {
-      await loadAgentConfig(agentId);
+      await loadAgentConfig(agentId, prisma);
     } catch (error: unknown) {
-      app.log.warn({ agentId, error }, 'Invalid agentId specified for thread creation');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      app.log.warn({ agentId, errorMessage }, 'Invalid agentId specified for thread creation');
       return reply.status(400).send({
         error: 'Invalid agent configuration',
-        details: error instanceof Error ? error.message : String(error),
+        details: errorMessage,
       });
     }
 

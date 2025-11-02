@@ -19,6 +19,7 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
+        ws: true, // Enable WebSocket proxying
       },
     },
   },
@@ -30,6 +31,7 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
+        ws: true, // Enable WebSocket proxying
       },
     },
   },
