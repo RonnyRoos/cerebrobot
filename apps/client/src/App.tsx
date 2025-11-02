@@ -5,6 +5,7 @@ import { ThreadListView } from './components/ThreadListView';
 import { AgentPicker } from './components/AgentPicker';
 import { AgentsPage } from './pages/AgentsPage';
 import { DesignSystemTest } from './components/DesignSystemTest';
+import { TokenDemo } from './components/TokenDemo';
 import { useUserId } from './hooks/useUserId';
 
 /**
@@ -39,6 +40,7 @@ export function App(): JSX.Element {
   const [showDesignSystem, setShowDesignSystem] = useState(
     window.location.pathname === '/design-library',
   );
+  const [showTokenDemo, setShowTokenDemo] = useState(window.location.pathname === '/tokens');
   const [agentContextMode, setAgentContextMode] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<{ threadId: string; agentId: string } | null>(
     null,
@@ -51,6 +53,7 @@ export function App(): JSX.Element {
     const handlePopState = () => {
       setShowAgentsPage(window.location.pathname === '/agents');
       setShowDesignSystem(window.location.pathname === '/design-library');
+      setShowTokenDemo(window.location.pathname === '/tokens');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -67,6 +70,7 @@ export function App(): JSX.Element {
     window.history.pushState({}, '', '/');
     setShowAgentsPage(false);
     setShowDesignSystem(false);
+    setShowTokenDemo(false);
   }, []);
 
   // NOTE: Design library navigation - reserved for spec 012 completion
@@ -123,6 +127,11 @@ export function App(): JSX.Element {
   // Show user setup if no userId
   if (showUserSetup) {
     return <UserSetup onUserIdReady={handleUserIdReady} />;
+  }
+
+  // Show token demo (T037)
+  if (showTokenDemo) {
+    return <TokenDemo />;
   }
 
   // Show design library showcase

@@ -14,6 +14,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { getTokenValue } from '../../src/theme/types';
 
+// Import token stylesheets for test environment
+import '../../src/theme/tokens/primitives.css';
+import '../../src/theme/tokens/semantic.css';
+import '../../src/theme/tokens/component.css';
+
 describe('T030: Primitive Token Resolution', () => {
   let testElement: HTMLDivElement;
 
@@ -21,19 +26,11 @@ describe('T030: Primitive Token Resolution', () => {
     // Create test element and attach to DOM
     testElement = document.createElement('div');
     document.body.appendChild(testElement);
-
-    // Import token stylesheets
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = '/src/theme/tokens/primitives.css';
-    document.head.appendChild(link);
   });
 
   afterEach(() => {
     // Cleanup
     document.body.removeChild(testElement);
-    const links = document.head.querySelectorAll('link[href*="tokens"]');
-    links.forEach((link) => link.remove());
   });
 
   describe('Color Primitives', () => {
@@ -161,23 +158,10 @@ describe('T031: Semantic Token Resolution', () => {
   beforeEach(() => {
     testElement = document.createElement('div');
     document.body.appendChild(testElement);
-
-    // Import both primitive and semantic stylesheets
-    const primitives = document.createElement('link');
-    primitives.rel = 'stylesheet';
-    primitives.href = '/src/theme/tokens/primitives.css';
-    document.head.appendChild(primitives);
-
-    const semantic = document.createElement('link');
-    semantic.rel = 'stylesheet';
-    semantic.href = '/src/theme/tokens/semantic.css';
-    document.head.appendChild(semantic);
   });
 
   afterEach(() => {
     document.body.removeChild(testElement);
-    const links = document.head.querySelectorAll('link[href*="tokens"]');
-    links.forEach((link) => link.remove());
   });
 
   describe('Semantic Color Tokens (Dark Theme Default)', () => {
