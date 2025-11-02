@@ -1,34 +1,39 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0
-Action: Clarify testing philosophy to prevent pseudo-integration tests
+Version change: 1.1.0 → 1.2.0
+Action: Add MCP Server utilization principle to leverage available tooling
+
+Added principles:
+- VIII. MCP Server Utilization: New principle mandating effective use of available MCP servers
 
 Modified principles:
-- III. Type Safety & Testability: Expanded with explicit 3-tier testing strategy
+- None (existing principles unchanged)
 
 Sections modified:
-- Development Workflow & Quality Gates: "Before merging" step 2 now references test types precisely
+- Development Workflow & Quality Gates: "Before starting" and "During implementation" steps now reference MCP servers
 
-Runtime guidance docs updated:
-- ✅ docs/best-practices.md: Testing Expectations section clarified (unit + Postgres + manual)
-- ✅ docs/mission.md: Phase 2/3 deliverables use precise testing terminology
-- ✅ docs/roadmap.md: Replaced vague "integration tests" with specific test types
+Runtime guidance docs requiring updates:
+- ⚠ AGENTS.md: Should reference MCP servers in working cadence section
+- ⚠ docs/best-practices.md: Could benefit from MCP server usage examples
+- ✅ .github/copilot-instructions.md: Already mentions MCP servers in context
 
 Templates requiring updates:
-- ✅ plan-template.md: No changes needed (constitution check references principles generically)
-- ✅ spec-template.md: No changes needed (testability already enforced)
-- ✅ tasks-template.md: No changes needed (references best-practices.md for guidance)
+- ✅ plan-template.md: No changes needed (generic principle checks)
+- ✅ spec-template.md: No changes needed (implementation agnostic)
+- ✅ tasks-template.md: No changes needed (task types independent of tooling)
 
 Follow-up actions:
-- None - testing philosophy now codified to prevent LLM-mocked "integration" tests
+- Update AGENTS.md to include MCP server usage in working cadence
+- Consider adding MCP server examples to docs/best-practices.md
 
-Rationale for version 1.1.0 (MINOR):
-- Material expansion of Principle III with concrete testing strategy
-- New anti-pattern guidance added (avoid pseudo-integration tests)
-- Not breaking (MAJOR): existing tests remain valid, guidance clarifies future approach
-- Not patch (PATCH): substantive new guidance, not just clarification
+Rationale for version 1.2.0 (MINOR):
+- New principle added (MCP Server Utilization) with concrete usage guidelines
+- Material guidance expansion for LLM agents on leveraging available tooling
+- Not breaking (MAJOR): existing workflows remain valid, new principle enhances them
+- Not patch (PATCH): substantive new guidance, formalized tooling expectations
 -->
+
 
 # Cerebrobot Constitution
 
@@ -155,18 +160,74 @@ Architecture and UX decisions MUST optimize for single-operator, self-hosted hob
 
 **Rationale**: The mission explicitly targets hobbyist operators, not multi-tenant SaaS. Overengineering auth, scaling, or high-availability features violates YAGNI and complicates setup. Operator trust requires reversible actions and transparent feedback loops.
 
+### VIII. MCP Server Utilization
+
+LLM agents MUST leverage available Model Context Protocol (MCP) servers to enhance productivity, reduce errors, and access specialized tooling.
+
+**Available MCP Servers (Priority Order)**:
+
+1. **SequentialThinking** (PRIMARY - complex task decomposition)
+   - MUST use for multi-step planning, architectural decisions, and complex problem-solving
+   - Enables structured reasoning with revision capabilities and hypothesis validation
+   - Provides thought branching for exploring alternative approaches
+   - Use when: analyzing requirements, designing features, debugging complex issues, breaking down ambiguous tasks
+
+2. **Context7** (PRIMARY - framework/library documentation)
+   - MUST use before implementing features requiring external library knowledge
+   - Provides up-to-date documentation for libraries (LangChain, LangGraph, Fastify, React, Zod, Prisma, etc.)
+   - Use when: uncertain about API signatures, exploring framework capabilities, validating usage patterns
+   - Always resolve library ID before calling get-library-docs unless user provides explicit ID
+
+3. **Serena** (PRIMARY - semantic code analysis/modification)
+   - MUST use for large-scale code navigation, refactoring, and symbol-based operations
+   - Provides language-server capabilities: find symbols, references, definitions, rename operations
+   - Enables precise code modifications without reading entire files
+   - Use when: navigating unfamiliar code, renaming across codebase, finding usages, understanding symbol relationships
+   - Prefer symbolic tools over grep/read_file for code understanding
+
+4. **Playwright** (SPECIALIZED - UI debugging)
+   - SHOULD use when automatically debugging UI issues, testing frontend flows, or capturing screenshots
+   - Provides browser automation for visual verification and interaction testing
+   - Use when: UI bugs reported, validating user flows, capturing error states, debugging WebSocket connections
+   - Complement manual testing, don't replace it entirely
+
+5. **Memory** (SPECIALIZED - knowledge persistence)
+   - MAY use for storing project-specific learnings, architectural decisions, or operator preferences
+   - Enables cross-session knowledge retention via knowledge graph
+   - Use when: documenting non-obvious patterns, tracking recurring issues, preserving context between sessions
+
+**Usage Rules**:
+- Always consult SequentialThinking for tasks requiring >3 sequential steps or architectural decisions
+- Query Context7 before implementing with unfamiliar libraries (avoid outdated assumptions)
+- Use Serena for code navigation instead of grep + manual file reading (faster, more accurate)
+- Leverage Playwright for UI issue reproduction before proposing blind fixes
+- Document MCP server usage in complex workflows for auditability
+
+**Anti-Patterns to Avoid**:
+- Do NOT skip SequentialThinking for complex tasks—unstructured reasoning leads to incomplete solutions
+- Do NOT guess at API signatures when Context7 can provide authoritative documentation
+- Do NOT read entire files when Serena's symbol tools can precisely locate target code
+- Do NOT propose UI fixes without Playwright verification when browser automation is available
+- Do NOT lose context across sessions when Memory can preserve critical knowledge
+
+**Rationale**: MCP servers provide specialized capabilities that reduce errors, improve efficiency, and enable sophisticated workflows beyond basic file operations. SequentialThinking prevents incomplete multi-step solutions. Context7 ensures implementation follows current library conventions. Serena enables surgical code changes without excessive file reading. Playwright catches UI regressions that unit tests miss. Memory preserves institutional knowledge across sessions. Mandating their use where applicable prevents LLM agents from defaulting to less effective manual approaches.
+
 ## Development Workflow & Quality Gates
 
 **Before starting any implementation**:
 1. Read the roadmap (`docs/mission.md`), tech stack (`docs/tech-stack.md`), best practices (`docs/best-practices.md`), and code style (`docs/code-style.md`)
 2. Verify the feature aligns with the current phase scope
 3. Check the constitution for applicable principles
+4. **Use SequentialThinking MCP server to plan multi-step tasks** (Principle VIII)
+5. **Query Context7 MCP server for framework/library documentation if uncertain** (Principle VIII)
 
 **During implementation**:
 1. Write or update tests alongside behavior changes (Principle III, IV)
 2. Run the hygiene loop after every significant change (Principle I)
 3. Keep commits small and focused (Principle IV)
 4. Document API or flow changes in `docs/` (Principle II)
+5. **Use Serena MCP server for code navigation and refactoring** (Principle VIII)
+6. **Use Playwright MCP server for UI debugging when applicable** (Principle VIII)
 
 **Before merging**:
 1. All hygiene steps pass (`pnpm lint`, `pnpm format:write`, `pnpm test`)
@@ -200,4 +261,4 @@ Architecture and UX decisions MUST optimize for single-operator, self-hosted hob
 - Principles tested against actual development friction; prune or refine as needed
 - Versioning and amendment history preserved in git commits
 
-**Version**: 1.1.0 | **Ratified**: 2025-10-07 | **Last Amended**: 2025-10-07
+**Version**: 1.2.0 | **Ratified**: 2025-10-07 | **Last Amended**: 2025-11-02

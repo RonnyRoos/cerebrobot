@@ -5,11 +5,24 @@
 - `pnpm lint` → `pnpm format:write` → `pnpm test` — run the hygiene loop after every significant change ([Engineering Best Practices](docs/best-practices.md)).
 - `pnpm dev` — bring up the LangGraph prototype once implemented.
 
-## MCP servers (Codex CLI)
-- Ensure your local Codex CLI has MCP support enabled in `~/.codex/config.toml`; copy the snippet in `codex-context7-http.toml` into your config and restart Codex.
-- Keep the **Context7** HTTP server configured (`mcp_servers.context7`) for instant library documentation (`https://context7.liam.sh/mcp`, `transport = "streamable-http"`).
-- Add the **Sequential Thinking** server (`mcp_servers.sequentialthinking`) via `npx -y @modelcontextprotocol/server-sequential-thinking` to unlock structured reasoning tools. Set `DISABLE_THOUGHT_LOGGING=true` if you need quieter logs.
-- Treat MCP servers as part of the default toolbox—consult them before reaching for ad-hoc web searches so specs, plans, and reviews cite authoritative sources.
+## MCP servers
+- Configure your coding agent (Claude Desktop, Codex CLI, GitHub Copilot, etc.) with the following MCP servers to unlock critical development capabilities.
+- **SequentialThinking** (PRIMARY - MUST use): Complex multi-step task decomposition, hypothesis validation, structured reasoning
+  - Install: `npx -y @modelcontextprotocol/server-sequential-thinking`
+  - Use for: Code reviews, refactoring plans, debugging complex issues, feature implementation planning
+  - Anti-pattern: Skipping this for multi-step tasks leads to incomplete solutions
+- **Context7** (PRIMARY - MUST use): Real-time framework/library documentation
+  - Config: `https://context7.liam.sh/mcp` (streamable-http transport)
+  - Use for: LangChain, React, Prisma, Fastify API verification before implementation
+  - Anti-pattern: Making assumptions about APIs without checking latest docs
+- **Serena** (PRIMARY - MUST use): Semantic code navigation, symbol search, refactoring operations
+  - Use for: Finding symbol definitions, tracking references, precise code edits
+  - Anti-pattern: Using grep + manual file reading when symbolic tools are available
+- **Playwright** (SPECIALIZED - SHOULD use): UI debugging, visual verification, interaction testing
+  - Use for: Testing WebSocket flows, debugging React component behavior, visual regression checks
+- **Memory** (SPECIALIZED - MAY use): Knowledge graph for cross-session context persistence
+  - Use for: Preserving architecture decisions, codebase patterns, debugging insights
+- Treat MCP servers as the default toolbox—consult them before manual searches or file scanning (see Constitution Principle VIII for detailed usage rules).
 
 ## Project snapshot
 - Cerebrobot is a LangGraph-powered chatbot with an inspectable memory graph aimed at single-operator, Docker Compose deployments ([Mission Statement](docs/mission.md)).
@@ -19,10 +32,14 @@
 
 ## Working cadence for agents
 1. Read the roadmap, tech stack, and style guides before coding; keep them open for cross-checks ([Tech Stack Guardrails](docs/tech-stack.md), [Engineering Best Practices](docs/best-practices.md), [TypeScript Code Style](docs/code-style.md)).
-2. Plan incremental changes that keep memory and conversation flows transparent to the operator.
-3. Implement with dependency injection and pure functions where possible so graph nodes stay testable ([TypeScript Code Style](docs/code-style.md)).
-4. Update or add tests alongside behavior changes; fast-follow with documentation updates under `docs/` when APIs or flows shift ([Engineering Best Practices](docs/best-practices.md)).
-5. Run the hygiene loop in order and address every failure before continuing ([Engineering Best Practices](docs/best-practices.md)).
+2. Use **SequentialThinking** MCP server to plan multi-step tasks and validate approach before implementation (Constitution Principle VIII).
+3. Query **Context7** MCP server for framework/library documentation if uncertain about APIs (Constitution Principle VIII).
+4. Plan incremental changes that keep memory and conversation flows transparent to the operator.
+5. Use **Serena** MCP server for code navigation and refactoring operations (Constitution Principle VIII).
+6. Implement with dependency injection and pure functions where possible so graph nodes stay testable ([TypeScript Code Style](docs/code-style.md)).
+7. Update or add tests alongside behavior changes; fast-follow with documentation updates under `docs/` when APIs or flows shift ([Engineering Best Practices](docs/best-practices.md)).
+8. Use **Playwright** MCP server for UI debugging when testing WebSocket flows or React components (Constitution Principle VIII).
+9. Run the hygiene loop in order and address every failure before continuing ([Engineering Best Practices](docs/best-practices.md)).
 
 ## Coding & style expectations
 - Use the approved Node.js, Fastify, LangGraph, Zod, and Pino versions—justify any deviation in an ADR ([Tech Stack Guardrails](docs/tech-stack.md)).
@@ -41,5 +58,6 @@
 - Engineering cadence & QA expectations: [docs/best-practices.md](docs/best-practices.md)
 - TypeScript structure & stylistic rules: [docs/code-style.md](docs/code-style.md)
 - Decision documentation: [docs/decisions/](docs/decisions/) (ADRs, TDRs, incident reports)
+- Constitutional principles & MCP server usage: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 
 Keep this file in sync with the docs above—when they change, update the references or add short notes instead of duplicating their content.
