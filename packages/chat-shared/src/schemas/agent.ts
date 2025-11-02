@@ -31,43 +31,116 @@ export type AgentListResponse = z.infer<typeof AgentListResponseSchema>;
  * Updated per spec 011: added validation ranges and string length constraints
  */
 export const AgentLLMConfigSchema = z.object({
-  model: z.string().min(1),
-  temperature: z.number().min(0).max(2),
-  apiKey: z.string().min(1),
-  apiBase: z.string().url(),
-  maxTokens: z.number().int().min(1).max(2000000).optional(),
+  model: z.string().min(1, { message: 'LLM model is required' }),
+  temperature: z
+    .number()
+    .min(0, { message: 'Temperature must be between 0 and 2' })
+    .max(2, { message: 'Temperature must be between 0 and 2' }),
+  apiKey: z.string().min(1, { message: 'LLM API key is required' }),
+  apiBase: z.string().url({ message: 'LLM API base must be a valid URL' }),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1, { message: 'Max tokens must be between 1 and 2,000,000' })
+    .max(2000000, { message: 'Max tokens must be between 1 and 2,000,000' })
+    .optional(),
 });
 
 export const AgentMemoryConfigSchema = z.object({
-  hotPathLimit: z.number().int().min(1).max(1000),
-  hotPathTokenBudget: z.number().int().min(100).max(2000000),
-  recentMessageFloor: z.number().int().min(0).max(100),
-  hotPathMarginPct: z.number().min(0).max(1),
-  embeddingModel: z.string().min(1),
-  embeddingEndpoint: z.string().url(),
-  apiKey: z.string().min(1),
-  similarityThreshold: z.number().min(0).max(1),
-  maxTokens: z.number().int().min(100).max(2000000),
-  injectionBudget: z.number().int().min(100).max(2000000),
-  retrievalTimeoutMs: z.number().int().min(100).max(60000),
+  hotPathLimit: z
+    .number()
+    .int()
+    .min(1, { message: 'Hot path limit must be between 1 and 1,000' })
+    .max(1000, { message: 'Hot path limit must be between 1 and 1,000' }),
+  hotPathTokenBudget: z
+    .number()
+    .int()
+    .min(100, { message: 'Hot path token budget must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Hot path token budget must be between 100 and 2,000,000' }),
+  recentMessageFloor: z
+    .number()
+    .int()
+    .min(0, { message: 'Recent message floor must be between 0 and 100' })
+    .max(100, { message: 'Recent message floor must be between 0 and 100' }),
+  hotPathMarginPct: z
+    .number()
+    .min(0, { message: 'Hot path margin must be between 0 and 1' })
+    .max(1, { message: 'Hot path margin must be between 0 and 1' }),
+  embeddingModel: z.string().min(1, { message: 'Embedding model is required' }),
+  embeddingEndpoint: z.string().url({ message: 'Embedding endpoint must be a valid URL' }),
+  apiKey: z.string().min(1, { message: 'Memory API key is required' }),
+  similarityThreshold: z
+    .number()
+    .min(0, { message: 'Similarity threshold must be between 0 and 1' })
+    .max(1, { message: 'Similarity threshold must be between 0 and 1' }),
+  maxTokens: z
+    .number()
+    .int()
+    .min(100, { message: 'Max tokens must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Max tokens must be between 100 and 2,000,000' }),
+  injectionBudget: z
+    .number()
+    .int()
+    .min(100, { message: 'Injection budget must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Injection budget must be between 100 and 2,000,000' }),
+  retrievalTimeoutMs: z
+    .number()
+    .int()
+    .min(100, { message: 'Retrieval timeout must be between 100ms and 60,000ms' })
+    .max(60000, { message: 'Retrieval timeout must be between 100ms and 60,000ms' }),
 });
 
 export const AgentAutonomyEvaluatorConfigSchema = z.object({
-  model: z.string().min(1),
-  temperature: z.number().min(0).max(2),
-  maxTokens: z.number().int().min(1).max(2000000),
-  systemPrompt: z.string().min(1),
+  model: z.string().min(1, { message: 'Evaluator model is required' }),
+  temperature: z
+    .number()
+    .min(0, { message: 'Evaluator temperature must be between 0 and 2' })
+    .max(2, { message: 'Evaluator temperature must be between 0 and 2' }),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1, { message: 'Evaluator max tokens must be between 1 and 2,000,000' })
+    .max(2000000, { message: 'Evaluator max tokens must be between 1 and 2,000,000' }),
+  systemPrompt: z.string().min(1, { message: 'Evaluator system prompt is required' }),
 });
 
 export const AgentAutonomyLimitsConfigSchema = z.object({
-  maxFollowUpsPerSession: z.number().int().min(1).max(100),
-  minDelayMs: z.number().int().min(1000).max(3600000),
-  maxDelayMs: z.number().int().min(1000).max(3600000),
+  maxFollowUpsPerSession: z
+    .number()
+    .int()
+    .min(1, { message: 'Maximum follow-ups per session must be between 1 and 100' })
+    .max(100, { message: 'Maximum follow-ups per session must be between 1 and 100' }),
+  minDelayMs: z
+    .number()
+    .int()
+    .min(1000, {
+      message: 'Minimum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    })
+    .max(3600000, {
+      message: 'Minimum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    }),
+  maxDelayMs: z
+    .number()
+    .int()
+    .min(1000, {
+      message: 'Maximum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    })
+    .max(3600000, {
+      message: 'Maximum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    }),
 });
 
 export const AgentAutonomyMemoryContextConfigSchema = z.object({
-  recentMemoryCount: z.number().int().min(0).max(100),
-  includeRecentMessages: z.number().int().min(0).max(100),
+  recentMemoryCount: z
+    .number()
+    .int()
+    .min(0, { message: 'Recent memory count must be between 0 and 100' })
+    .max(100, { message: 'Recent memory count must be between 0 and 100' }),
+  includeRecentMessages: z
+    .number()
+    .int()
+    .min(0, { message: 'Recent messages count must be between 0 and 100' })
+    .max(100, { message: 'Recent messages count must be between 0 and 100' }),
 });
 
 export const AgentAutonomyConfigSchema = z.object({
@@ -78,9 +151,18 @@ export const AgentAutonomyConfigSchema = z.object({
 });
 
 export const AgentConfigSchema = z.object({
-  name: z.string().min(1).max(100),
-  systemPrompt: z.string().min(1).max(10000),
-  personaTag: z.string().min(1).max(50),
+  name: z
+    .string()
+    .min(1, { message: 'Agent name is required' })
+    .max(100, { message: 'Agent name must be 100 characters or less' }),
+  systemPrompt: z
+    .string()
+    .min(1, { message: 'System prompt is required' })
+    .max(10000, { message: 'System prompt must be 10,000 characters or less' }),
+  personaTag: z
+    .string()
+    .min(1, { message: 'Persona tag is required' })
+    .max(50, { message: 'Persona tag must be 50 characters or less' }),
   llm: AgentLLMConfigSchema,
   memory: AgentMemoryConfigSchema,
   autonomy: AgentAutonomyConfigSchema,
