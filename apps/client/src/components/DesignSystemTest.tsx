@@ -1,9 +1,17 @@
-import { MessageBubble, Avatar, TypingIndicator, useTheme } from '@workspace/ui';
+import { MessageBubble, Avatar, TypingIndicator, Timestamp, useTheme } from '@workspace/ui';
 import { useState } from 'react';
 
 export function DesignSystemTest() {
   const { theme, toggleTheme } = useTheme();
   const [showTyping, setShowTyping] = useState(false);
+
+  // Different timestamp ages for testing
+  const now = new Date();
+  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const lastYear = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
   return (
     <div className="min-h-screen p-8 bg-white dark:bg-gray-900">
@@ -22,26 +30,66 @@ export function DesignSystemTest() {
 
         <section>
           <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-            Message Bubbles
+            Message Bubbles with Timestamps
           </h2>
           <div className="space-y-4">
             <MessageBubble
               content="Hello! This is a **user** message with markdown support."
               sender="user"
-              timestamp={new Date()}
+              timestamp={fiveMinutesAgo}
             />
 
             <MessageBubble
               content="Hi there! I'm the agent. I can help you with:\n\n- Markdown rendering\n- Code blocks\n- And much more!"
               sender="agent"
-              timestamp={new Date()}
+              timestamp={twoHoursAgo}
             />
 
             <MessageBubble
               content="# Heading 1\n\n## Heading 2\n\n### Heading 3\n\nThis is a paragraph with **bold** and *italic* text.\n\n```typescript\nfunction hello(name: string) {\n  console.log(`Hello, ${name}!`);\n}\n```"
               sender="agent"
-              timestamp={new Date()}
+              timestamp={yesterday}
             />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+            Timestamp Formats
+          </h2>
+          <div className="space-y-2 text-gray-900 dark:text-gray-100">
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">Just now:</span>
+              <Timestamp date={now} />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">5 minutes ago:</span>
+              <Timestamp date={fiveMinutesAgo} />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">2 hours ago:</span>
+              <Timestamp date={twoHoursAgo} />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">Yesterday:</span>
+              <Timestamp date={yesterday} />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">Last week:</span>
+              <Timestamp date={lastWeek} />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">Last year:</span>
+              <Timestamp date={lastYear} />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">Always relative:</span>
+              <Timestamp date={yesterday} format="relative" />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-32 text-sm font-medium">Always absolute:</span>
+              <Timestamp date={fiveMinutesAgo} format="absolute" />
+            </div>
           </div>
         </section>
 

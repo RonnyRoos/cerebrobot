@@ -10,6 +10,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../utils/cn';
 import { defaultMarkdownComponents } from '../utils/markdown';
+import { Timestamp } from './timestamp';
 
 // Error Boundary for markdown rendering
 class MarkdownErrorBoundary extends Component<
@@ -101,7 +102,7 @@ export interface MessageBubbleProps
 export type MessageBubbleElement = ElementRef<'div'>;
 
 export const MessageBubble = forwardRef<MessageBubbleElement, MessageBubbleProps>(
-  ({ content, sender, className, ...props }, ref) => {
+  ({ content, sender, timestamp, className, ...props }, ref) => {
     return (
       <div ref={ref} className={cn(messageBubbleVariants({ sender }), className)} {...props}>
         <MarkdownErrorBoundary content={content}>
@@ -113,6 +114,7 @@ export const MessageBubble = forwardRef<MessageBubbleElement, MessageBubbleProps
             {content}
           </Markdown>
         </MarkdownErrorBoundary>
+        <Timestamp date={timestamp} className="block mt-1 text-xs" />
       </div>
     );
   },

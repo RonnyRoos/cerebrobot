@@ -142,14 +142,14 @@
 
 ### Implementation for User Story 5
 
-- [ ] T051 [P] [US5] Create `packages/ui/src/utils/format-timestamp.ts` with formatTimestamp function (uses native Intl.RelativeTimeFormat and Intl.DateTimeFormat APIs)
-- [ ] T052 [P] [US5] Create `packages/ui/src/chat/timestamp.tsx` with TimestampProps interface (date, format: 'relative' | 'absolute' | 'auto', updateInterval, className)
-- [ ] T053 [US5] Implement Timestamp component with forwardRef in `packages/ui/src/chat/timestamp.tsx` (renders <time> element with datetime attribute)
-- [ ] T054 [US5] Add auto-update logic in `packages/ui/src/chat/timestamp.tsx` using useEffect + setInterval (respects updateInterval prop, defaults 60000ms)
-- [ ] T055 [US5] Add future timestamp handling in `packages/ui/src/utils/format-timestamp.ts` (returns "just now" + console.warn for clock skew edge case)
-- [ ] T056 [US5] Integrate Timestamp component into MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (render below message content with timestamp prop)
-- [ ] T057 [US5] Export Timestamp, TimestampProps, TimestampFormat from `packages/ui/src/index.ts`
-- [ ] T058 [US5] Update visual test page in `apps/client/src/App.tsx` with messages at different times (recent, yesterday, week ago) to verify formatting
+- [x] T051 [P] [US5] Create `packages/ui/src/utils/format-timestamp.ts` with formatTimestamp function (uses native Intl.RelativeTimeFormat and Intl.DateTimeFormat APIs)
+- [x] T052 [P] [US5] Create `packages/ui/src/chat/timestamp.tsx` with TimestampProps interface (date, format: 'relative' | 'absolute' | 'auto', updateInterval, className)
+- [x] T053 [US5] Implement Timestamp component with forwardRef in `packages/ui/src/chat/timestamp.tsx` (renders <time> element with datetime attribute)
+- [x] T054 [US5] Add auto-update logic in `packages/ui/src/chat/timestamp.tsx` using useEffect + setInterval (respects updateInterval prop, defaults 60000ms)
+- [x] T055 [US5] Add future timestamp handling in `packages/ui/src/utils/format-timestamp.ts` (returns "just now" + console.warn for clock skew edge case)
+- [x] T056 [US5] Integrate Timestamp component into MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (render below message content with timestamp prop)
+- [x] T057 [US5] Export Timestamp, TimestampProps, TimestampFormat from `packages/ui/src/index.ts`
+- [x] T058 [US5] Update visual test page in `apps/client/src/App.tsx` with messages at different times (recent, yesterday, week ago) to verify formatting
 
 **Checkpoint**: Timestamps working independently with auto-updates and correct formatting
 

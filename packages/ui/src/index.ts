@@ -20,3 +20,4 @@ export {
   type TypingIndicatorProps,
   type TypingIndicatorElement,
 } from './chat/typing-indicator';
+export { Timestamp, type TimestampProps, type TimestampElement } from './chat/timestamp';
