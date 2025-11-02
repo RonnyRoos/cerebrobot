@@ -1,0 +1,42 @@
+{
+	"servers": {
+		"sequentialthinking": {
+			"command": "docker",
+			"args": [
+				"run",
+				"--rm",
+				"-i",
+				"mcp/sequentialthinking"
+			],
+			"type": "stdio"
+		},
+		"serena": {
+			"command": "uvx",
+			"args": [
+				"--from",
+				"git+https://github.com/oraios/serena",
+				"serena",
+				"start-mcp-server"
+			],
+			"type": "stdio"
+		},
+		"playwright": {
+			"command": "npx",
+			"args": [
+				"@playwright/mcp@latest"
+			],
+			"type": "stdio"
+		},
+        "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+	}
+}
