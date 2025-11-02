@@ -1,45 +1,171 @@
 /**
  * Agent Routes
  *
- * Endpoints for agent discovery and selection
+ * Endpoints for agent CRUD operations (database-backed, spec 011)
+ * Replaces filesystem-based agent discovery
  */
 
 import type { FastifyInstance } from 'fastify';
-import { AgentListResponseSchema, type AgentListResponse } from '@cerebrobot/chat-shared';
-import { discoverAgentConfigs } from '../config/agent-loader.js';
+import type { PrismaClient } from '@prisma/client';
+import { AgentConfigSchema, AgentListResponseSchema } from '@cerebrobot/chat-shared';
+import { AgentService } from '../services/AgentService.js';
+import { z, ZodError } from 'zod';
 
-export function registerAgentRoutes(app: FastifyInstance): void {
+interface GetAgentParams {
+  id: string;
+}
+
+interface UpdateAgentParams {
+  id: string;
+}
+
+interface DeleteAgentParams {
+  id: string;
+}
+
+/**
+ * Validate UUID format using Zod
+ */
+const uuidSchema = z.string().uuid();
+
+function isValidUUID(uuid: string): boolean {
+  return uuidSchema.safeParse(uuid).success;
+}
+
+export function registerAgentRoutes(app: FastifyInstance, prisma: PrismaClient): void {
+  const agentService = new AgentService(prisma);
+
   /**
    * GET /api/agents
-   *
-   * List all available agent configurations.
-   * Scans config/agents/ directory, validates each config.
-   * Returns 500 with validation details if any config is invalid (FR-012).
+   * List all agents with lightweight metadata (database-backed)
    */
-  app.get('/api/agents', async (_request, reply) => {
+  app.get('/api/agents', async (request, reply) => {
     try {
-      // Discover and validate all agent configs (fail-fast)
-      const agents = await discoverAgentConfigs();
+      const agents = await agentService.listAgents();
+      const response = { agents };
 
-      const response: AgentListResponse = {
-        agents: agents.map((agent) => ({
-          id: agent.id,
-          name: agent.name,
-          // description is optional - not yet in AgentMetadata schema
-        })),
-      };
+      // Validate response against schema
+      AgentListResponseSchema.parse(response);
 
-      // Validate response shape
-      const validated = AgentListResponseSchema.parse(response);
+      return reply.code(200).send(response);
+    } catch (error) {
+      request.log.error(error, 'Failed to list agents');
+      return reply.code(500).send({ error: 'Failed to list agents' });
+    }
+  });
 
-      return reply.status(200).send(validated);
-    } catch (error: unknown) {
-      app.log.error({ error }, 'Failed to list agent configurations');
+  /**
+   * GET /api/agents/:id
+   * Get agent by ID with full configuration
+   */
+  app.get<{ Params: GetAgentParams }>('/api/agents/:id', async (request, reply) => {
+    try {
+      // Validate UUID format
+      if (!isValidUUID(request.params.id)) {
+        return reply.code(400).send({ error: 'Invalid agent ID format' });
+      }
 
-      return reply.status(500).send({
-        error: 'Failed to list agent configurations',
-        details: error instanceof Error ? error.message : String(error),
-      });
+      const agent = await agentService.getAgentById(request.params.id);
+
+      if (!agent) {
+        return reply.code(404).send({ error: 'Agent not found' });
+      }
+
+      return reply.code(200).send(agent);
+    } catch (error) {
+      request.log.error(error, 'Failed to get agent');
+      return reply.code(500).send({ error: 'Failed to get agent' });
+    }
+  });
+
+  /**
+   * POST /api/agents
+   * Create new agent with validated configuration
+   */
+  app.post('/api/agents', async (request, reply) => {
+    try {
+      // Validate request body
+      const config = AgentConfigSchema.parse(request.body);
+
+      const agent = await agentService.createAgent(config);
+
+      return reply.code(201).send(agent);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.code(400).send({
+          error: 'Validation failed',
+          details: error.issues.map((issue) => ({
+            field: issue.path.join('.'),
+            message: issue.message,
+          })),
+        });
+      }
+
+      request.log.error(error, 'Failed to create agent');
+      return reply.code(500).send({ error: 'Failed to create agent' });
+    }
+  });
+
+  /**
+   * PUT /api/agents/:id
+   * Update existing agent configuration
+   */
+  app.put<{ Params: UpdateAgentParams }>('/api/agents/:id', async (request, reply) => {
+    try {
+      // Validate UUID format
+      if (!isValidUUID(request.params.id)) {
+        return reply.code(400).send({ error: 'Invalid agent ID format' });
+      }
+
+      // Validate request body
+      const config = AgentConfigSchema.parse(request.body);
+
+      const agent = await agentService.updateAgent(request.params.id, config);
+
+      return reply.code(200).send(agent);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return reply.code(400).send({
+          error: 'Validation failed',
+          details: error.issues.map((issue) => ({
+            field: issue.path.join('.'),
+            message: issue.message,
+          })),
+        });
+      }
+
+      // Prisma P2025: Record not found
+      if ((error as { code?: string }).code === 'P2025') {
+        return reply.code(404).send({ error: 'Agent not found' });
+      }
+
+      request.log.error(error, 'Failed to update agent');
+      return reply.code(500).send({ error: 'Failed to update agent' });
+    }
+  });
+
+  /**
+   * DELETE /api/agents/:id
+   * Delete agent and cascade delete associated threads and checkpoints
+   */
+  app.delete<{ Params: DeleteAgentParams }>('/api/agents/:id', async (request, reply) => {
+    try {
+      // Validate UUID format
+      if (!isValidUUID(request.params.id)) {
+        return reply.code(400).send({ error: 'Invalid agent ID format' });
+      }
+
+      await agentService.deleteAgent(request.params.id);
+
+      return reply.code(204).send();
+    } catch (error) {
+      // Prisma P2025: Record not found
+      if ((error as { code?: string }).code === 'P2025') {
+        return reply.code(404).send({ error: 'Agent not found' });
+      }
+
+      request.log.error(error, 'Failed to delete agent');
+      return reply.code(500).send({ error: 'Failed to delete agent' });
     }
   });
 }

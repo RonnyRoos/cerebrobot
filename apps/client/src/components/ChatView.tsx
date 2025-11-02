@@ -136,8 +136,6 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   // Handle memory.created events from WebSocket
   const handleMemoryCreatedEvent = useCallback(
     (event: MemoryCreatedEvent) => {
-      console.log('[ChatView] Memory created event received', event);
-
       // Update local state via hook handler
       handleMemoryCreated(event);
 

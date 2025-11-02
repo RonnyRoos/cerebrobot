@@ -3,11 +3,14 @@ import { z } from 'zod';
 /**
  * Agent List Item Schema
  * Represents a single agent configuration in the listing
+ * Updated per spec 011: includes timestamps and autonomy status (no description)
  */
 export const AgentListItemSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid(),
   name: z.string().min(1),
-  description: z.string().optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  autonomyEnabled: z.boolean(),
 });
 
 export type AgentListItem = z.infer<typeof AgentListItemSchema>;
@@ -25,43 +28,119 @@ export type AgentListResponse = z.infer<typeof AgentListResponseSchema>;
 /**
  * Agent Configuration Schema
  * Full agent configuration including autonomy settings (spec 009)
+ * Updated per spec 011: added validation ranges and string length constraints
  */
 export const AgentLLMConfigSchema = z.object({
-  model: z.string().min(1),
-  temperature: z.number().min(0).max(2),
-  apiKey: z.string().min(1),
-  apiBase: z.string().url(),
+  model: z.string().min(1, { message: 'LLM model is required' }),
+  temperature: z
+    .number()
+    .min(0, { message: 'Temperature must be between 0 and 2' })
+    .max(2, { message: 'Temperature must be between 0 and 2' }),
+  apiKey: z.string().min(1, { message: 'LLM API key is required' }),
+  apiBase: z.string().url({ message: 'LLM API base must be a valid URL' }),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1, { message: 'Max tokens must be between 1 and 2,000,000' })
+    .max(2000000, { message: 'Max tokens must be between 1 and 2,000,000' })
+    .optional(),
 });
 
 export const AgentMemoryConfigSchema = z.object({
-  hotPathLimit: z.number().int().positive(),
-  hotPathTokenBudget: z.number().int().positive(),
-  recentMessageFloor: z.number().int().nonnegative(),
-  hotPathMarginPct: z.number().min(0).max(1),
-  embeddingModel: z.string().min(1),
-  embeddingEndpoint: z.string().url(),
-  similarityThreshold: z.number().min(0).max(1),
-  maxTokens: z.number().int().positive(),
-  injectionBudget: z.number().int().positive(),
-  retrievalTimeoutMs: z.number().int().positive(),
+  hotPathLimit: z
+    .number()
+    .int()
+    .min(1, { message: 'Hot path limit must be between 1 and 1,000' })
+    .max(1000, { message: 'Hot path limit must be between 1 and 1,000' }),
+  hotPathTokenBudget: z
+    .number()
+    .int()
+    .min(100, { message: 'Hot path token budget must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Hot path token budget must be between 100 and 2,000,000' }),
+  recentMessageFloor: z
+    .number()
+    .int()
+    .min(0, { message: 'Recent message floor must be between 0 and 100' })
+    .max(100, { message: 'Recent message floor must be between 0 and 100' }),
+  hotPathMarginPct: z
+    .number()
+    .min(0, { message: 'Hot path margin must be between 0 and 1' })
+    .max(1, { message: 'Hot path margin must be between 0 and 1' }),
+  embeddingModel: z.string().min(1, { message: 'Embedding model is required' }),
+  embeddingEndpoint: z.string().url({ message: 'Embedding endpoint must be a valid URL' }),
+  apiKey: z.string().min(1, { message: 'Memory API key is required' }),
+  similarityThreshold: z
+    .number()
+    .min(0, { message: 'Similarity threshold must be between 0 and 1' })
+    .max(1, { message: 'Similarity threshold must be between 0 and 1' }),
+  maxTokens: z
+    .number()
+    .int()
+    .min(100, { message: 'Max tokens must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Max tokens must be between 100 and 2,000,000' }),
+  injectionBudget: z
+    .number()
+    .int()
+    .min(100, { message: 'Injection budget must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Injection budget must be between 100 and 2,000,000' }),
+  retrievalTimeoutMs: z
+    .number()
+    .int()
+    .min(100, { message: 'Retrieval timeout must be between 100ms and 60,000ms' })
+    .max(60000, { message: 'Retrieval timeout must be between 100ms and 60,000ms' }),
 });
 
 export const AgentAutonomyEvaluatorConfigSchema = z.object({
-  model: z.string().min(1),
-  temperature: z.number().min(0).max(2),
-  maxTokens: z.number().int().positive(),
-  systemPrompt: z.string().min(1),
+  model: z.string().min(1, { message: 'Evaluator model is required' }),
+  temperature: z
+    .number()
+    .min(0, { message: 'Evaluator temperature must be between 0 and 2' })
+    .max(2, { message: 'Evaluator temperature must be between 0 and 2' }),
+  maxTokens: z
+    .number()
+    .int()
+    .min(1, { message: 'Evaluator max tokens must be between 1 and 2,000,000' })
+    .max(2000000, { message: 'Evaluator max tokens must be between 1 and 2,000,000' }),
+  systemPrompt: z.string().min(1, { message: 'Evaluator system prompt is required' }),
 });
 
 export const AgentAutonomyLimitsConfigSchema = z.object({
-  maxFollowUpsPerSession: z.number().int().positive(),
-  minDelayMs: z.number().int().positive(),
-  maxDelayMs: z.number().int().positive(),
+  maxFollowUpsPerSession: z
+    .number()
+    .int()
+    .min(1, { message: 'Maximum follow-ups per session must be between 1 and 100' })
+    .max(100, { message: 'Maximum follow-ups per session must be between 1 and 100' }),
+  minDelayMs: z
+    .number()
+    .int()
+    .min(1000, {
+      message: 'Minimum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    })
+    .max(3600000, {
+      message: 'Minimum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    }),
+  maxDelayMs: z
+    .number()
+    .int()
+    .min(1000, {
+      message: 'Maximum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    })
+    .max(3600000, {
+      message: 'Maximum delay must be between 1,000ms and 3,600,000ms (1 second to 1 hour)',
+    }),
 });
 
 export const AgentAutonomyMemoryContextConfigSchema = z.object({
-  recentMemoryCount: z.number().int().nonnegative(),
-  includeRecentMessages: z.number().int().positive(),
+  recentMemoryCount: z
+    .number()
+    .int()
+    .min(0, { message: 'Recent memory count must be between 0 and 100' })
+    .max(100, { message: 'Recent memory count must be between 0 and 100' }),
+  includeRecentMessages: z
+    .number()
+    .int()
+    .min(0, { message: 'Recent messages count must be between 0 and 100' })
+    .max(100, { message: 'Recent messages count must be between 0 and 100' }),
 });
 
 export const AgentAutonomyConfigSchema = z.object({
@@ -72,14 +151,34 @@ export const AgentAutonomyConfigSchema = z.object({
 });
 
 export const AgentConfigSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1),
-  systemPrompt: z.string().min(1),
-  personaTag: z.string().min(1),
+  name: z
+    .string()
+    .min(1, { message: 'Agent name is required' })
+    .max(100, { message: 'Agent name must be 100 characters or less' }),
+  systemPrompt: z
+    .string()
+    .min(1, { message: 'System prompt is required' })
+    .max(10000, { message: 'System prompt must be 10,000 characters or less' }),
+  personaTag: z
+    .string()
+    .min(1, { message: 'Persona tag is required' })
+    .max(50, { message: 'Persona tag must be 50 characters or less' }),
   llm: AgentLLMConfigSchema,
   memory: AgentMemoryConfigSchema,
   autonomy: AgentAutonomyConfigSchema,
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+/**
+ * Full Agent Schema (with database metadata)
+ * Used for API responses that include id and timestamps
+ */
+export const AgentSchema = AgentConfigSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type Agent = z.infer<typeof AgentSchema>;
 export type AgentAutonomyConfig = z.infer<typeof AgentAutonomyConfigSchema>;

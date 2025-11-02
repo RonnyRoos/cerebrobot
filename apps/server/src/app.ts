@@ -92,25 +92,34 @@ export function buildServer(options: BuildServerOptions): {
       logger.info('PolicyGates initialized');
     }
 
-    // Note: SessionProcessor needs a ChatAgent instance, but we have a factory
-    // We'll create a wrapper that lazy-loads the default agent
-    const getDefaultAgent = async () => options.getAgent();
-    const defaultAgent = await getDefaultAgent();
-
-    // Create SessionProcessor with access to ConnectionManager for direct streaming
-    const sessionProcessor = new SessionProcessor(
-      defaultAgent,
-      outboxStore,
-      connectionManager,
-      {
-        // Increased timeout for autonomous messages with heavy memory retrieval
-        // Autonomous messages can take >30s when loading many memories
-        graphTimeoutMs: 60000, // 60 seconds
-        debug: false,
-      },
-      logger.child({ component: 'session-processor' }),
-      timerStore, // NEW (spec 009): TimerStore for clear-on-user-message
-    );
+    // SessionProcessor initialization - only if agents exist
+    // Note: SessionProcessor needs a ChatAgent getter for handling multiple agents
+    // If no agents exist yet, SessionProcessor won't be created (autonomy requires agents)
+    let sessionProcessor: SessionProcessor | null = null;
+    try {
+      // Verify at least one agent exists
+      await options.getAgent();
+      sessionProcessor = new SessionProcessor(
+        (agentId: string) => options.getAgent(agentId),
+        outboxStore,
+        connectionManager,
+        {
+          // Increased timeout for autonomous messages with heavy memory retrieval
+          // Autonomous messages can take >30s when loading many memories
+          graphTimeoutMs: 60000, // 60 seconds
+          debug: false,
+        },
+        logger.child({ component: 'session-processor' }),
+        timerStore, // NEW (spec 009): TimerStore for clear-on-user-message
+      );
+      logger.info('SessionProcessor initialized with agent getter');
+    } catch (error) {
+      logger.warn({
+        msg: 'No agents configured - SessionProcessor not initialized',
+        hint: 'Create an agent via the UI (/agents page) to enable autonomous follow-ups',
+        impact: 'Chat and memory features available, autonomy disabled',
+      });
+    }
 
     // Create EventQueue
     eventQueue = new EventQueue(parseInt(process.env.EVENT_QUEUE_PROCESS_INTERVAL_MS ?? '50', 10));
@@ -178,6 +187,14 @@ export function buildServer(options: BuildServerOptions): {
 
     // Start EventQueue with SessionProcessor
     eventQueue.start(async (event: ChatEvent) => {
+      if (!sessionProcessor) {
+        logger.warn({
+          event,
+          msg: 'Event skipped - no SessionProcessor available',
+          hint: 'Create an agent via the UI to process events',
+        });
+        return;
+      }
       await sessionProcessor.processEvent(event);
     });
 
@@ -272,8 +289,8 @@ export function buildServer(options: BuildServerOptions): {
       }
     });
 
-    registerAgentRoutes(fastifyInstance);
-    registerThreadCreationRoutes(fastifyInstance, options.threadManager);
+    registerAgentRoutes(fastifyInstance, prisma);
+    registerThreadCreationRoutes(fastifyInstance, options.threadManager, prisma);
     registerUserRoutes(fastifyInstance, { logger });
 
     // Initialize memory infrastructure (Phase 2: Foundational)

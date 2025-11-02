@@ -3,7 +3,7 @@ import { AIMessage } from '@langchain/core/messages';
 import { MemorySaver } from '@langchain/langgraph';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import type { AgentStreamEvent, ChatInvocationContext } from '../../chat/chat-agent.js';
-import type { AgentConfig } from '../../config/agent-config.js';
+import type { Agent } from '@cerebrobot/chat-shared';
 
 type InvokeHandler = (args: {
   messages: unknown[];
@@ -38,8 +38,10 @@ vi.mock('@langchain/openai', () => ({
   }),
 }));
 
-const mockAgentConfig: AgentConfig = {
+const mockAgentConfig: Agent = {
   id: '00000000-0000-0000-0000-000000000000',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
   name: 'Test Agent',
   systemPrompt: 'You are Cerebrobot.',
   personaTag: 'test',
@@ -56,10 +58,29 @@ const mockAgentConfig: AgentConfig = {
     hotPathMarginPct: 0,
     embeddingModel: 'test-embedding-model',
     embeddingEndpoint: 'https://api.test.com/v1/openai',
+    apiKey: 'test-key',
     similarityThreshold: 0.7,
     maxTokens: 2048,
     injectionBudget: 1000,
     retrievalTimeoutMs: 5000,
+  },
+  autonomy: {
+    enabled: false,
+    evaluator: {
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      maxTokens: 500,
+      systemPrompt: 'Test evaluator',
+    },
+    limits: {
+      maxFollowUpsPerSession: 3,
+      minDelayMs: 10000,
+      maxDelayMs: 60000,
+    },
+    memoryContext: {
+      recentMemoryCount: 5,
+      includeRecentMessages: 6,
+    },
   },
 };
 

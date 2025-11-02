@@ -33,7 +33,7 @@ import { EMBEDDING_DIMENSIONS } from '../memory/config.js';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import { loadInfrastructureConfig } from '../../config.js';
 import type { ChatInvocationContext } from '../../chat/chat-agent.js';
-import type { AgentConfig } from '../../config/agent-config.js';
+import type { Agent } from '@cerebrobot/chat-shared';
 import { createCheckpointSaver } from '../checkpointer.js';
 import { PostgresCheckpointSaver } from '../postgres-checkpoint.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
@@ -414,8 +414,10 @@ describe.skipIf(!(await isDatabaseAvailable()))(
 // LangGraph Persistence Integration Tests (2 tests)
 // ============================================================================
 
-const mockAgentConfig: AgentConfig = {
+const mockAgentConfig: Agent = {
   id: '00000000-0000-0000-0000-000000000000',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
   name: 'Test Agent',
   systemPrompt: 'You are Cerebrobot.',
   personaTag: 'tester',
@@ -432,6 +434,7 @@ const mockAgentConfig: AgentConfig = {
     hotPathMarginPct: 0,
     embeddingModel: 'test-embedding-model',
     embeddingEndpoint: 'https://api.test.com/v1/openai',
+    apiKey: 'test-key',
     similarityThreshold: 0.7,
     maxTokens: 2048,
     injectionBudget: 1000,

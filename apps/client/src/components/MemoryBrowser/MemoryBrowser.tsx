@@ -279,9 +279,9 @@ export function MemoryBrowser({
 
           {/* Create Button (Footer) */}
           {onCreateMemory && (
-            <div 
-              style={{ 
-                padding: '1rem', 
+            <div
+              style={{
+                padding: '1rem',
                 borderTop: '1px solid #e5e7eb',
                 backgroundColor: 'white',
               }}

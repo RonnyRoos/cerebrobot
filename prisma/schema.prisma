@@ -67,12 +67,27 @@ model Memory {
   @@map("memories")
 }
 
+/// Agent configurations (Spec 011)
+/// Stores agent definitions with JSONB config
+/// Database becomes single source of truth (filesystem config/agents deprecated post-migration)
+model Agent {
+  id        String   @id @default(uuid())
+  name      String
+  config    Json     // AgentConfig JSONB: { llm, memory, autonomy, systemPrompt, personaTag }
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  threads   Thread[] // One-to-many relation with Thread
+
+  @@map("agents")
+}
+
 /// Thread metadata (Phase 1.5 - Multi-agent support)
 /// Stores application-level thread metadata for agent selection
 /// LangGraph conversation state stored separately in LangGraphCheckpoint tables
 model Thread {
   id        String   @id @default(uuid())
-  agentId   String   @map("agent_id") // References config/agents/{agentId}.json
+  agentId   String   @map("agent_id")
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   userId    String?  @map("user_id") // Optional user association (for future features)
   createdAt DateTime @default(now()) @map("created_at")
 

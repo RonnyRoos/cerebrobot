@@ -10,6 +10,7 @@ interface ThreadListViewProps {
   onNewThread: () => void;
   onExitAgentContext: () => void; // Handler to exit Agent Context Mode
   onRefreshReady: (refresh: () => Promise<void>) => void;
+  onNavigateToAgents?: () => void; // Handler to navigate to agents management page
 }
 
 /**
@@ -37,6 +38,7 @@ export function ThreadListView({
   onNewThread,
   onExitAgentContext,
   onRefreshReady,
+  onNavigateToAgents,
 }: ThreadListViewProps): JSX.Element {
   const { threads, error, refresh } = useThreads(userId, agentContextMode);
   const [agents, setAgents] = useState<AgentListResponse['agents']>([]);
@@ -156,28 +158,55 @@ export function ThreadListView({
               ? `🤖 ${agentNameMap.get(agentContextMode) || 'Agent'} Conversations`
               : 'Conversations'}
           </h2>
-          <button
-            onClick={onNewThread}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#2563eb';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#3b82f6';
-            }}
-          >
-            + New Conversation
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {/* Manage Agents button (only in All Threads mode) */}
+            {!agentContextMode && onNavigateToAgents && (
+              <button
+                onClick={onNavigateToAgents}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: 'transparent',
+                  color: '#3b82f6',
+                  border: '1px solid #3b82f6',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#eff6ff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                ⚙️ Manage Agents
+              </button>
+            )}
+            <button
+              onClick={onNewThread}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2563eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#3b82f6';
+              }}
+            >
+              + New Conversation
+            </button>
+          </div>
         </div>
       </header>
 
