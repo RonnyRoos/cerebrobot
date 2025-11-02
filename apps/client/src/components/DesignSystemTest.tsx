@@ -1,7 +1,9 @@
-import { MessageBubble, Avatar, useTheme } from '@workspace/ui';
+import { MessageBubble, Avatar, TypingIndicator, useTheme } from '@workspace/ui';
+import { useState } from 'react';
 
 export function DesignSystemTest() {
   const { theme, toggleTheme } = useTheme();
+  const [showTyping, setShowTyping] = useState(false);
 
   return (
     <div className="min-h-screen p-8 bg-white dark:bg-gray-900">
@@ -52,6 +54,34 @@ export function DesignSystemTest() {
             <Avatar variant="agent" size="sm" />
             <Avatar variant="agent" size="md" />
             <Avatar variant="agent" size="lg" />
+          </div>
+        </section>
+
+        <section>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+              Typing Indicator
+            </h2>
+            <button
+              onClick={() => setShowTyping(!showTyping)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              {showTyping ? 'Hide' : 'Show'} Typing
+            </button>
+          </div>
+          <div className="space-y-4">
+            {showTyping && (
+              <>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Dots variant:</p>
+                  <TypingIndicator variant="dots" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Pulse variant:</p>
+                  <TypingIndicator variant="pulse" />
+                </div>
+              </>
+            )}
           </div>
         </section>
       </div>

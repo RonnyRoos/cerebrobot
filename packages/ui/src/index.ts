@@ -15,3 +15,8 @@ export {
 } from './chat/message-bubble';
 export { Avatar, type AvatarProps, type AvatarElement } from './chat/avatar';
 export { CodeBlock, type CodeBlockProps, type CodeBlockElement } from './chat/code-block';
+export {
+  TypingIndicator,
+  type TypingIndicatorProps,
+  type TypingIndicatorElement,
+} from './chat/typing-indicator';

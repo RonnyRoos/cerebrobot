@@ -122,13 +122,13 @@
 
 ### Implementation for User Story 4
 
-- [ ] T044 [P] [US4] Create `packages/ui/src/chat/typing-indicator.tsx` with TypingIndicatorProps interface (variant: 'dots' | 'pulse', ariaLabel, className)
-- [ ] T045 [P] [US4] Create `packages/ui/src/chat/typing-indicator.tsx` with typingIndicatorVariants (cva with variant: dots/pulse)
-- [ ] T046 [US4] Implement TypingIndicator component with forwardRef in `packages/ui/src/chat/typing-indicator.tsx` (CSS-only animation, no JavaScript)
-- [ ] T047 [US4] Add CSS keyframes for 'dots' variant in `packages/ui/src/chat/typing-indicator.tsx` (three bouncing dots animation)
-- [ ] T048 [US4] Add CSS keyframes for 'pulse' variant in `packages/ui/src/chat/typing-indicator.tsx` (single pulsing circle animation)
-- [ ] T049 [US4] Export TypingIndicator, TypingIndicatorProps from `packages/ui/src/index.ts`
-- [ ] T050 [US4] Update visual test page in `apps/client/src/App.tsx` with typing indicator demo (toggle visibility with button)
+- [x] T044 [P] [US4] Create `packages/ui/src/chat/typing-indicator.tsx` with TypingIndicatorProps interface (variant: 'dots' | 'pulse', ariaLabel, className)
+- [x] T045 [P] [US4] Create `packages/ui/src/chat/typing-indicator.tsx` with typingIndicatorVariants (cva with variant: dots/pulse)
+- [x] T046 [US4] Implement TypingIndicator component with forwardRef in `packages/ui/src/chat/typing-indicator.tsx` (CSS-only animation, no JavaScript)
+- [x] T047 [US4] Add CSS keyframes for 'dots' variant in `packages/ui/src/chat/typing-indicator.tsx` (three bouncing dots animation)
+- [x] T048 [US4] Add CSS keyframes for 'pulse' variant in `packages/ui/src/chat/typing-indicator.tsx` (single pulsing circle animation)
+- [x] T049 [US4] Export TypingIndicator, TypingIndicatorProps from `packages/ui/src/index.ts`
+- [x] T050 [US4] Update visual test page in `apps/client/src/App.tsx` with typing indicator demo (toggle visibility with button)
 
 **Checkpoint**: Typing indicator working independently with smooth animations
 
