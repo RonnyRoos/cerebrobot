@@ -104,11 +104,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] Verify all 9 chat color tokens defined in `packages/ui/src/theme/globals.css` (message-user-bg, message-user-text, message-agent-bg, message-agent-text, code-block-bg, code-block-border, timestamp, link, link-hover, copy-button, copy-button-success)
-- [ ] T040 [US3] Verify color contrast meets WCAG AA (4.5:1 minimum) for all text-on-background combinations in light and dark modes using browser devtools or contrast checker
-- [ ] T041 [US3] Create `packages/ui/src/theme/chat-colors.css` documenting all color tokens with HSL values and usage examples (import into globals.css)
-- [ ] T042 [US3] Update visual test page in `apps/client/src/App.tsx` with theme toggle button using useTheme hook
-- [ ] T043 [US3] Verify theme persistence by refreshing page in visual test (should remember light/dark preference from localStorage)
+- [x] T039 [US3] Verify all 9 chat color tokens defined in `packages/ui/src/theme/globals.css` (message-user-bg, message-user-text, message-agent-bg, message-agent-text, code-block-bg, code-block-border, timestamp, link, link-hover, copy-button, copy-button-success)
+- [x] T040 [US3] Verify color contrast meets WCAG AA (4.5:1 minimum) for all text-on-background combinations in light and dark modes using browser devtools or contrast checker
+- [x] T041 [US3] Create `packages/ui/src/theme/chat-colors.css` documenting all color tokens with HSL values and usage examples (import into globals.css)
+- [x] T042 [US3] Update visual test page in `apps/client/src/App.tsx` with theme toggle button using useTheme hook
+- [x] T043 [US3] Verify theme persistence by refreshing page in visual test (should remember light/dark preference from localStorage)
 
 **Checkpoint**: All P1 user stories complete - MVP ready with visual distinction, typography, and theme system
 

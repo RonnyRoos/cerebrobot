@@ -13,5 +13,5 @@ const root = createRoot(container);
 root.render(
   <ThemeProvider>
     <App />
-  </ThemeProvider>
+  </ThemeProvider>,
 );

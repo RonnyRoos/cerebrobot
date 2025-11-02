@@ -1,3 +1,8 @@
+/**
+ * Chat-specific color tokens documentation: see chat-colors.css
+ * Defines 12 semantic color tokens for light/dark themes with WCAG AA compliance
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

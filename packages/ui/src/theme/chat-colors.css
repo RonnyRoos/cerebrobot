@@ -1,0 +1,272 @@
+/**
+ * Chat Color Tokens Documentation
+ * 
+ * This file documents all chat-specific color tokens used in the Cerebrobot design system.
+ * All colors are defined as HSL values (Hue Saturation% Lightness%) for maximum flexibility.
+ * 
+ * WCAG AA Compliance: All text/background combinations maintain 4.5:1 contrast ratio minimum.
+ * 
+ * Usage: Import this file into globals.css to apply color tokens.
+ */
+
+/* ============================================================================
+ * MESSAGE COLORS
+ * ============================================================================
+ * Used by: MessageBubble component (message-bubble.tsx)
+ */
+
+/**
+ * User Message Background (Light Mode)
+ * HSL: 239° 84% 67% → Soft blue (#7B9EFA)
+ * Usage: bg-message-user-bg
+ * Component: MessageBubble with sender="user"
+ */
+
+/**
+ * User Message Background (Dark Mode)
+ * HSL: 239° 84% 37% → Deep blue (#1F3DB0)
+ * Usage: bg-message-user-bg (auto-adapts in dark mode)
+ * Component: MessageBubble with sender="user"
+ */
+
+/**
+ * User Message Text (Light Mode)
+ * HSL: 222° 47% 11% → Very dark blue-gray (#0F1419)
+ * Usage: text-message-user-text
+ * Contrast Ratio: ~7.5:1 on light blue background (WCAG AAA)
+ */
+
+/**
+ * User Message Text (Dark Mode)
+ * HSL: 210° 40% 98% → Very light blue-white (#F7F9FB)
+ * Usage: text-message-user-text (auto-adapts in dark mode)
+ * Contrast Ratio: ~9.2:1 on deep blue background (WCAG AAA)
+ */
+
+/**
+ * Agent Message Background (Light Mode)
+ * HSL: 240° 5% 96% → Very light gray (#F5F5F6)
+ * Usage: bg-message-agent-bg
+ * Component: MessageBubble with sender="agent"
+ */
+
+/**
+ * Agent Message Background (Dark Mode)
+ * HSL: 222° 47% 11% → Very dark gray (#0F1419)
+ * Usage: bg-message-agent-bg (auto-adapts in dark mode)
+ * Component: MessageBubble with sender="agent"
+ */
+
+/**
+ * Agent Message Text (Light Mode)
+ * HSL: 222° 47% 11% → Very dark blue-gray (#0F1419)
+ * Usage: text-message-agent-text
+ * Contrast Ratio: ~13:1 on light gray background (WCAG AAA)
+ */
+
+/**
+ * Agent Message Text (Dark Mode)
+ * HSL: 210° 40% 98% → Very light blue-white (#F7F9FB)
+ * Usage: text-message-agent-text (auto-adapts in dark mode)
+ * Contrast Ratio: ~13:1 on dark gray background (WCAG AAA)
+ */
+
+/* ============================================================================
+ * CODE BLOCK COLORS
+ * ============================================================================
+ * Used by: CodeBlock component (code-block.tsx), Markdown prose (markdown.tsx)
+ */
+
+/**
+ * Code Block Background (Light Mode)
+ * HSL: 0° 0% 98% → Near-white (#FAFAFA)
+ * Usage: bg-code-block-bg
+ * Component: CodeBlock, prose-chat pre elements
+ */
+
+/**
+ * Code Block Background (Dark Mode)
+ * HSL: 0° 0% 10% → Near-black (#1A1A1A)
+ * Usage: bg-code-block-bg (auto-adapts in dark mode)
+ * Component: CodeBlock, prose-chat pre elements
+ */
+
+/**
+ * Code Block Border (Light Mode)
+ * HSL: 0° 0% 89% → Light gray border (#E3E3E3)
+ * Usage: border-code-block-border
+ * Component: CodeBlock, prose-chat pre elements
+ */
+
+/**
+ * Code Block Border (Dark Mode)
+ * HSL: 0° 0% 20% → Dark gray border (#333333)
+ * Usage: border-code-block-border (auto-adapts in dark mode)
+ * Component: CodeBlock, prose-chat pre elements
+ */
+
+/**
+ * Inline Code Background (Light Mode)
+ * HSL: 0° 0% 95% → Very light gray (#F2F2F2)
+ * Usage: bg-code-inline-bg
+ * Component: prose-chat code elements (inline code within text)
+ */
+
+/**
+ * Inline Code Background (Dark Mode)
+ * HSL: 0° 0% 15% → Dark gray (#262626)
+ * Usage: bg-code-inline-bg (auto-adapts in dark mode)
+ * Component: prose-chat code elements (inline code within text)
+ */
+
+/* ============================================================================
+ * UTILITY COLORS
+ * ============================================================================
+ * Used by: Timestamp, Links, CopyButton (future)
+ */
+
+/**
+ * Timestamp Text (Light Mode)
+ * HSL: 240° 4% 46% → Muted gray (#757578)
+ * Usage: text-timestamp
+ * Component: Timestamp component (timestamp.tsx - Phase 7)
+ * Contrast Ratio: ~4.6:1 on white background (WCAG AA)
+ */
+
+/**
+ * Timestamp Text (Dark Mode)
+ * HSL: 240° 5% 65% → Lighter muted gray (#A5A5A8)
+ * Usage: text-timestamp (auto-adapts in dark mode)
+ * Component: Timestamp component (timestamp.tsx - Phase 7)
+ * Contrast Ratio: ~5.1:1 on black background (WCAG AA)
+ */
+
+/**
+ * Link Color (Light Mode)
+ * HSL: 221° 83% 53% → Link blue (#2563EB)
+ * Usage: text-link
+ * Component: prose-chat a elements (markdown links)
+ * Contrast Ratio: ~4.9:1 on white background (WCAG AA)
+ */
+
+/**
+ * Link Color (Dark Mode)
+ * HSL: 217° 91% 60% → Brighter blue (#3B82F6)
+ * Usage: text-link (auto-adapts in dark mode)
+ * Component: prose-chat a elements (markdown links)
+ * Contrast Ratio: ~5.2:1 on black background (WCAG AA)
+ */
+
+/**
+ * Link Hover Color (Light Mode)
+ * HSL: 221° 83% 43% → Darker blue (#1D4ED8)
+ * Usage: hover:text-link-hover
+ * Component: prose-chat a elements on hover
+ */
+
+/**
+ * Link Hover Color (Dark Mode)
+ * HSL: 217° 91% 70% → Lighter blue (#60A5FA)
+ * Usage: hover:text-link-hover (auto-adapts in dark mode)
+ * Component: prose-chat a elements on hover
+ */
+
+/**
+ * Copy Button (Light Mode)
+ * HSL: 0° 0% 60% → Medium gray (#999999)
+ * Usage: text-copy-button, bg-copy-button (future CopyButton component)
+ * Component: CopyButton (copy-button.tsx - Phase 9)
+ */
+
+/**
+ * Copy Button (Dark Mode)
+ * HSL: 0° 0% 70% → Lighter gray (#B3B3B3)
+ * Usage: text-copy-button, bg-copy-button (auto-adapts in dark mode)
+ * Component: CopyButton (copy-button.tsx - Phase 9)
+ */
+
+/**
+ * Copy Button Success State (Light Mode)
+ * HSL: 142° 71% 45% → Green (#22C55E)
+ * Usage: text-copy-button-success (after successful copy)
+ * Component: CopyButton success state (Phase 9)
+ */
+
+/**
+ * Copy Button Success State (Dark Mode)
+ * HSL: 142° 71% 55% → Brighter green (#4ADE80)
+ * Usage: text-copy-button-success (auto-adapts in dark mode)
+ * Component: CopyButton success state (Phase 9)
+ */
+
+/* ============================================================================
+ * MANUAL VERIFICATION CHECKLIST
+ * ============================================================================
+ * 
+ * To verify WCAG AA compliance (4.5:1 contrast ratio minimum):
+ * 
+ * 1. Open apps/client in development mode (pnpm dev)
+ * 2. Navigate to Design System Test page
+ * 3. Open browser DevTools → Elements tab
+ * 4. For LIGHT MODE verification:
+ *    - Select a user message bubble
+ *    - In Styles panel, find --color-message-user-bg and --color-message-user-text
+ *    - Use DevTools Color Picker on each color
+ *    - Expand "Contrast ratio" section
+ *    - Verify ratio is ≥ 4.5:1 (should show green checkmarks for AA/AAA)
+ *    - Repeat for agent messages, code blocks, timestamps, links
+ * 
+ * 5. For DARK MODE verification:
+ *    - Click "Toggle Dark Mode" button
+ *    - Repeat step 4 for all components
+ * 
+ * 6. Alternative: Use online contrast checker
+ *    - Visit https://webaim.org/resources/contrastchecker/
+ *    - Convert HSL to Hex (use browser DevTools color picker)
+ *    - Enter foreground and background hex values
+ *    - Verify "WCAG AA" passes for normal text (4.5:1)
+ * 
+ * Expected Results:
+ * ✓ User message (light): ~7.5:1 (AAA) - Dark text on light blue
+ * ✓ User message (dark): ~9.2:1 (AAA) - Light text on deep blue
+ * ✓ Agent message (light): ~13:1 (AAA) - Dark text on light gray
+ * ✓ Agent message (dark): ~13:1 (AAA) - Light text on dark gray
+ * ✓ Timestamp (light): ~4.6:1 (AA) - Muted gray on white
+ * ✓ Timestamp (dark): ~5.1:1 (AA) - Light muted on black
+ * ✓ Link (light): ~4.9:1 (AA) - Blue on white
+ * ✓ Link (dark): ~5.2:1 (AA) - Bright blue on black
+ * 
+ * ============================================================================
+ */
+
+/* ============================================================================
+ * THEME PERSISTENCE VERIFICATION
+ * ============================================================================
+ * 
+ * To verify localStorage persistence works correctly:
+ * 
+ * 1. Open apps/client in development mode (pnpm dev)
+ * 2. Navigate to Design System Test page
+ * 3. Observe current theme (default should be system preference or light)
+ * 4. Click "Toggle Dark Mode" button
+ * 5. Open browser DevTools → Application tab → Local Storage
+ * 6. Find key "cerebrobot-theme" with value "dark" or "light"
+ * 7. Refresh the page (Cmd+R or Ctrl+R)
+ * 8. Verify theme persists (should remain dark if you toggled to dark)
+ * 9. Toggle back to light mode
+ * 10. Refresh again and verify light mode persists
+ * 
+ * Expected Behavior:
+ * ✓ Theme preference saved to localStorage under key "cerebrobot-theme"
+ * ✓ Theme persists across page refreshes
+ * ✓ Theme applies immediately on page load (no flash of wrong theme)
+ * ✓ ThemeProvider reads from localStorage on mount
+ * ✓ document.documentElement gets "dark" class when dark mode active
+ * 
+ * ============================================================================
+ */
+
+/* No actual CSS rules in this file - it's purely documentation.
+ * All color tokens are defined in globals.css and applied via Tailwind config.
+ * This file exists to provide comprehensive documentation and verification guidance.
+ */

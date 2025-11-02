@@ -1,10 +1,10 @@
-import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react';
+import { forwardRef, type ElementRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '../utils/cn';
 import { useTheme } from '../utils/theme';
 
-export interface CodeBlockProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
+export interface CodeBlockProps {
   /**
    * Source code to display.
    * Will be syntax highlighted if language is provided.
@@ -35,23 +35,13 @@ export interface CodeBlockProps extends Omit<ComponentPropsWithoutRef<'div'>, 'c
    * Override default Tailwind classes.
    */
   className?: string;
-
-  /**
-   * Callback when code is copied to clipboard.
-   * Receives the copied code string.
-   */
-  onCopy?: (code: string) => void;
 }
 
 export type CodeBlockElement = ElementRef<'div'>;
 
 export const CodeBlock = forwardRef<CodeBlockElement, CodeBlockProps>(
-  ({ code, language, showLineNumbers = false, highlightStyle, className, ...props }, ref) => {
+  ({ code, language, showLineNumbers = false, highlightStyle, className }, ref) => {
     const { theme } = useTheme();
-
-    // Remove onCopy from props to avoid conflict with native onCopy event
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { onCopy: _onCopy, ...divProps } = props as typeof props & { onCopy?: unknown };
 
     // Select syntax highlighting theme based on current theme
     const syntaxTheme = highlightStyle ?? (theme === 'dark' ? vscDarkPlus : vs);
@@ -63,7 +53,6 @@ export const CodeBlock = forwardRef<CodeBlockElement, CodeBlockProps>(
           'relative rounded-lg overflow-hidden bg-code-block-bg border border-code-block-border',
           className,
         )}
-        {...divProps}
       >
         {language ? (
           <SyntaxHighlighter

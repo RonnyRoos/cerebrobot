@@ -28,7 +28,7 @@ export function DesignSystemTest() {
               sender="user"
               timestamp={new Date()}
             />
-            
+
             <MessageBubble
               content="Hi there! I'm the agent. I can help you with:\n\n- Markdown rendering\n- Code blocks\n- And much more!"
               sender="agent"
@@ -44,9 +44,7 @@ export function DesignSystemTest() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-            Avatars
-          </h2>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Avatars</h2>
           <div className="flex gap-4 items-end">
             <Avatar variant="user" size="sm" initials="U" />
             <Avatar variant="user" size="md" initials="JD" />
