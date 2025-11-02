@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyberpunk Terminal - Cerebrobot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --neon-cyan: #00fff9;
+      --neon-magenta: #ff00ff;
+      --neon-yellow: #ffff00;
+      --neon-green: #39ff14;
+      --electric-blue: #0ff;
+      --hot-pink: #ff006e;
+      
+      --bg-primary: #000000;
+      --bg-secondary: #0a0a14;
+      --bg-tertiary: #141428;
+      
+      --text-primary: #00fff9;
+      --text-secondary: #8fffff;
+      --text-muted: #4d9999;
+      
+      --terminal-green: #39ff14;
+      --warning-yellow: #ffff00;
+      --error-red: #ff0055;
+    }
+
+    @keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
+    @keyframes glitch {
+      0%, 100% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+    }
+
+    @keyframes neon-pulse {
+      0%, 100% {
+        text-shadow: 
+          0 0 7px #00fff9,
+          0 0 10px #00fff9,
+          0 0 21px #00fff9,
+          0 0 42px #00fff9;
+      }
+      50% {
+        text-shadow: 
+          0 0 4px #00fff9,
+          0 0 7px #00fff9,
+          0 0 14px #00fff9,
+          0 0 28px #00fff9;
+      }
+    }
+
+    body {
+      font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* CRT scanline effect */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: rgba(0, 255, 249, 0.1);
+      z-index: 9999;
+      animation: scanline 6s linear infinite;
+      pointer-events: none;
+    }
+
+    /* Screen flicker */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 255, 249, 0.02);
+      animation: flicker 0.15s infinite;
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    /* Grid background */
+    .grid-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(0, 255, 249, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 249, 0.05) 1px, transparent 1px);
+      background-size: 30px 30px;
+      z-index: -1;
+      opacity: 0.3;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 60px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 80px;
+      position: relative;
+      border: 2px solid var(--neon-cyan);
+      padding: 40px;
+      background: rgba(0, 255, 249, 0.03);
+      box-shadow: 
+        0 0 20px rgba(0, 255, 249, 0.3),
+        inset 0 0 20px rgba(0, 255, 249, 0.05);
+    }
+
+    h1 {
+      font-size: 4rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      margin-bottom: 16px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      animation: neon-pulse 2s ease-in-out infinite;
+      font-family: 'Courier New', monospace;
+    }
+
+    h1::before {
+      content: '> ';
+      color: var(--neon-magenta);
+    }
+
+    h1::after {
+      content: '_';
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .subtitle {
+      color: var(--neon-magenta);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px var(--neon-magenta);
+    }
+
+    .subtitle::before {
+      content: '[ ';
+    }
+
+    .subtitle::after {
+      content: ' ]';
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 2px solid var(--neon-yellow);
+      color: var(--neon-yellow);
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+      z-index: 100;
+    }
+
+    .theme-toggle:hover {
+      background: var(--neon-yellow);
+      color: var(--bg-primary);
+      box-shadow: 0 0 30px rgba(255, 255, 0, 0.6);
+      transform: scale(1.05);
+    }
+
+    .chat-container {
+      background: rgba(10, 10, 20, 0.8);
+      border: 2px solid var(--neon-cyan);
+      padding: 32px;
+      margin-bottom: 50px;
+      position: relative;
+      box-shadow: 
+        0 0 30px rgba(0, 255, 249, 0.2),
+        inset 0 0 30px rgba(0, 255, 249, 0.03);
+    }
+
+    .chat-container::before {
+      content: '▒▒▒';
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: var(--bg-primary);
+      color: var(--neon-cyan);
+      padding: 0 10px;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 900;
+      margin-bottom: 28px;
+      color: var(--neon-magenta);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 10px var(--neon-magenta);
+    }
+
+    .section-title::before {
+      content: '>> ';
+      color: var(--terminal-green);
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: terminal-write 0.3s ease forwards;
+    }
+
+    @keyframes terminal-write {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .message.user {
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border: 2px solid;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.2rem;
+      position: relative;
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    }
+
+    .avatar.user {
+      background: var(--bg-primary);
+      border-color: var(--neon-magenta);
+      color: var(--neon-magenta);
+      box-shadow: 0 0 20px var(--neon-magenta);
+    }
+
+    .avatar.agent {
+      background: var(--bg-primary);
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 20px var(--neon-cyan);
+    }
+
+    .message-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .message-bubble {
+      padding: 18px 22px;
+      margin-bottom: 10px;
+      position: relative;
+      border-left: 3px solid;
+      background: rgba(0, 0, 0, 0.6);
+      font-family: 'Courier New', monospace;
+    }
+
+    .message.user .message-bubble {
+      border-left-color: var(--neon-magenta);
+      border-right: 1px solid rgba(255, 0, 255, 0.2);
+      box-shadow: -5px 0 15px rgba(255, 0, 255, 0.2);
+    }
+
+    .message.agent .message-bubble {
+      border-left-color: var(--neon-cyan);
+      border-right: 1px solid rgba(0, 255, 249, 0.2);
+      box-shadow: -5px 0 15px rgba(0, 255, 249, 0.2);
+    }
+
+    .message.user .message-bubble::before {
+      content: 'USER>';
+      position: absolute;
+      top: -14px;
+      left: 0;
+      font-size: 0.7rem;
+      color: var(--neon-magenta);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+    }
+
+    .message.agent .message-bubble::before {
+      content: 'SYSTEM>';
+      position: absolute;
+      top: -14px;
+      left: 0;
+      font-size: 0.7rem;
+      color: var(--neon-cyan);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+    }
+
+    .message-bubble p {
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .message-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-bubble strong {
+      color: var(--neon-yellow);
+      font-weight: 900;
+      text-shadow: 0 0 5px var(--neon-yellow);
+    }
+
+    .message-bubble em {
+      color: var(--hot-pink);
+      font-style: normal;
+      text-decoration: underline;
+      text-decoration-color: var(--hot-pink);
+    }
+
+    .message-bubble code {
+      background: rgba(57, 255, 20, 0.1);
+      padding: 2px 8px;
+      border: 1px solid var(--terminal-green);
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      color: var(--terminal-green);
+      text-shadow: 0 0 5px var(--terminal-green);
+    }
+
+    .timestamp {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.05em;
+    }
+
+    .timestamp::before {
+      content: '[';
+      color: var(--neon-cyan);
+    }
+
+    .timestamp::after {
+      content: ']';
+      color: var(--neon-cyan);
+    }
+
+    .message.user .timestamp {
+      text-align: right;
+    }
+
+    .code-block {
+      background: rgba(0, 0, 0, 0.8);
+      border: 2px solid var(--terminal-green);
+      padding: 24px;
+      margin: 24px 0;
+      position: relative;
+      box-shadow: 
+        0 0 20px rgba(57, 255, 20, 0.2),
+        inset 0 0 20px rgba(57, 255, 20, 0.05);
+    }
+
+    .code-block::before {
+      content: '▓▓▓ EXECUTE ▓▓▓';
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: var(--bg-primary);
+      color: var(--terminal-green);
+      padding: 0 10px;
+      font-weight: 900;
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed var(--terminal-green);
+    }
+
+    .code-lang {
+      font-size: 0.8rem;
+      color: var(--neon-yellow);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 10px var(--neon-yellow);
+    }
+
+    .code-lang::before {
+      content: '// ';
+    }
+
+    .copy-button {
+      padding: 6px 16px;
+      background: transparent;
+      border: 1px solid var(--neon-magenta);
+      color: var(--neon-magenta);
+      font-size: 0.75rem;
+      font-weight: 900;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
+    }
+
+    .copy-button:hover {
+      background: var(--neon-magenta);
+      color: var(--bg-primary);
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+    }
+
+    pre {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--terminal-green);
+      overflow-x: auto;
+      text-shadow: 0 0 3px var(--terminal-green);
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 8px;
+      padding: 18px 22px;
+      background: rgba(0, 0, 0, 0.6);
+      border-left: 3px solid var(--neon-cyan);
+      border-right: 1px solid rgba(0, 255, 249, 0.2);
+      box-shadow: -5px 0 15px rgba(0, 255, 249, 0.2);
+      width: fit-content;
+    }
+
+    .typing-indicator::before {
+      content: 'PROCESSING...';
+      position: absolute;
+      top: -14px;
+      left: 0;
+      font-size: 0.7rem;
+      color: var(--neon-cyan);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+    }
+
+    .typing-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--neon-cyan);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      animation: cyber-blink 1.4s infinite;
+      box-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    .typing-dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes cyber-blink {
+      0%, 60%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+      30% {
+        opacity: 1;
+        transform: scale(1.3);
+      }
+    }
+
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      margin-top: 28px;
+    }
+
+    .color-swatch {
+      padding: 20px;
+      border: 2px solid;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.6);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.05);
+      animation: glitch 0.3s ease;
+    }
+
+    .color-swatch-box {
+      height: 70px;
+      margin-bottom: 12px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .color-name {
+      font-size: 0.85rem;
+      font-weight: 900;
+      font-family: 'Courier New', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Light mode (retro terminal) */
+    body.light {
+      --bg-primary: #0d1b0d;
+      --bg-secondary: #1a2e1a;
+      --text-primary: #39ff14;
+      --neon-cyan: #39ff14;
+      --neon-magenta: #ffff00;
+    }
+
+    body.light .chat-container {
+      border-color: var(--terminal-green);
+      box-shadow: 
+        0 0 30px rgba(57, 255, 20, 0.3),
+        inset 0 0 30px rgba(57, 255, 20, 0.05);
+    }
+
+    body.light h1 {
+      color: var(--terminal-green);
+      animation: neon-pulse-green 2s ease-in-out infinite;
+    }
+
+    @keyframes neon-pulse-green {
+      0%, 100% {
+        text-shadow: 
+          0 0 7px #39ff14,
+          0 0 10px #39ff14,
+          0 0 21px #39ff14,
+          0 0 42px #39ff14;
+      }
+      50% {
+        text-shadow: 
+          0 0 4px #39ff14,
+          0 0 7px #39ff14,
+          0 0 14px #39ff14,
+          0 0 28px #39ff14;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <button class="theme-toggle" onclick="toggleTheme()">RETRO MODE</button>
+
+  <div class="container">
+    <header>
+      <h1>CYBERTERM</h1>
+      <p class="subtitle">Neural Interface v2.077</p>
+    </header>
+
+    <div class="chat-container">
+      <h2 class="section-title">Data Stream</h2>
+      
+      <div class="message user">
+        <div class="avatar user">◆</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>Initialize query: <strong>USER</strong> authentication with <em>encrypted</em> protocol.</p>
+          </div>
+          <div class="timestamp">05:47:23</div>
+        </div>
+      </div>
+
+      <div class="message agent">
+        <div class="avatar agent">▲</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>ACCESS GRANTED. Neural interface <strong>online</strong>.</p>
+            <p>Available functions:</p>
+            <p>- <strong>Memory</strong> graph visualization<br>- Encrypted data streams<br>- Real-time <em>neural</em> processing</p>
+            <p>Execute: <code>system.initialize()</code></p>
+          </div>
+          <div class="timestamp">05:47:25</div>
+        </div>
+      </div>
+
+      <div class="message agent">
+        <div class="avatar agent">▲</div>
+        <div class="message-content">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <h2 class="section-title">Code Execution</h2>
+      
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">TypeScript</span>
+          <button class="copy-button">COPY</button>
+        </div>
+        <pre><code>interface NeuralLink {
+  connect(): Promise&lt;void&gt;;
+  transmit(data: string): void;
+  // Cybernetic protocol
+  encrypt(payload: Buffer): Buffer;
+}</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">Python</span>
+          <button class="copy-button">COPY</button>
+        </div>
+        <pre><code>def hack_mainframe(target):
+    """
+    Infiltrate neural network
+    """
+    firewall = bypass_security(target)
+    return {
+        "access": "GRANTED",
+        "level": "ROOT"
+    }</code></pre>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <h2 class="section-title">Color Matrix</h2>
+      
+      <div class="color-palette">
+        <div class="color-swatch" style="border-color: #00fff9;">
+          <div class="color-swatch-box" style="background: #00fff9;"></div>
+          <div class="color-name" style="color: #00fff9;">CYAN</div>
+        </div>
+        <div class="color-swatch" style="border-color: #ff00ff;">
+          <div class="color-swatch-box" style="background: #ff00ff;"></div>
+          <div class="color-name" style="color: #ff00ff;">MAGENTA</div>
+        </div>
+        <div class="color-swatch" style="border-color: #ffff00;">
+          <div class="color-swatch-box" style="background: #ffff00;"></div>
+          <div class="color-name" style="color: #ffff00;">YELLOW</div>
+        </div>
+        <div class="color-swatch" style="border-color: #39ff14;">
+          <div class="color-swatch-box" style="background: #39ff14;"></div>
+          <div class="color-name" style="color: #39ff14;">TERMINAL</div>
+        </div>
+        <div class="color-swatch" style="border-color: #ff006e;">
+          <div class="color-swatch-box" style="background: #ff006e;"></div>
+          <div class="color-name" style="color: #ff006e;">HOT PINK</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const btn = document.querySelector('.theme-toggle');
+      btn.textContent = document.body.classList.contains('light') 
+        ? 'CYBER MODE' 
+        : 'RETRO MODE';
+    }
+  </script>
+</body>
+</html>
