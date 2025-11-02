@@ -9,7 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { AgentConfigSchema, AgentListResponseSchema } from '@cerebrobot/chat-shared';
 import { AgentService } from '../services/AgentService.js';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 
 interface GetAgentParams {
   id: string;
@@ -24,11 +24,12 @@ interface DeleteAgentParams {
 }
 
 /**
- * Validate UUID format
+ * Validate UUID format using Zod
  */
+const uuidSchema = z.string().uuid();
+
 function isValidUUID(uuid: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
+  return uuidSchema.safeParse(uuid).success;
 }
 
 export function registerAgentRoutes(app: FastifyInstance, prisma: PrismaClient): void {

@@ -113,7 +113,17 @@ export class AgentService {
 
   /**
    * Delete agent and cascade delete associated threads and checkpoints
-   * Uses application-level transaction for atomicity
+   *
+   * Uses application-level transaction for atomicity.
+   * Manual cascade required because LangGraph checkpoint tables reference threads,
+   * not agents directly. Prisma's onDelete:Cascade only handles one level
+   * (agent→threads), but we need multi-level cascade (agent→threads→checkpoints→writes).
+   *
+   * Deletion order matters due to foreign key constraints:
+   * 1. checkpoint_writes (references checkpoints)
+   * 2. checkpoints (references threads)
+   * 3. threads (references agents)
+   * 4. agent
    */
   async deleteAgent(id: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {

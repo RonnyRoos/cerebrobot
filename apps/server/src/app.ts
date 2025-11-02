@@ -114,9 +114,11 @@ export function buildServer(options: BuildServerOptions): {
       );
       logger.info('SessionProcessor initialized with agent getter');
     } catch (error) {
-      logger.warn(
-        'No agents available - SessionProcessor not initialized. Create an agent via UI to enable autonomous follow-ups.',
-      );
+      logger.warn({
+        msg: 'No agents configured - SessionProcessor not initialized',
+        hint: 'Create an agent via the UI (/agents page) to enable autonomous follow-ups',
+        impact: 'Chat and memory features available, autonomy disabled',
+      });
     }
 
     // Create EventQueue
@@ -186,10 +188,11 @@ export function buildServer(options: BuildServerOptions): {
     // Start EventQueue with SessionProcessor
     eventQueue.start(async (event: ChatEvent) => {
       if (!sessionProcessor) {
-        logger.warn(
-          { event },
-          'Event skipped - no SessionProcessor available (no agents configured)',
-        );
+        logger.warn({
+          event,
+          msg: 'Event skipped - no SessionProcessor available',
+          hint: 'Create an agent via the UI to process events',
+        });
         return;
       }
       await sessionProcessor.processEvent(event);
