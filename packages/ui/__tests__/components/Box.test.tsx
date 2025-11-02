@@ -294,8 +294,8 @@ describe('Box Component', () => {
       );
       
       const element = screen.getByTestId('box');
-      // Both classes present, but p-8 should take precedence in Tailwind
-      expect(element.className).toContain('p-4');
+      // className should override token props (tailwind-merge deduplicates, keeps p-8)
+      expect(element.className).not.toContain('p-4');
       expect(element.className).toContain('p-8');
     });
   });

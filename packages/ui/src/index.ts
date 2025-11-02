@@ -1,5 +1,8 @@
 export { cn } from './utils/cn';
 
+// Design System - Primitives (T049)
+export { Box, Stack, Text, Button } from './components/primitives';
+
 // Design System - Theme
 export { Theme as ThemeProvider, useTheme } from './theme/theme-provider';
 export type {
