@@ -1,9 +1,9 @@
 /**
  * Token Demo Component (T037)
- * 
+ *
  * Purpose: Smoke test for design system token integration
  * Usage: Visual verification that tokens resolve correctly in browser
- * 
+ *
  * This component exercises:
  * - Color tokens (primitives + semantic)
  * - Spacing tokens (4px base unit)
@@ -24,9 +24,7 @@ export function TokenDemo(): JSX.Element {
       <div className="mx-auto max-w-4xl space-y-8">
         {/* Header */}
         <div className="space-y-4">
-          <h1 className="text-4xl font-bold text-text-primary">
-            Design System Token Demo
-          </h1>
+          <h1 className="text-4xl font-bold text-text-primary">Design System Token Demo</h1>
           <p className="text-lg text-text-secondary">
             Visual verification of token resolution and theme switching
           </p>
@@ -69,7 +67,7 @@ export function TokenDemo(): JSX.Element {
         {/* Color Tokens */}
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-text-primary">Color Tokens</h2>
-          
+
           {/* Neon Flux Accents */}
           <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
@@ -135,7 +133,7 @@ export function TokenDemo(): JSX.Element {
             <p className="text-xl text-text-primary">Extra large (20px) - font-size-xl</p>
             <p className="text-2xl font-semibold text-text-primary">2XL (24px) - font-size-2xl</p>
             <p className="text-4xl font-bold text-text-primary">4XL (36px) - font-size-4xl</p>
-            
+
             <div className="mt-4 border-t border-border-subtle pt-4">
               <p className="font-mono text-sm text-text-secondary">
                 Monospace font (Geist Mono) - font-family-mono
@@ -147,7 +145,7 @@ export function TokenDemo(): JSX.Element {
         {/* Elevation Tokens */}
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-text-primary">Elevation Tokens</h2>
-          
+
           {/* Depth Shadows */}
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-lg bg-bg-surface p-6 shadow-sm">
@@ -219,7 +217,10 @@ export function TokenDemo(): JSX.Element {
             <button className="rounded-lg border border-border-default bg-bg-surface px-6 py-3 font-medium text-text-primary transition-colors hover:bg-bg-elevated">
               Secondary Button
             </button>
-            <button className="rounded-lg bg-bg-surface px-6 py-3 font-medium text-text-tertiary transition-colors hover:text-text-primary" disabled>
+            <button
+              className="rounded-lg bg-bg-surface px-6 py-3 font-medium text-text-tertiary transition-colors hover:text-text-primary"
+              disabled
+            >
               Disabled Button
             </button>
           </div>

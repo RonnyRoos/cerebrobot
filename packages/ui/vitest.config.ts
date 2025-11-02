@@ -5,7 +5,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom', // UI tests need DOM
     globals: true,
-    include: ['src/**/*.test.ts', '__tests__/**/*.test.ts'],
+    include: ['src/**/*.test.ts', '__tests__/**/*.test.ts', '__tests__/**/*.test.tsx'],
+    setupFiles: ['./vitest.setup.ts'],
     coverage: {
       reporter: ['text', 'lcov'],
     },
