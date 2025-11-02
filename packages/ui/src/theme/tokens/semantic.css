@@ -1,0 +1,206 @@
+/**
+ * Semantic Design Tokens (Tier 2)
+ * 
+ * Purpose: Role-based tokens that reference primitives
+ * Naming: Semantic (purpose, not appearance)
+ * Usage: Preferred for component styling
+ * 
+ * Spec: /specs/013-neon-flux-design-system/spec.md (FR-001, FR-002, FR-005, FR-020)
+ * Contract: /specs/013-neon-flux-design-system/contracts/token-api.md
+ */
+
+:root {
+  /* ========================================
+     Semantic Color Tokens (Dark Theme Default - Neon Flux)
+     Format: --color-{usage}-{variant}
+     Rationale: Theme-aware colors that adapt based on .theme-{name} class
+     ======================================== */
+
+  /* Text Colors */
+  --color-text-primary: var(--color-neutral-50); /* Light text for dark backgrounds */
+  --color-text-secondary: var(--color-neutral-400); /* Muted text */
+  --color-text-tertiary: var(--color-neutral-500); /* Subtle text */
+  --color-text-disabled: var(--color-neutral-600); /* Disabled state */
+  --color-text-inverse: var(--color-neutral-900); /* Dark text (for light surfaces) */
+
+  /* Background Colors */
+  --color-bg-base: var(--color-bg-dark); /* App background (#0a0a0f) */
+  --color-bg-surface: 240 15% 8%; /* Card/panel background */
+  --color-bg-elevated: 240 15% 10%; /* Modal/dropdown background */
+  --color-bg-overlay: var(--color-black); /* Modal overlay (use with opacity) */
+
+  /* Border Colors */
+  --color-border-subtle: 240 10% 15%; /* Subtle borders */
+  --color-border-default: 240 10% 20%; /* Standard borders */
+  --color-border-strong: 240 10% 30%; /* Emphasized borders */
+
+  /* Accent Colors (Neon Flux palette) */
+  --color-accent-primary: var(--color-purple-500); /* Primary actions/links */
+  --color-accent-secondary: var(--color-blue-500); /* Secondary actions */
+  --color-accent-tertiary: var(--color-pink-500); /* Tertiary highlights */
+  --color-accent-quaternary: var(--color-cyan-500); /* Additional accents */
+
+  /* Semantic State Colors */
+  --color-success: 142 76% 36%; /* Success states (green) */
+  --color-warning: 38 92% 50%; /* Warning states (amber) */
+  --color-error: 0 84% 60%; /* Error states (red) */
+  --color-info: var(--color-blue-500); /* Informational */
+
+  /* Interactive States (button/link hovers) */
+  --color-interactive-hover: 277 92% 70%; /* Lighter purple on hover */
+  --color-interactive-active: 277 92% 55%; /* Darker purple on active */
+  --color-interactive-disabled: var(--color-neutral-700);
+
+  /* ========================================
+     Semantic Elevation Tokens
+     Format: --elevation-{usage}
+     Rationale: Contextual shadow application
+     ======================================== */
+
+  /* Depth-based elevation */
+  --elevation-card: var(--shadow-sm);
+  --elevation-modal: var(--shadow-xl);
+  --elevation-tooltip: var(--shadow-md);
+
+  /* Glow-based elevation (Neon Flux) */
+  --elevation-glow-user-message: var(--shadow-glow-purple);
+  --elevation-glow-assistant-message: var(--shadow-glow-blue);
+  --elevation-glow-accent: var(--shadow-glow-pink);
+  --elevation-glow-highlight: var(--shadow-glow-cyan);
+
+  /* ========================================
+     Semantic Spacing Tokens
+     Format: --spacing-{usage}
+     Rationale: Consistent spacing across UI patterns
+     ======================================== */
+
+  --spacing-component-gap: var(--space-2); /* Gaps within components */
+  --spacing-element-gap: var(--space-4); /* Gaps between elements */
+  --spacing-section-gap: var(--space-8); /* Gaps between sections */
+  --spacing-card-padding: var(--space-4); /* Card/panel padding */
+  --spacing-button-padding-x: var(--space-5); /* Button horizontal padding */
+  --spacing-button-padding-y: var(--space-3); /* Button vertical padding */
+  --spacing-input-padding: var(--space-3); /* Form input padding */
+
+  /* ========================================
+     Semantic Typography Tokens
+     Format: --typography-{usage}
+     Rationale: Preset text styles for consistency
+     ======================================== */
+
+  /* Note: CSS font shorthand format */
+  /* font: [weight] [size]/[line-height] [family] */
+  --typography-heading-1: var(--font-weight-bold) var(--font-size-4xl) / var(--line-height-tight)
+    var(--font-family-sans);
+  --typography-heading-2: var(--font-weight-bold) var(--font-size-3xl) / var(--line-height-tight)
+    var(--font-family-sans);
+  --typography-heading-3: var(--font-weight-semibold) var(--font-size-2xl) / var(--line-height-snug)
+    var(--font-family-sans);
+  --typography-heading-4: var(--font-weight-semibold) var(--font-size-xl) / var(--line-height-snug)
+    var(--font-family-sans);
+  --typography-body: var(--font-weight-normal) var(--font-size-base) / var(--line-height-normal)
+    var(--font-family-sans);
+  --typography-body-sm: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal)
+    var(--font-family-sans);
+  --typography-label: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug)
+    var(--font-family-sans);
+  --typography-code: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal)
+    var(--font-family-mono);
+
+  /* ========================================
+     Semantic Radius Tokens
+     Format: --radius-{usage}
+     Rationale: Consistent rounding for UI elements
+     ======================================== */
+
+  --radius-button: var(--radius-lg); /* Button corners */
+  --radius-input: var(--radius-md); /* Form input corners */
+  --radius-card: var(--radius-xl); /* Card/panel corners */
+  --radius-badge: var(--radius-full); /* Badge/tag corners */
+  --radius-tooltip: var(--radius-md); /* Tooltip corners */
+}
+
+/* ========================================
+   Theme Overrides: Light Mode
+   Applied via .theme-light class on <html> element
+   ======================================== */
+
+.theme-light {
+  /* Text Colors */
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-tertiary: var(--color-neutral-500);
+  --color-text-disabled: var(--color-neutral-400);
+  --color-text-inverse: var(--color-neutral-50);
+
+  /* Background Colors */
+  --color-bg-base: var(--color-neutral-50);
+  --color-bg-surface: var(--color-white);
+  --color-bg-elevated: var(--color-white);
+  --color-bg-overlay: var(--color-black);
+
+  /* Border Colors */
+  --color-border-subtle: var(--color-neutral-200);
+  --color-border-default: var(--color-neutral-300);
+  --color-border-strong: var(--color-neutral-400);
+
+  /* Interactive States */
+  --color-interactive-hover: 277 92% 55%;
+  --color-interactive-active: 277 92% 45%;
+
+  /* Glow effects slightly dimmed in light mode */
+  --elevation-glow-user-message: 0 0 12px rgba(168, 85, 247, 0.2);
+  --elevation-glow-assistant-message: 0 0 12px rgba(59, 130, 246, 0.2);
+  --elevation-glow-accent: 0 0 12px rgba(236, 72, 153, 0.2);
+  --elevation-glow-highlight: 0 0 12px rgba(6, 182, 212, 0.2);
+}
+
+/* ========================================
+   Theme Overrides: High Contrast Mode
+   Applied via .theme-high-contrast class on <html> element
+   Rationale: WCAG AAA compliance (7:1 contrast)
+   ======================================== */
+
+.theme-high-contrast {
+  /* Text Colors (maximum contrast) */
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-neutral-200);
+  --color-text-tertiary: var(--color-neutral-300);
+  --color-text-disabled: var(--color-neutral-500);
+  --color-text-inverse: var(--color-black);
+
+  /* Background Colors (pure black/white) */
+  --color-bg-base: var(--color-black);
+  --color-bg-surface: 0 0% 5%;
+  --color-bg-elevated: 0 0% 10%;
+  --color-bg-overlay: var(--color-black);
+
+  /* Border Colors (high contrast) */
+  --color-border-subtle: var(--color-neutral-700);
+  --color-border-default: var(--color-neutral-500);
+  --color-border-strong: var(--color-neutral-300);
+
+  /* Remove decorative effects for clarity */
+  --elevation-glow-user-message: none;
+  --elevation-glow-assistant-message: none;
+  --elevation-glow-accent: none;
+  --elevation-glow-highlight: none;
+
+  /* Increase standard shadows for definition */
+  --elevation-card: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --elevation-modal: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* ========================================
+   Reduced Motion Preferences
+   Respects prefers-reduced-motion media query
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* Disable transitions/animations globally */
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

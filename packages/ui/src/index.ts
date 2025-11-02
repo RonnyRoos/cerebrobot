@@ -1,11 +1,52 @@
 export { cn } from './utils/cn';
+
+// Design System - Theme
+export { Theme as ThemeProvider, useTheme } from './theme/theme-provider';
+export type {
+  ThemeName,
+  ThemeConfig,
+  ThemeContext,
+  ColorToken,
+  SpacingToken,
+  TypographyToken,
+  ElevationToken,
+  RadiusToken,
+  BlurToken,
+  DesignToken,
+  SpacingValue,
+  ColorValue,
+  Breakpoint,
+  ResponsiveValue,
+} from './theme/types';
 export {
-  ThemeProvider,
-  useTheme,
-  type Theme,
-  type ThemeContextValue,
-  type ThemeProviderProps,
-} from './utils/theme';
+  ColorTokens,
+  SpacingTokens,
+  ShadowTokens,
+  RadiusTokens,
+  getTokenValue,
+  setTokenValue,
+  isDarkMode,
+  getCurrentTheme,
+} from './theme/types';
+
+// Design System - Accessibility
+export {
+  getContrastRatio,
+  checkContrast,
+  checkContrastCompliance,
+  checkTokenContrast,
+  hslToRgb,
+  hexToRgb,
+  getTokenRgb,
+  WHITE,
+  BLACK,
+  GRAY_50,
+  GRAY_900,
+  PURPLE_500,
+  BLUE_500,
+  DARK_BG,
+} from './theme/accessibility';
+export type { RGB, ContrastResult } from './theme/accessibility';
 
 // Chat components
 export {

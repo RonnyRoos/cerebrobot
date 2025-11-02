@@ -36,7 +36,9 @@ export function App(): JSX.Element {
 
   // Initialize showAgentsPage from URL path
   const [showAgentsPage, setShowAgentsPage] = useState(window.location.pathname === '/agents');
-  const [showDesignSystem, setShowDesignSystem] = useState(window.location.pathname === '/design-library');
+  const [showDesignSystem, setShowDesignSystem] = useState(
+    window.location.pathname === '/design-library',
+  );
   const [agentContextMode, setAgentContextMode] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<{ threadId: string; agentId: string } | null>(
     null,
@@ -67,10 +69,11 @@ export function App(): JSX.Element {
     setShowDesignSystem(false);
   }, []);
 
-  const navigateToDesignLibrary = useCallback(() => {
-    window.history.pushState({}, '', '/design-library');
-    setShowDesignSystem(true);
-  }, []);
+  // NOTE: Design library navigation - reserved for spec 012 completion
+  // const navigateToDesignLibrary = useCallback(() => {
+  //   window.history.pushState({}, '', '/design-library');
+  //   setShowDesignSystem(true);
+  // }, []);
 
   // Handler for selecting a thread (receives both threadId and agentId)
   // Does NOT change agentContextMode - user returns to same view they came from
@@ -127,7 +130,7 @@ export function App(): JSX.Element {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0a0a0f]">
         <div className="p-4">
-          <button 
+          <button
             onClick={navigateToThreads}
             className="px-4 py-2 rounded-xl backdrop-blur-md bg-white/80 dark:bg-[#1e1e2e]/60 border border-gray-200 dark:border-[#a855f7]/20 text-gray-900 dark:text-white font-semibold shadow-lg dark:shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:dark:border-[#a855f7] transition-all"
           >
@@ -144,7 +147,7 @@ export function App(): JSX.Element {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0a0a0f]">
         <div className="p-4">
-          <button 
+          <button
             onClick={navigateToThreads}
             className="px-4 py-2 rounded-xl backdrop-blur-md bg-white/80 dark:bg-[#1e1e2e]/60 border border-gray-200 dark:border-[#a855f7]/20 text-gray-900 dark:text-white font-semibold shadow-lg dark:shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:dark:border-[#a855f7] transition-all"
           >
