@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Message Colors - Light Mode */
+    --color-message-user-bg: 239 84% 67%; /* Soft blue */
+    --color-message-user-text: 222 47% 11%; /* Dark text */
+    --color-message-agent-bg: 240 5% 96%; /* Light gray */
+    --color-message-agent-text: 222 47% 11%; /* Dark text */
+
+    /* Code Block Colors - Light Mode */
+    --color-code-block-bg: 0 0% 98%; /* Near-white */
+    --color-code-block-border: 0 0% 89%; /* Light border */
+    --color-code-inline-bg: 0 0% 95%; /* Inline code */
+
+    /* Utility Colors - Light Mode */
+    --color-timestamp: 240 4% 46%; /* Muted gray */
+    --color-link: 221 83% 53%; /* Link blue */
+    --color-link-hover: 221 83% 43%; /* Darker blue */
+    --color-copy-button: 0 0% 60%; /* Gray */
+    --color-copy-button-success: 142 71% 45%; /* Green */
+  }
+
+  .dark {
+    /* Message Colors - Dark Mode */
+    --color-message-user-bg: 239 84% 37%; /* Deep blue */
+    --color-message-user-text: 210 40% 98%; /* Light text */
+    --color-message-agent-bg: 222 47% 11%; /* Dark gray */
+    --color-message-agent-text: 210 40% 98%; /* Light text */
+
+    /* Code Block Colors - Dark Mode */
+    --color-code-block-bg: 0 0% 10%; /* Near-black */
+    --color-code-block-border: 0 0% 20%; /* Dark border */
+    --color-code-inline-bg: 0 0% 15%; /* Inline code */
+
+    /* Utility Colors - Dark Mode */
+    --color-timestamp: 240 5% 65%; /* Lighter muted */
+    --color-link: 217 91% 60%; /* Brighter blue */
+    --color-link-hover: 217 91% 70%; /* Lighter blue */
+    --color-copy-button: 0 0% 70%; /* Lighter gray */
+    --color-copy-button-success: 142 71% 55%; /* Brighter green */
+  }
+
+  /* Prevent transitions during theme switch to avoid flash */
+  .theme-switching * {
+    transition: none !important;
+  }
+}
+
+@layer components {
+  /* Chat typography optimizations */
+  .prose-chat {
+    @apply text-chat-body;
+    max-width: 65ch;
+  }
+
+  .prose-chat h1 {
+    @apply text-2xl font-bold leading-tight mb-3;
+  }
+
+  .prose-chat h2 {
+    @apply text-xl font-semibold leading-snug mb-2;
+  }
+
+  .prose-chat h3 {
+    @apply text-lg font-semibold leading-normal mb-2;
+  }
+
+  .prose-chat h4 {
+    @apply text-base font-semibold leading-normal mb-2;
+  }
+
+  .prose-chat code {
+    @apply font-mono text-chat-code-inline bg-code-inline-bg px-1 py-0.5 rounded;
+  }
+
+  .prose-chat pre {
+    @apply bg-code-block-bg border border-code-block-border rounded-lg p-4 overflow-x-auto;
+  }
+
+  .prose-chat pre code {
+    @apply bg-transparent p-0 text-chat-code;
+  }
+
+  .prose-chat a {
+    @apply text-link hover:text-link-hover underline;
+  }
+}

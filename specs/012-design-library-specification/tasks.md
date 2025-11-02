@@ -18,15 +18,15 @@
 
 **Purpose**: Initialize packages/ui as new monorepo package with ShadCN + Tailwind
 
-- [ ] T001 Create `packages/ui/` directory structure per plan.md
-- [ ] T002 Create `packages/ui/package.json` with exports, dependencies, and peerDependencies
-- [ ] T003 [P] Create `packages/ui/tsconfig.json` extending `tsconfig.base.json` from monorepo root
-- [ ] T004 [P] Initialize Tailwind with `pnpm dlx tailwindcss init -p --ts` in `packages/ui/`
-- [ ] T005 [P] Initialize ShadCN with `pnpm dlx shadcn@latest init` in `packages/ui/` (New York style, CSS variables, components alias @/chat)
-- [ ] T006 Install dependencies: `pnpm add tailwindcss tailwindcss-animate class-variance-authority clsx tailwind-merge react-markdown remark-gfm react-syntax-highlighter` in `packages/ui/`
-- [ ] T007 Install dev dependencies: `pnpm add -D @types/react-syntax-highlighter` in `packages/ui/`
-- [ ] T008 Create `packages/ui/src/utils/cn.ts` with Tailwind merge utility (clsx + twMerge)
-- [ ] T009 Create `packages/ui/src/index.ts` main export file (initially exports ThemeProvider, useTheme, cn utility)
+- [x] T001 Create `packages/ui/` directory structure per plan.md
+- [x] T002 Create `packages/ui/package.json` with exports, dependencies, and peerDependencies
+- [x] T003 [P] Create `packages/ui/tsconfig.json` extending `tsconfig.base.json` from monorepo root
+- [x] T004 [P] Initialize Tailwind with `pnpm dlx tailwindcss init -p --ts` in `packages/ui/`
+- [x] T005 [P] Initialize ShadCN with `pnpm dlx shadcn@latest init` in `packages/ui/` (New York style, CSS variables, components alias @/chat)
+- [x] T006 Install dependencies: `pnpm add tailwindcss tailwindcss-animate class-variance-authority clsx tailwind-merge react-markdown remark-gfm react-syntax-highlighter` in `packages/ui/`
+- [x] T007 Install dev dependencies: `pnpm add -D @types/react-syntax-highlighter` in `packages/ui/`
+- [x] T008 Create `packages/ui/src/utils/cn.ts` with Tailwind merge utility (clsx + twMerge)
+- [x] T009 Create `packages/ui/src/index.ts` main export file (initially exports ThemeProvider, useTheme, cn utility)
 
 ---
 
@@ -36,17 +36,17 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Create `packages/ui/src/theme/globals.css` with Tailwind imports (@tailwind base/components/utilities)
-- [ ] T011 Define CSS custom properties for light mode in `packages/ui/src/theme/globals.css` (9 chat color tokens from theme-tokens.md)
-- [ ] T012 Define CSS custom properties for dark mode (.dark class) in `packages/ui/src/theme/globals.css` (9 chat color tokens)
-- [ ] T013 Configure `packages/ui/tailwind.config.ts` with chat-specific color tokens (message-user, message-agent, code-block, timestamp, link, copy-button)
-- [ ] T014 Configure typography scale in `packages/ui/tailwind.config.ts` (chat-body 16px/1.6, chat-code 14px/1.5, mono font stack)
-- [ ] T015 Add tailwindcss-animate and @tailwindcss/typography plugins to `packages/ui/tailwind.config.ts`
-- [ ] T016 Create `packages/ui/src/utils/theme.tsx` with ThemeProvider component (React Context + localStorage persistence under 'cerebrobot-theme' key)
-- [ ] T017 Create `packages/ui/src/utils/theme.tsx` useTheme hook (returns theme, setTheme, toggleTheme)
-- [ ] T018 Update `packages/ui/src/index.ts` to export ThemeProvider, useTheme, Theme type, ThemeContextValue type
-- [ ] T019 Update `apps/client/src/main.tsx` to wrap app in ThemeProvider and import '@workspace/ui/theme'
-- [ ] T020 Update `apps/client/tailwind.config.ts` to use `presets: [baseConfig]` from @workspace/ui and scan packages/ui/src for classes
+- [x] T010 Create `packages/ui/src/theme/globals.css` with Tailwind imports (@tailwind base/components/utilities)
+- [x] T011 Define CSS custom properties for light mode in `packages/ui/src/theme/globals.css` (9 chat color tokens from theme-tokens.md)
+- [x] T012 Define CSS custom properties for dark mode (.dark class) in `packages/ui/src/theme/globals.css` (9 chat color tokens)
+- [x] T013 Configure `packages/ui/tailwind.config.ts` with chat-specific color tokens (message-user, message-agent, code-block, timestamp, link, copy-button)
+- [x] T014 Configure typography scale in `packages/ui/tailwind.config.ts` (chat-body 16px/1.6, chat-code 14px/1.5, mono font stack)
+- [x] T015 Add tailwindcss-animate and @tailwindcss/typography plugins to `packages/ui/tailwind.config.ts`
+- [x] T016 Create `packages/ui/src/utils/theme.tsx` with ThemeProvider component (React Context + localStorage persistence under 'cerebrobot-theme' key)
+- [x] T017 Create `packages/ui/src/utils/theme.tsx` useTheme hook (returns theme, setTheme, toggleTheme)
+- [x] T018 Update `packages/ui/src/index.ts` to export ThemeProvider, useTheme, Theme type, ThemeContextValue type
+- [x] T019 Update `apps/client/src/main.tsx` to wrap app in ThemeProvider and import '@workspace/ui/theme'
+- [x] T020 Update `apps/client/tailwind.config.ts` to use `presets: [baseConfig]` from @workspace/ui and scan packages/ui/src for classes
 
 **Checkpoint**: Foundation ready - components can now use theme tokens and typography classes
 
@@ -60,16 +60,16 @@
 
 ### Implementation for User Story 1
 
-- [ ] T021 [P] [US1] Create `packages/ui/src/chat/message-bubble.tsx` with messageBubbleVariants (cva with sender variant: user/agent)
-- [ ] T022 [P] [US1] Create `packages/ui/src/chat/avatar.tsx` with avatarVariants (cva with variant: user/agent, size: sm/md/lg)
-- [ ] T023 [US1] Implement MessageBubbleProps interface in `packages/ui/src/chat/message-bubble.tsx` (content, sender, timestamp, avatar, className)
-- [ ] T024 [US1] Implement MessageBubble component with forwardRef in `packages/ui/src/chat/message-bubble.tsx` (uses Markdown from react-markdown + remarkGfm)
-- [ ] T025 [US1] Add Error Boundary wrapper for markdown renderer in `packages/ui/src/chat/message-bubble.tsx` (per clarification: displays "Message failed to render" + clipboard copy on error)
-- [ ] T026 [US1] Implement AvatarProps interface in `packages/ui/src/chat/avatar.tsx` (variant, src, initials, size, alt, className)
-- [ ] T027 [US1] Implement Avatar component with forwardRef in `packages/ui/src/chat/avatar.tsx` (image with initials fallback, handles load errors)
-- [ ] T028 [US1] Integrate Avatar component into MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (conditionally render if avatar prop provided)
-- [ ] T029 [US1] Export MessageBubble, MessageBubbleProps, Avatar, AvatarProps from `packages/ui/src/index.ts`
-- [ ] T030 [US1] Create visual test page in `apps/client/src/App.tsx` demonstrating user/agent message distinction with sample messages
+- [x] T021 [P] [US1] Create `packages/ui/src/chat/message-bubble.tsx` with messageBubbleVariants (cva with sender variant: user/agent)
+- [x] T022 [P] [US1] Create `packages/ui/src/chat/avatar.tsx` with avatarVariants (cva with variant: user/agent, size: sm/md/lg)
+- [x] T023 [US1] Implement MessageBubbleProps interface in `packages/ui/src/chat/message-bubble.tsx` (content, sender, timestamp, avatar, className)
+- [x] T024 [US1] Implement MessageBubble component with forwardRef in `packages/ui/src/chat/message-bubble.tsx` (uses Markdown from react-markdown + remarkGfm)
+- [x] T025 [US1] Add Error Boundary wrapper for markdown renderer in `packages/ui/src/chat/message-bubble.tsx` (per clarification: displays "Message failed to render" + clipboard copy on error)
+- [x] T026 [US1] Implement AvatarProps interface in `packages/ui/src/chat/avatar.tsx` (variant, src, initials, size, alt, className)
+- [x] T027 [US1] Implement Avatar component with forwardRef in `packages/ui/src/chat/avatar.tsx` (image with initials fallback, handles load errors)
+- [x] T028 [US1] Integrate Avatar component into MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (conditionally render if avatar prop provided)
+- [x] T029 [US1] Export MessageBubble, MessageBubbleProps, Avatar, AvatarProps from `packages/ui/src/index.ts`
+- [x] T030 [US1] Create visual test page in `apps/client/src/App.tsx` demonstrating user/agent message distinction with sample messages
 
 **Checkpoint**: At this point, User Story 1 should be fully functional - messages visually distinguish user from agent
 

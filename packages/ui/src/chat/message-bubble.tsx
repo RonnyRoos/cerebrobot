@@ -1,0 +1,124 @@
+import {
+  forwardRef,
+  Component,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type ReactNode,
+} from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { cn } from '../utils/cn';
+
+// Error Boundary for markdown rendering
+class MarkdownErrorBoundary extends Component<
+  { children: ReactNode; content: string },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; content: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Markdown rendering error:', error, errorInfo);
+  }
+
+  copyToClipboard = () => {
+    navigator.clipboard.writeText(this.props.content).catch(console.error);
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="text-sm">
+          <p className="mb-2">Message failed to render</p>
+          <button
+            onClick={this.copyToClipboard}
+            className="text-link hover:text-link-hover underline text-xs"
+          >
+            Copy raw content
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const messageBubbleVariants = cva('rounded-lg px-4 py-3 max-w-[65%] break-words', {
+  variants: {
+    sender: {
+      user: 'ml-auto bg-message-user-bg text-message-user-text',
+      agent: 'mr-auto bg-message-agent-bg text-message-agent-text',
+    },
+  },
+  defaultVariants: {
+    sender: 'agent',
+  },
+});
+
+export interface MessageBubbleProps
+  extends Omit<ComponentPropsWithoutRef<'div'>, 'content'>,
+    VariantProps<typeof messageBubbleVariants> {
+  /**
+   * Markdown-formatted message content.
+   * Supports GFM: headings, lists, links, code blocks, etc.
+   */
+  content: string;
+
+  /**
+   * Message sender type. Determines visual styling and alignment.
+   * - user: right-aligned, user color scheme
+   * - agent: left-aligned, agent color scheme
+   */
+  sender: 'user' | 'agent';
+
+  /**
+   * When the message was sent. Used for timestamp display.
+   */
+  timestamp: Date;
+
+  /**
+   * Avatar image URL or null for initials fallback.
+   * If undefined, avatar is not displayed.
+   */
+  avatar?: string | null;
+
+  /**
+   * Override default Tailwind classes for custom styling.
+   * Merged with variant classes using cn() utility.
+   */
+  className?: string;
+}
+
+export type MessageBubbleElement = ElementRef<'div'>;
+
+export const MessageBubble = forwardRef<MessageBubbleElement, MessageBubbleProps>(
+  ({ content, sender, className, ...props }, ref) => {
+    return (
+      <div ref={ref} className={cn(messageBubbleVariants({ sender }), className)} {...props}>
+        <MarkdownErrorBoundary content={content}>
+          <Markdown
+            className="prose-chat"
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ ...anchorProps }) => (
+                <a {...anchorProps} target="_blank" rel="noopener noreferrer" />
+              ),
+            }}
+          >
+            {content}
+          </Markdown>
+        </MarkdownErrorBoundary>
+      </div>
+    );
+  },
+);
+
+MessageBubble.displayName = 'MessageBubble';
