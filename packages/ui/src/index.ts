@@ -21,3 +21,4 @@ export {
   type TypingIndicatorElement,
 } from './chat/typing-indicator';
 export { Timestamp, type TimestampProps, type TimestampElement } from './chat/timestamp';
+export { CopyButton, type CopyButtonProps, type CopyButtonElement } from './chat/copy-button';

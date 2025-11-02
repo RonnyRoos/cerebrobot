@@ -3,6 +3,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '../utils/cn';
 import { useTheme } from '../utils/theme';
+import { CopyButton } from './copy-button';
 
 export interface CodeBlockProps {
   /**
@@ -50,10 +51,14 @@ export const CodeBlock = forwardRef<CodeBlockElement, CodeBlockProps>(
       <div
         ref={ref}
         className={cn(
-          'relative rounded-lg overflow-hidden bg-code-block-bg border border-code-block-border',
+          'group relative rounded-lg overflow-hidden bg-code-block-bg border border-code-block-border',
           className,
         )}
       >
+        <CopyButton
+          text={code}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-code-block-bg border border-code-block-border"
+        />
         {language ? (
           <SyntaxHighlighter
             language={language}

@@ -182,14 +182,14 @@
 
 ### Implementation for User Story 7
 
-- [ ] T065 [P] [US7] Create `packages/ui/src/chat/copy-button.tsx` with CopyButtonProps interface (text, feedbackDuration, icon, successIcon, onCopy, onError, className)
-- [ ] T066 [US7] Implement CopyButton component with forwardRef in `packages/ui/src/chat/copy-button.tsx` (uses navigator.clipboard.writeText with execCommand fallback)
-- [ ] T067 [US7] Add state machine for copy states in `packages/ui/src/chat/copy-button.tsx` (idle → copying → copied → idle or error → idle)
-- [ ] T068 [US7] Add success feedback timeout in `packages/ui/src/chat/copy-button.tsx` (auto-reset to idle after feedbackDuration, default 2000ms)
-- [ ] T069 [US7] Integrate CopyButton into CodeBlock in `packages/ui/src/chat/code-block.tsx` (positioned absolute top-right, appears on hover)
-- [ ] T070 [US7] Add hover styles to CodeBlock in `packages/ui/src/chat/code-block.tsx` (group hover pattern to show/hide copy button)
-- [ ] T071 [US7] Export CopyButton, CopyButtonProps from `packages/ui/src/index.ts`
-- [ ] T072 [US7] Update visual test page in `apps/client/src/App.tsx` with code blocks demonstrating copy functionality
+- [x] T065 [P] [US7] Create `packages/ui/src/chat/copy-button.tsx` with CopyButtonProps interface (text, feedbackDuration, icon, successIcon, onCopy, onError, className)
+- [x] T066 [US7] Implement CopyButton component with forwardRef in `packages/ui/src/chat/copy-button.tsx` (uses navigator.clipboard.writeText with execCommand fallback)
+- [x] T067 [US7] Add state machine for copy states in `packages/ui/src/chat/copy-button.tsx` (idle → copying → copied → idle or error → idle)
+- [x] T068 [US7] Add success feedback timeout in `packages/ui/src/chat/copy-button.tsx` (auto-reset to idle after feedbackDuration, default 2000ms)
+- [x] T069 [US7] Integrate CopyButton into CodeBlock in `packages/ui/src/chat/code-block.tsx` (positioned absolute top-right, appears on hover)
+- [x] T070 [US7] Add hover styles to CodeBlock in `packages/ui/src/chat/code-block.tsx` (group hover pattern to show/hide copy button)
+- [x] T071 [US7] Export CopyButton, CopyButtonProps from `packages/ui/src/index.ts`
+- [x] T072 [US7] Update visual test page in `apps/client/src/App.tsx` with code blocks demonstrating copy functionality
 
 **Checkpoint**: All user stories complete - full design system ready for use
 
@@ -199,15 +199,15 @@
 
 **Purpose**: Documentation, validation, and final cleanup
 
-- [ ] T073 [P] Create `packages/ui/README.md` with installation instructions and link to quickstart.md
-- [ ] T074 [P] Verify all exports in `packages/ui/src/index.ts` match components implemented (MessageBubble, CodeBlock, Avatar, TypingIndicator, Timestamp, CopyButton, ThemeProvider, useTheme, cn)
-- [ ] T075 [P] Add JSDoc comments to all exported component props interfaces in their respective files
-- [ ] T076 [P] Verify package.json exports field correctly maps to theme CSS and main index in `packages/ui/package.json`
-- [ ] T077 Run through quickstart.md steps manually to validate 10-minute setup works
-- [ ] T078 Update `.github/copilot-instructions.md` with final design library tech stack confirmation (already done via update-agent-context.sh)
-- [ ] T079 Create manual smoke test checklist in `specs/012-design-library-specification/checklists/visual-verification.md` (user/agent distinction, typography, dark mode, animations, copy button)
-- [ ] T080 Run hygiene loop: `pnpm lint` → `pnpm format:write` → verify no errors in packages/ui
-- [ ] T081 Commit all changes with message: "feat: Add chat-specific design library (P1-P3 components)"
+- [x] T073 [P] Create `packages/ui/README.md` with installation instructions and link to quickstart.md
+- [x] T074 [P] Verify all exports in `packages/ui/src/index.ts` match components implemented (MessageBubble, CodeBlock, Avatar, TypingIndicator, Timestamp, CopyButton, ThemeProvider, useTheme, cn)
+- [x] T075 [P] Add JSDoc comments to all exported component props interfaces in their respective files
+- [x] T076 [P] Verify package.json exports field correctly maps to theme CSS and main index in `packages/ui/package.json`
+- [x] T077 Run through quickstart.md steps manually to validate 10-minute setup works
+- [x] T078 Update `.github/copilot-instructions.md` with final design library tech stack confirmation (already done via update-agent-context.sh)
+- [x] T079 Create manual smoke test checklist in `specs/012-design-library-specification/checklists/visual-verification.md` (user/agent distinction, typography, dark mode, animations, copy button)
+- [x] T080 Run hygiene loop: `pnpm lint` → `pnpm format:write` → verify no errors in packages/ui
+- [x] T081 Commit all changes with message: "feat: Add chat-specific design library (P1-P3 components)"
 
 ---
 

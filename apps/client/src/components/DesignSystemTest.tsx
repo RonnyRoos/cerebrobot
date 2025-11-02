@@ -1,4 +1,11 @@
-import { MessageBubble, Avatar, TypingIndicator, Timestamp, useTheme } from '@workspace/ui';
+import {
+  MessageBubble,
+  Avatar,
+  TypingIndicator,
+  Timestamp,
+  CodeBlock,
+  useTheme,
+} from '@workspace/ui';
 import { useState } from 'react';
 
 export function DesignSystemTest() {
@@ -89,6 +96,47 @@ export function DesignSystemTest() {
             <div className="flex items-center gap-4">
               <span className="w-32 text-sm font-medium">Always absolute:</span>
               <Timestamp date={fiveMinutesAgo} format="absolute" />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+            Code Blocks with Copy
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                TypeScript example (hover to see copy button):
+              </p>
+              <CodeBlock
+                language="typescript"
+                code={`function greet(name: string): string {
+  return \`Hello, \${name}!\`;
+}
+
+const message = greet("World");
+console.log(message);`}
+                showLineNumbers
+              />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Python example:</p>
+              <CodeBlock
+                language="python"
+                code={`def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+print(fibonacci(10))`}
+              />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Plain text (no syntax highlighting):
+              </p>
+              <CodeBlock code="Just some plain text without syntax highlighting" />
             </div>
           </div>
         </section>
