@@ -83,14 +83,14 @@
 
 ### Implementation for User Story 2
 
-- [ ] T031 [P] [US2] Create `packages/ui/src/chat/code-block.tsx` with CodeBlockProps interface (code, language, showLineNumbers, highlightStyle, onCopy, className)
-- [ ] T032 [P] [US2] Create `packages/ui/src/utils/markdown.ts` with defaultMarkdownComponents config (code → CodeBlock, links → external new tab with rel="noopener noreferrer")
-- [ ] T033 [US2] Implement CodeBlock component with forwardRef in `packages/ui/src/chat/code-block.tsx` (uses react-syntax-highlighter with Prism backend, respects theme context)
-- [ ] T034 [US2] Add syntax highlighting theme selection in `packages/ui/src/chat/code-block.tsx` (vs theme for light, vsDark for dark mode)
-- [ ] T035 [US2] Integrate defaultMarkdownComponents into MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (pass components prop to Markdown renderer)
-- [ ] T036 [US2] Add prose classes to MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (prose prose-sm dark:prose-invert for typography)
-- [ ] T037 [US2] Export CodeBlock, CodeBlockProps from `packages/ui/src/index.ts`
-- [ ] T038 [US2] Update visual test page in `apps/client/src/App.tsx` with long message containing headings, paragraphs, inline code, code blocks
+- [x] T031 [P] [US2] Create `packages/ui/src/chat/code-block.tsx` with CodeBlockProps interface (code, language, showLineNumbers, highlightStyle, onCopy, className)
+- [x] T032 [P] [US2] Create `packages/ui/src/utils/markdown.ts` with defaultMarkdownComponents config (code → CodeBlock, links → external new tab with rel="noopener noreferrer")
+- [x] T033 [US2] Implement CodeBlock component with forwardRef in `packages/ui/src/chat/code-block.tsx` (uses react-syntax-highlighter with Prism backend, respects theme context)
+- [x] T034 [US2] Add syntax highlighting theme selection in `packages/ui/src/chat/code-block.tsx` (vs theme for light, vsDark for dark mode)
+- [x] T035 [US2] Integrate defaultMarkdownComponents into MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (pass components prop to Markdown renderer)
+- [x] T036 [US2] Add prose classes to MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (prose prose-sm dark:prose-invert for typography)
+- [x] T037 [US2] Export CodeBlock, CodeBlockProps from `packages/ui/src/index.ts`
+- [x] T038 [US2] Update visual test page in `apps/client/src/App.tsx` with long message containing headings, paragraphs, inline code, code blocks
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work - messages have visual distinction AND readable typography
 

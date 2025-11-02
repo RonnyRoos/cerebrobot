@@ -9,6 +9,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../utils/cn';
+import { defaultMarkdownComponents } from '../utils/markdown';
 
 // Error Boundary for markdown rendering
 class MarkdownErrorBoundary extends Component<
@@ -107,11 +108,7 @@ export const MessageBubble = forwardRef<MessageBubbleElement, MessageBubbleProps
           <Markdown
             className="prose-chat"
             remarkPlugins={[remarkGfm]}
-            components={{
-              a: ({ ...anchorProps }) => (
-                <a {...anchorProps} target="_blank" rel="noopener noreferrer" />
-              ),
-            }}
+            components={defaultMarkdownComponents}
           >
             {content}
           </Markdown>
