@@ -163,12 +163,12 @@
 
 ### Implementation for User Story 6
 
-- [ ] T059 [US6] Verify ThemeProvider persistence logic in `packages/ui/src/utils/theme.tsx` (reads/writes 'cerebrobot-theme' to localStorage)
-- [ ] T060 [US6] Verify theme class application in `packages/ui/src/utils/theme.tsx` (adds/removes 'dark' class on document.documentElement)
-- [ ] T061 [US6] Verify all components use dark: prefix for dark mode variants (MessageBubble, CodeBlock, Avatar, TypingIndicator in their respective files)
-- [ ] T062 [US6] Test syntax highlighting theme switching in `packages/ui/src/chat/code-block.tsx` (verify vs/vsDark selection based on theme context)
-- [ ] T063 [US6] Add smooth transition prevention in `packages/ui/src/theme/globals.css` (disable transitions during theme switch to avoid flash)
-- [ ] T064 [US6] Update visual test page in `apps/client/src/App.tsx` with prominent theme toggle button and comprehensive dark mode showcase (all components visible)
+- [x] T059 [US6] Verify ThemeProvider persistence logic in `packages/ui/src/utils/theme.tsx` (reads/writes 'cerebrobot-theme' to localStorage)
+- [x] T060 [US6] Verify theme class application in `packages/ui/src/utils/theme.tsx` (adds/removes 'dark' class on document.documentElement)
+- [x] T061 [US6] Verify all components use dark: prefix for dark mode variants (MessageBubble, CodeBlock, Avatar, TypingIndicator in their respective files)
+- [x] T062 [US6] Test syntax highlighting theme switching in `packages/ui/src/chat/code-block.tsx` (verify vs/vsDark selection based on theme context)
+- [x] T063 [US6] Add smooth transition prevention in `packages/ui/src/theme/globals.css` (disable transitions during theme switch to avoid flash)
+- [x] T064 [US6] Update visual test page in `apps/client/src/App.tsx` with prominent theme toggle button and comprehensive dark mode showcase (all components visible)
 
 **Checkpoint**: Dark mode fully functional with instant switching, no flash, and persistence
 
