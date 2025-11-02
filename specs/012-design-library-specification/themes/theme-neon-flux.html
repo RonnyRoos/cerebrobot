@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Flux Theme - Cerebrobot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #151520;
+      --bg-tertiary: #1e1e2e;
+      
+      --gradient-primary: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+      --gradient-secondary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      --gradient-accent: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      
+      --purple-500: #a855f7;
+      --pink-500: #ec4899;
+      --blue-500: #3b82f6;
+      --cyan-500: #06b6d4;
+      
+      --glass-bg: rgba(30, 30, 46, 0.6);
+      --glass-border: rgba(168, 85, 247, 0.2);
+      
+      --shadow-glow: 0 0 30px rgba(168, 85, 247, 0.3);
+      --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+      animation: gradient-shift 15s ease infinite;
+      z-index: -1;
+    }
+
+    @keyframes gradient-shift {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-10%, 10%); }
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      padding: 12px 24px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-card);
+      z-index: 100;
+    }
+
+    .theme-toggle:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+      border-color: var(--purple-500);
+    }
+
+    .chat-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 32px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-card);
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      background: var(--gradient-secondary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      animation: message-appear 0.4s ease;
+    }
+
+    @keyframes message-appear {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .avatar.user {
+      background: var(--gradient-primary);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    }
+
+    .avatar.agent {
+      background: var(--gradient-secondary);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .message-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .message-bubble {
+      padding: 16px 20px;
+      border-radius: 16px;
+      margin-bottom: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .message.user .message-bubble {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .message.agent .message-bubble {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .message-bubble p {
+      margin-bottom: 12px;
+      color: var(--text-primary);
+      font-size: 1rem;
+    }
+
+    .message-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-bubble strong {
+      color: var(--purple-500);
+      font-weight: 700;
+    }
+
+    .message-bubble em {
+      color: var(--pink-500);
+      font-style: italic;
+    }
+
+    .message-bubble code {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9em;
+      color: var(--cyan-500);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    .timestamp {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .message.user .timestamp {
+      text-align: right;
+    }
+
+    .code-block {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .code-block::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gradient-primary);
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .code-lang {
+      font-size: 0.85rem;
+      color: var(--purple-500);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .copy-button {
+      padding: 6px 14px;
+      background: rgba(168, 85, 247, 0.2);
+      border: 1px solid var(--purple-500);
+      border-radius: 8px;
+      color: var(--purple-500);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .copy-button:hover {
+      background: rgba(168, 85, 247, 0.3);
+      transform: scale(1.05);
+    }
+
+    pre {
+      margin: 0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      overflow-x: auto;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 6px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 16px;
+      width: fit-content;
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--blue-500);
+      animation: typing 1.4s infinite;
+      box-shadow: 0 0 10px var(--blue-500);
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+      0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.7;
+      }
+      30% {
+        transform: translateY(-10px);
+        opacity: 1;
+      }
+    }
+
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .color-swatch {
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .color-swatch-box {
+      height: 60px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-name {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* Light mode */
+    body.light {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #94a3b8;
+      
+      --glass-bg: rgba(248, 250, 252, 0.8);
+      --glass-border: rgba(168, 85, 247, 0.2);
+      
+      --shadow-card: 0 8px 32px rgba(168, 85, 247, 0.1);
+    }
+
+    body.light::before {
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+    }
+
+    body.light .message.user .message-bubble {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    body.light .message.agent .message-bubble {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+    }
+
+    body.light .code-block {
+      background: rgba(15, 23, 42, 0.04);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    body.light .typing-indicator {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+
+  <div class="container">
+    <header>
+      <h1>Neon Flux</h1>
+      <p class="subtitle">Modern AI-Centric Chat Interface</p>
+    </header>
+
+    <div class="chat-container">
+      <h2 class="section-title">Message Bubbles</h2>
+      
+      <div class="message user">
+        <div class="avatar user">U</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>Hello! This is a <strong>user</strong> message with <em>markdown</em> support.</p>
+          </div>
+          <div class="timestamp">5 min. ago</div>
+        </div>
+      </div>
+
+      <div class="message agent">
+        <div class="avatar agent">AI</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>Hi there! I'm the agent. I can help you with:</p>
+            <p>- <strong>Markdown</strong> rendering<br>- Code blocks<br>- And much more!</p>
+            <p>Here's an inline code example: <code>console.log('hello')</code></p>
+          </div>
+          <div class="timestamp">2 hr. ago</div>
+        </div>
+      </div>
+
+      <div class="message agent">
+        <div class="avatar agent">AI</div>
+        <div class="message-content">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <h2 class="section-title">Code Blocks</h2>
+      
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">TypeScript</span>
+          <button class="copy-button">Copy</button>
+        </div>
+        <pre><code>function greet(name: string): void {
+  console.log(`Hello, ${name}!`);
+  // AI-powered responses
+  return processWithLLM(name);
+}</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">Python</span>
+          <button class="copy-button">Copy</button>
+        </div>
+        <pre><code>def analyze_memory(graph):
+    """Inspect agent memory graph"""
+    nodes = graph.get_nodes()
+    return {
+        "count": len(nodes),
+        "connections": graph.edges
+    }</code></pre>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <h2 class="section-title">Color Palette</h2>
+      
+      <div class="color-palette">
+        <div class="color-swatch">
+          <div class="color-swatch-box" style="background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);"></div>
+          <div class="color-name">Primary Gradient</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-box" style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);"></div>
+          <div class="color-name">Secondary Gradient</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-box" style="background: #a855f7;"></div>
+          <div class="color-name">Purple Accent</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-box" style="background: #ec4899;"></div>
+          <div class="color-name">Pink Accent</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-box" style="background: #06b6d4;"></div>
+          <div class="color-name">Cyan Accent</div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-box" style="background: rgba(30, 30, 46, 0.6); border: 1px solid rgba(168, 85, 247, 0.3);"></div>
+          <div class="color-name">Glass Surface</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+      const btn = document.querySelector('.theme-toggle');
+      btn.textContent = document.body.classList.contains('light') 
+        ? 'Toggle Dark Mode' 
+        : 'Toggle Light Mode';
+    }
+  </script>
+</body>
+</html>

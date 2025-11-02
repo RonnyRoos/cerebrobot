@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neural Jester Theme - Cerebrobot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --brain-pink: #ff6b9d;
+      --brain-purple: #c44569;
+      --neuron-blue: #4a90e2;
+      --synapse-green: #7bed9f;
+      --dendrite-orange: #ff9a00;
+      
+      --bg-primary: #fef5f8;
+      --bg-secondary: #fff0f5;
+      --bg-tertiary: #ffe6f0;
+      
+      --text-primary: #2d2d2d;
+      --text-secondary: #5a5a5a;
+      --text-muted: #999;
+      
+      --shadow-soft: 0 4px 20px rgba(196, 69, 105, 0.15);
+      --shadow-float: 0 8px 30px rgba(196, 69, 105, 0.2);
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 107, 157, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 40px rgba(255, 107, 157, 0.7);
+      }
+    }
+
+    @keyframes neuron-fire {
+      0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.2);
+      }
+    }
+
+    body {
+      font-family: 'Comic Neue', 'Quicksand', 'Nunito', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.7;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Playful brain-like background pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(255, 107, 157, 0.08) 0%, transparent 25%),
+        radial-gradient(circle at 85% 70%, rgba(196, 69, 105, 0.08) 0%, transparent 30%),
+        radial-gradient(circle at 50% 50%, rgba(74, 144, 226, 0.05) 0%, transparent 40%);
+      z-index: -1;
+      animation: pulse-subtle 20s ease-in-out infinite;
+    }
+
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Decorative neurons */
+    .neuron-decoration {
+      position: fixed;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--neuron-blue);
+      animation: neuron-fire 4s ease-in-out infinite;
+      z-index: -1;
+    }
+
+    .neuron-1 { top: 10%; left: 10%; animation-delay: 0s; }
+    .neuron-2 { top: 30%; right: 15%; background: var(--brain-pink); animation-delay: 1s; }
+    .neuron-3 { bottom: 20%; left: 20%; background: var(--synapse-green); animation-delay: 2s; }
+    .neuron-4 { bottom: 40%; right: 10%; background: var(--dendrite-orange); animation-delay: 3s; }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--brain-pink) 0%, var(--brain-purple) 50%, var(--neuron-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      letter-spacing: -0.03em;
+      transform: rotate(-2deg);
+      display: inline-block;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.2rem;
+      font-weight: 600;
+      font-style: italic;
+    }
+
+    .subtitle::before {
+      content: '🧠 ';
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      padding: 14px 28px;
+      background: white;
+      border: 3px solid var(--brain-pink);
+      border-radius: 50px;
+      color: var(--brain-pink);
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      box-shadow: var(--shadow-soft);
+      z-index: 100;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .theme-toggle:hover {
+      transform: translateY(-4px) rotate(5deg);
+      box-shadow: var(--shadow-float);
+      background: var(--brain-pink);
+      color: white;
+    }
+
+    .chat-container {
+      background: white;
+      border: 4px solid var(--brain-pink);
+      border-radius: 32px;
+      padding: 36px;
+      box-shadow: var(--shadow-float);
+      margin-bottom: 40px;
+      position: relative;
+      transform: rotate(-0.5deg);
+    }
+
+    .chat-container::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 20px;
+      width: 40px;
+      height: 40px;
+      background: var(--synapse-green);
+      border-radius: 50%;
+      opacity: 0.3;
+    }
+
+    .chat-container::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      right: 30px;
+      width: 30px;
+      height: 30px;
+      background: var(--dendrite-orange);
+      border-radius: 50%;
+      opacity: 0.3;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin-bottom: 28px;
+      color: var(--brain-purple);
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .section-title::before {
+      content: '⚡';
+      position: absolute;
+      left: -8px;
+      animation: neuron-fire 2s ease-in-out infinite;
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+      animation: message-bounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes message-bounce {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .message.user {
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.3rem;
+      border: 3px solid;
+      position: relative;
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    .avatar.user {
+      background: linear-gradient(135deg, var(--brain-pink) 0%, var(--brain-purple) 100%);
+      border-color: var(--brain-pink);
+      color: white;
+    }
+
+    .avatar.agent {
+      background: linear-gradient(135deg, var(--neuron-blue) 0%, var(--synapse-green) 100%);
+      border-color: var(--neuron-blue);
+      color: white;
+    }
+
+    /* Thought bubble tail */
+    .avatar::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: inherit;
+      bottom: -12px;
+      opacity: 0.6;
+    }
+
+    .message.user .avatar::after {
+      right: 8px;
+    }
+
+    .message.agent .avatar::after {
+      left: 8px;
+    }
+
+    .message-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .message-bubble {
+      padding: 20px 24px;
+      border-radius: 24px;
+      margin-bottom: 10px;
+      position: relative;
+      border: 3px solid;
+      transition: transform 0.2s ease;
+    }
+
+    .message-bubble:hover {
+      transform: rotate(-1deg) scale(1.02);
+    }
+
+    .message.user .message-bubble {
+      background: linear-gradient(135deg, #ffe6f0 0%, #ffd6e8 100%);
+      border-color: var(--brain-pink);
+      border-top-right-radius: 8px;
+    }
+
+    .message.agent .message-bubble {
+      background: linear-gradient(135deg, #e6f3ff 0%, #d6ebff 100%);
+      border-color: var(--neuron-blue);
+      border-top-left-radius: 8px;
+    }
+
+    .message-bubble p {
+      margin-bottom: 12px;
+      color: var(--text-primary);
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .message-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-bubble strong {
+      color: var(--brain-purple);
+      font-weight: 900;
+    }
+
+    .message-bubble em {
+      color: var(--brain-pink);
+      font-style: italic;
+      font-weight: 700;
+    }
+
+    .message-bubble code {
+      background: rgba(74, 144, 226, 0.15);
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95em;
+      color: var(--neuron-blue);
+      border: 2px solid var(--neuron-blue);
+      font-weight: 700;
+    }
+
+    .timestamp {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-style: italic;
+    }
+
+    .message.user .timestamp {
+      text-align: right;
+    }
+
+    .timestamp::before {
+      content: '🕐 ';
+    }
+
+    .code-block {
+      background: #2d2d2d;
+      border: 4px solid var(--dendrite-orange);
+      border-radius: 20px;
+      padding: 24px;
+      margin: 20px 0;
+      position: relative;
+      box-shadow: var(--shadow-soft);
+      transform: rotate(0.5deg);
+    }
+
+    .code-block::before {
+      content: '{ }';
+      position: absolute;
+      top: -15px;
+      left: 20px;
+      background: var(--dendrite-orange);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px dashed rgba(255, 255, 255, 0.2);
+    }
+
+    .code-lang {
+      font-size: 0.95rem;
+      color: var(--synapse-green);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .copy-button {
+      padding: 8px 18px;
+      background: var(--dendrite-orange);
+      border: none;
+      border-radius: 16px;
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      text-transform: uppercase;
+    }
+
+    .copy-button:hover {
+      transform: scale(1.1) rotate(-3deg);
+      box-shadow: 0 4px 12px rgba(255, 154, 0, 0.4);
+    }
+
+    pre {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #e6e6e6;
+      overflow-x: auto;
+      font-weight: 600;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 8px;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, #e6f3ff 0%, #d6ebff 100%);
+      border: 3px solid var(--neuron-blue);
+      border-radius: 24px;
+      border-top-left-radius: 8px;
+      width: fit-content;
+    }
+
+    .typing-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--neuron-blue);
+      animation: bounce-dots 1.4s infinite;
+      border: 2px solid var(--neuron-blue);
+    }
+
+    .typing-dot:nth-child(1) {
+      background: var(--brain-pink);
+      border-color: var(--brain-pink);
+      animation-delay: 0s;
+    }
+
+    .typing-dot:nth-child(2) {
+      background: var(--neuron-blue);
+      border-color: var(--neuron-blue);
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      background: var(--synapse-green);
+      border-color: var(--synapse-green);
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce-dots {
+      0%, 60%, 100% {
+        transform: translateY(0) scale(1);
+      }
+      30% {
+        transform: translateY(-15px) scale(1.2);
+      }
+    }
+
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 20px;
+      margin-top: 28px;
+    }
+
+    .color-swatch {
+      padding: 20px;
+      border-radius: 20px;
+      border: 3px solid;
+      text-align: center;
+      background: white;
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+
+    .color-swatch:hover {
+      transform: rotate(-3deg) scale(1.05);
+    }
+
+    .color-swatch-box {
+      height: 70px;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .color-name {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      font-weight: 800;
+    }
+
+    /* Dark mode */
+    body.dark {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-tertiary: #0f3460;
+      
+      --text-primary: #eee;
+      --text-secondary: #ccc;
+      --text-muted: #999;
+      
+      --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.5);
+      --shadow-float: 0 8px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    body.dark .chat-container {
+      background: #16213e;
+      border-color: var(--synapse-green);
+    }
+
+    body.dark .message.user .message-bubble {
+      background: linear-gradient(135deg, #3d1e3d 0%, #4a2849 100%);
+      border-color: var(--brain-pink);
+    }
+
+    body.dark .message.agent .message-bubble {
+      background: linear-gradient(135deg, #1e3a5f 0%, #264a6f 100%);
+      border-color: var(--neuron-blue);
+    }
+
+    body.dark .theme-toggle {
+      background: #16213e;
+      color: var(--synapse-green);
+      border-color: var(--synapse-green);
+    }
+
+    body.dark .theme-toggle:hover {
+      background: var(--synapse-green);
+      color: #16213e;
+    }
+
+    body.dark .color-swatch {
+      background: #16213e;
+    }
+  </style>
+</head>
+<body>
+  <div class="neuron-decoration neuron-1"></div>
+  <div class="neuron-decoration neuron-2"></div>
+  <div class="neuron-decoration neuron-3"></div>
+  <div class="neuron-decoration neuron-4"></div>
+
+  <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+
+  <div class="container">
+    <header>
+      <h1>Neural Jester</h1>
+      <p class="subtitle">Where Brains Meet Playfulness</p>
+    </header>
+
+    <div class="chat-container">
+      <h2 class="section-title">Thought Bubbles</h2>
+      
+      <div class="message user">
+        <div class="avatar user">😊</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>Hello! This is a <strong>user</strong> message with <em>fun</em> styling!</p>
+          </div>
+          <div class="timestamp">5 min. ago</div>
+        </div>
+      </div>
+
+      <div class="message agent">
+        <div class="avatar agent">🤖</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>Hi there! I'm your friendly neural agent! 🧠</p>
+            <p>I can help you with:</p>
+            <p>- <strong>Brain-powered</strong> responses<br>- Synaptic code blocks<br>- Neuron-level <em>creativity</em>!</p>
+            <p>Check this out: <code>think()</code></p>
+          </div>
+          <div class="timestamp">2 hr. ago</div>
+        </div>
+      </div>
+
+      <div class="message agent">
+        <div class="avatar agent">🤖</div>
+        <div class="message-content">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <h2 class="section-title">Code Neurons</h2>
+      
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">TypeScript</span>
+          <button class="copy-button">📋 Copy</button>
+        </div>
+        <pre><code>function fireNeuron(thought: string): void {
+  console.log(`💭 Processing: ${thought}`);
+  // Synaptic processing...
+  return activateDendrites(thought);
+}</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">Python</span>
+          <button class="copy-button">📋 Copy</button>
+        </div>
+        <pre><code>def think_playfully(idea):
+    """Brain goes brrr 🧠"""
+    neurons = activate_network(idea)
+    return {
+        "wisdom": neurons.process(),
+        "fun_level": 9000
+    }</code></pre>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <h2 class="section-title">Brain Colors</h2>
+      
+      <div class="color-palette">
+        <div class="color-swatch" style="border-color: #ff6b9d;">
+          <div class="color-swatch-box" style="background: #ff6b9d;"></div>
+          <div class="color-name">Brain Pink</div>
+        </div>
+        <div class="color-swatch" style="border-color: #c44569;">
+          <div class="color-swatch-box" style="background: #c44569;"></div>
+          <div class="color-name">Brain Purple</div>
+        </div>
+        <div class="color-swatch" style="border-color: #4a90e2;">
+          <div class="color-swatch-box" style="background: #4a90e2;"></div>
+          <div class="color-name">Neuron Blue</div>
+        </div>
+        <div class="color-swatch" style="border-color: #7bed9f;">
+          <div class="color-swatch-box" style="background: #7bed9f;"></div>
+          <div class="color-name">Synapse Green</div>
+        </div>
+        <div class="color-swatch" style="border-color: #ff9a00;">
+          <div class="color-swatch-box" style="background: #ff9a00;"></div>
+          <div class="color-name">Dendrite Orange</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      const btn = document.querySelector('.theme-toggle');
+      btn.textContent = document.body.classList.contains('dark') 
+        ? '☀️ Day Mode' 
+        : '🌙 Night Mode';
+    }
+  </script>
+</body>
+</html>

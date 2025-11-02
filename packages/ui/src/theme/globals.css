@@ -29,23 +29,23 @@
   }
 
   .dark {
-    /* Message Colors - Dark Mode */
-    --color-message-user-bg: 239 84% 37%; /* Deep blue */
-    --color-message-user-text: 210 40% 98%; /* Light text */
-    --color-message-agent-bg: 222 47% 11%; /* Dark gray */
-    --color-message-agent-text: 210 40% 98%; /* Light text */
+    /* Message Colors - Dark Mode (Neon Flux) */
+    --color-message-user-bg: 277 92% 62%; /* Purple #a855f7 */
+    --color-message-user-text: 240 5% 97%; /* Light text #f8fafc */
+    --color-message-agent-bg: 221 91% 60%; /* Blue #3b82f6 */
+    --color-message-agent-text: 240 5% 97%; /* Light text #f8fafc */
 
-    /* Code Block Colors - Dark Mode */
-    --color-code-block-bg: 0 0% 10%; /* Near-black */
-    --color-code-block-border: 0 0% 20%; /* Dark border */
-    --color-code-inline-bg: 0 0% 15%; /* Inline code */
+    /* Code Block Colors - Dark Mode (Neon Flux) */
+    --color-code-block-bg: 240 20% 5%; /* Dark bg #0a0a0f */
+    --color-code-block-border: 277 92% 62%; /* Purple border #a855f7 */
+    --color-code-inline-bg: 240 21% 15%; /* Dark #1e1e2e */
 
-    /* Utility Colors - Dark Mode */
-    --color-timestamp: 240 5% 65%; /* Lighter muted */
-    --color-link: 217 91% 60%; /* Brighter blue */
-    --color-link-hover: 217 91% 70%; /* Lighter blue */
-    --color-copy-button: 0 0% 70%; /* Lighter gray */
-    --color-copy-button-success: 142 71% 55%; /* Brighter green */
+    /* Utility Colors - Dark Mode (Neon Flux) */
+    --color-timestamp: 215 16% 47%; /* Muted #64748b */
+    --color-link: 187 95% 43%; /* Cyan #06b6d4 */
+    --color-link-hover: 187 95% 53%; /* Brighter cyan */
+    --color-copy-button: 277 92% 62%; /* Purple #a855f7 */
+    --color-copy-button-success: 142 71% 55%; /* Green (keep) */
   }
 
   /* Prevent transitions during theme switch to avoid flash */
@@ -93,10 +93,12 @@
     @apply text-link hover:text-link-hover underline;
   }
 
-  /* Typing indicator animations */
+  /* Typing indicator animations (Neon Flux - glowing dots) */
   .typing-dot {
-    @apply w-2 h-2 rounded-full bg-message-agent-text opacity-60;
-    animation: typing-bounce 1.4s ease-in-out infinite;
+    @apply w-2 h-2 rounded-full;
+    background: hsl(221, 91%, 60%); /* Blue #3b82f6 */
+    box-shadow: 0 0 10px hsl(221, 91%, 60%);
+    animation: typing-glow 1.4s ease-in-out infinite;
   }
 
   .typing-dot-delay-1 {
@@ -108,18 +110,22 @@
   }
 
   .typing-pulse {
-    @apply w-3 h-3 rounded-full bg-message-agent-text opacity-60;
+    @apply w-3 h-3 rounded-full;
+    background: hsl(221, 91%, 60%);
+    box-shadow: 0 0 12px hsl(221, 91%, 60%);
     animation: typing-pulse 1.5s ease-in-out infinite;
   }
 
-  @keyframes typing-bounce {
+  @keyframes typing-glow {
     0%,
     60%,
     100% {
       transform: translateY(0);
+      opacity: 0.7;
     }
     30% {
-      transform: translateY(-8px);
+      transform: translateY(-10px);
+      opacity: 1;
     }
   }
 

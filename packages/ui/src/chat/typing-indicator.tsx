@@ -7,11 +7,11 @@ import { cn } from '../utils/cn';
  * Typing indicator variants using class-variance-authority
  */
 const typingIndicatorVariants = cva(
-  'inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-message-agent-bg',
+  'inline-flex items-center gap-1.5 px-5 py-4 rounded-2xl backdrop-blur-md bg-message-agent-bg/15 border border-message-agent-bg/20 shadow-[0_0_20px_rgba(59,130,246,0.3)]',
   {
     variants: {
       variant: {
-        dots: 'gap-1',
+        dots: 'gap-1.5',
         pulse: 'gap-0',
       },
     },

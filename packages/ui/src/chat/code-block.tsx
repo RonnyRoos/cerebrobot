@@ -51,13 +51,14 @@ export const CodeBlock = forwardRef<CodeBlockElement, CodeBlockProps>(
       <div
         ref={ref}
         className={cn(
-          'group relative rounded-lg overflow-hidden bg-code-block-bg border border-code-block-border',
+          'group relative rounded-xl overflow-hidden bg-code-block-bg border-t-2 border-x border-b border-code-block-border shadow-[0_4px_20px_rgba(0,0,0,0.3)]',
+          'before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:bg-gradient-to-r before:from-[#a855f7] before:to-[#ec4899]',
           className,
         )}
       >
         <CopyButton
           text={code}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-code-block-bg border border-code-block-border"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-code-block-bg/80 backdrop-blur-sm border border-code-block-border hover:shadow-[0_0_12px_rgba(168,85,247,0.4)]"
         />
         {language ? (
           <SyntaxHighlighter

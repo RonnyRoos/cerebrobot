@@ -47,13 +47,31 @@ export function DesignSystemTest() {
             />
 
             <MessageBubble
-              content="Hi there! I'm the agent. I can help you with:\n\n- Markdown rendering\n- Code blocks\n- And much more!"
+              content={`Hi there! I'm the agent. I can help you with:
+
+- **Markdown** rendering
+- Code blocks
+- And much more!
+
+Here's an inline code example: \`console.log('hello')\``}
               sender="agent"
               timestamp={twoHoursAgo}
             />
 
             <MessageBubble
-              content="# Heading 1\n\n## Heading 2\n\n### Heading 3\n\nThis is a paragraph with **bold** and *italic* text.\n\n```typescript\nfunction hello(name: string) {\n  console.log(`Hello, ${name}!`);\n}\n```"
+              content={`# Heading 1
+
+## Heading 2
+
+### Heading 3
+
+This is a paragraph with **bold** and *italic* text.
+
+\`\`\`typescript
+function hello(name: string) {
+  console.log(\`Hello, \${name}!\`);
+}
+\`\`\``}
               sender="agent"
               timestamp={yesterday}
             />
