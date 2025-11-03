@@ -14,7 +14,7 @@ module.exports = {
     node: true,
   },
   plugins: ['@typescript-eslint'],
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier', 'plugin:storybook/recommended'],
   ignorePatterns: ['dist/**', 'coverage/**', 'node_modules/**'],
   overrides: [
     {
