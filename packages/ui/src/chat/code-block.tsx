@@ -2,7 +2,7 @@ import { forwardRef, type ElementRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '../utils/cn';
-import { useTheme } from '../utils/theme';
+import { useTheme } from '../theme/theme-provider';
 import { CopyButton } from './copy-button';
 
 export interface CodeBlockProps {
