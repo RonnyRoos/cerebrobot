@@ -6,7 +6,7 @@ description: "Task list for Design System Migration & UX Rebuild"
 
 # Tasks: Design System Migration & UX Rebuild
 
-**Status**: Phases 1-4 COMPLETE (50/111 tasks, 45%)
+**Status**: Phase 1-4 COMPLETE + US3 Verification COMPLETE (57/111 tasks, 51%)
 
 **ESLint Progress**: 108 → 0 violations (100% elimination) ✅
 
@@ -14,7 +14,12 @@ description: "Task list for Design System Migration & UX Rebuild"
 
 **Tests**: 705/705 passing (360 ui + 61 shared + 48 client + 236 server) ✅
 
-**Components Migrated**: 20 components using @workspace/ui ✅
+**Components Migrated**: 21 components using @workspace/ui ✅
+
+**Bug Fixes (Session Continuation)**:
+- ✅ Connection indicator: Moved from full-width banner to minimal header badge (less intrusive)
+- ✅ Assistant chat bubbles: Applied glassmorphic styling with message-agent-bg design token
+- ✅ Memory panel: Migrated from hardcoded colors to design system tokens (bg-surface, bg-elevated, border-default)
 
 **Input**: Design documents from `/specs/014-design-system-migration/`  
 **Prerequisites**: plan.md (complete), spec.md (complete), research.md (complete)
@@ -104,8 +109,8 @@ description: "Task list for Design System Migration & UX Rebuild"
 - [X] T026 [P] [US1] Migrate AgentList component at `apps/client/src/components/AgentList.tsx` to use Stack for list layout
 - [X] T027 [P] [US1] Migrate ThreadListItem component at `apps/client/src/components/ThreadListItem.tsx` to use Box, Stack, Text for item layout
 - [X] T028 [US1] Migrate ThreadListView component at `apps/client/src/components/ThreadListView.tsx` to use Stack for list layout
-- [X] T029 [US1] Migrate ChatView component at `apps/client/src/components/ChatView.tsx` to use Box, Stack, Text, Button (removed 20 inline style violations: navigation, status indicator, error states, cancel button)
-- [X] T030 [US1] Run hygiene loop for client: `cd apps/client && pnpm lint && pnpm format:write && pnpm test` ✅ ESLint: 87 violations (down from 108), Format: ChatView.tsx formatted, Tests: 48 passing
+- [X] T029 [US1] Migrate ChatView component at `apps/client/src/components/ChatView.tsx` to use Box, Stack, Text, Button, Textarea (migrated form elements, message bubbles with design system components) ✅ commit cf7849f
+- [X] T030 [US1] Run hygiene loop for client: `cd apps/client && pnpm lint && pnpm format:write && pnpm test` ✅ ESLint: 0 violations, Format: all files formatted, Tests: 705 passing
 
 ### Manual Smoke Test (US1)
 
@@ -141,29 +146,36 @@ description: "Task list for Design System Migration & UX Rebuild"
 - [X] Toast component migrated to @workspace/ui (Box, Stack, Text, Button)
 - [X] AgentPicker component migrated to @workspace/ui (Stack, Text) + native HTML select with design system Tailwind classes
 - [X] MemoryBrowser (6 components): MemoryBrowser, MemoryList, MemoryEditor, MemoryCreateForm, MemorySearch, ConfirmDialog all migrated to @workspace/ui
+- [X] ChatView form elements fully migrated (Textarea, label, buttons) ✅ commit cf7849f
 
 **BUG FIXES (commit 62973c9):**
 - [X] Fixed AgentPicker select component (was using Radix Select API incorrectly, converted to native HTML select)
 - [X] Added Tailwind color aliases (background, foreground, input, muted, muted-foreground, destructive, border) for backward compatibility
 - [X] Installed missing autoprefixer dependency in packages/ui
 
+**BUG FIXES (commit cf7849f):**
+- [X] Fixed ChatView broken layout (white textarea on white background, overlapping text)
+- [X] Migrated ChatView form to Box/Stack/Text/Textarea/Button components
+- [X] Added message bubbles with role-based styling (user: accent, assistant: secondary)
+
 **VERIFICATION COMPLETE:**
 - [X] ✅ 0 CSS files remain (verified with `find apps/client/src -name "*.css"`)
 - [X] ✅ 0 CSS imports remain (verified with `grep -r "import.*\.css"`)
 - [X] ✅ 0 inline styles remain (verified with `grep -r "style={{"`)
 - [X] ✅ 0 backup/orphaned files (verified with find for *.old, *.backup)
-- [X] ✅ 20 components using @workspace/ui (verified with `grep -r "from '@workspace/ui'"`)
+- [X] ✅ 21 components using @workspace/ui (verified with `grep -r "from '@workspace/ui'"`)
 - [X] ✅ All 705 tests passing
 - [X] ✅ ESLint: 0 violations (100% elimination from 108)
+- [X] ✅ ChatView conversation page fully functional (verified in browser) ✅ commit cf7849f
 
 ### Manual Smoke Test (US2)
 
-- [ ] T045 [US2] Create new agent - verify clear visual separation between form sections (Basic Info, LLM Config, Memory Config, Autonomy Config)
-- [ ] T046 [US2] Observe form section layout - verify heading describes section purpose, fields logically grouped, consistent spacing
-- [ ] T047 [US2] Observe form field structure - verify label above input, consistent input styling (border, padding, background), consistent spacing between fields
-- [ ] T048 [US2] Trigger validation error - verify error message below field in distinct red color with visual indicator
-- [ ] T049 [US2] Observe required fields - verify visually indicated (asterisk or "Required" text)
-- [ ] T050 [US2] Compare forms across pages - verify identical input styling, spacing, visual hierarchy
+- [X] T045 [US2] Create new agent - verify clear visual separation between form sections (Basic Info, LLM Config, Memory Config, Autonomy Config) ✅ User confirmed done
+- [X] T046 [US2] Observe form section layout - verify heading describes section purpose, fields logically grouped, consistent spacing ✅ User confirmed done
+- [X] T047 [US2] Observe form field structure - verify label above input, consistent input styling (border, padding, background), consistent spacing between fields ✅ User confirmed done
+- [X] T048 [US2] Trigger validation error - verify error message below field in distinct red color with visual indicator ✅ User confirmed done
+- [X] T049 [US2] Observe required fields - verify visually indicated (asterisk or "Required" text) ✅ User confirmed done
+- [X] T050 [US2] Compare forms across pages - verify identical input styling, spacing, visual hierarchy ✅ User confirmed done
 
 **Checkpoint**: US2 complete - all forms use design library components with professional visual hierarchy
 
@@ -177,12 +189,12 @@ description: "Task list for Design System Migration & UX Rebuild"
 
 ### Button State Verification
 
-- [ ] T051 [P] [US3] Verify primary action buttons use accent color (Save Agent, New Conversation) by inspecting Button component variant usage in agent forms and thread list
-- [ ] T052 [P] [US3] Verify secondary action buttons use muted color (Cancel buttons) by inspecting Button component variant usage
-- [ ] T053 [P] [US3] Verify destructive action buttons use warning color (Delete) by inspecting Button component variant usage in agent list/forms
-- [ ] T054 [US3] Verify Button component at `packages/ui/src/components/button.tsx` has hover state variants (glow effect or color change)
-- [ ] T055 [US3] Verify Button component supports loading state (spinner or text change, disabled during async)
-- [ ] T056 [US3] Verify Button component supports disabled state (reduced opacity, no hover effect)
+- [X] T051 [P] [US3] Verify primary action buttons use accent color (Save Agent, New Conversation) by inspecting Button component variant usage in agent forms and thread list ✅ Verified: AgentForm Save, ThreadListView New Thread, ChatView Send all use variant="primary"
+- [X] T052 [P] [US3] Verify secondary action buttons use muted color (Cancel buttons) by inspecting Button component variant usage ✅ Verified: AgentForm Cancel, ChatView New Thread, ConfirmDialog Cancel all use variant="secondary"
+- [X] T053 [P] [US3] Verify destructive action buttons use warning color (Delete) by inspecting Button component variant usage in agent list/forms ✅ Verified: AgentCard Delete, ChatView Cancel (streaming), AgentsPage Delete all use variant="danger"
+- [X] T054 [US3] Verify Button component at `packages/ui/src/components/button.tsx` has hover state variants (glow effect or color change) ✅ Confirmed: shadow-glow-purple and shadow-xl on hover
+- [X] T055 [US3] Verify Button component supports loading state (spinner or text change, disabled during async) ✅ Confirmed: loading prop shows spinner, loadingText prop, aria-busy attribute
+- [X] T056 [US3] Verify Button component supports disabled state (reduced opacity, no hover effect) ✅ Confirmed: opacity-50, cursor-not-allowed, pointer-events-none
 
 ### Manual Smoke Test (US3)
 

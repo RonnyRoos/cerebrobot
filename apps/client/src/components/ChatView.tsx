@@ -214,25 +214,21 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
 
   return (
     <Box as="section" aria-label="Chat panel">
-      {/* Back to threads navigation */}
-      <Box className="p-2 px-4 border-b border-border">
+      {/* Back to threads navigation with connection status */}
+      <Box className="p-2 px-4 border-b border-border flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} className="text-sm">
           ← Back to Threads
         </Button>
-      </Box>
-
-      {/* Connection status indicator */}
-      <Box
-        className={`px-4 py-2 border-b border-border text-sm ${
-          isConnected ? 'bg-green-50' : 'bg-destructive/10'
-        }`}
-      >
-        <Text as="span" className="mr-2">
-          {isConnected ? '🟢' : '🔴'}
-        </Text>
-        <Text as="span" className={isConnected ? 'text-green-800' : 'text-destructive'}>
-          {isConnected ? 'Connected' : 'Disconnected'}
-        </Text>
+        {/* Minimal connection status indicator */}
+        <Box className="flex items-center gap-1.5">
+          <Box
+            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-error'}`}
+            aria-label={isConnected ? 'Connected' : 'Disconnected'}
+          />
+          <Text as="span" className="text-xs text-text-tertiary">
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </Text>
+        </Box>
       </Box>
 
       <Box className="flex-1 overflow-y-auto p-4" aria-live="polite">
@@ -240,11 +236,13 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
           {messages.map((message) => (
             <Box
               key={message.id}
-              className={`p-4 rounded-lg ${
-                message.role === 'user' ? 'bg-accent-primary/10 ml-12' : 'bg-bg-secondary mr-12'
+              className={`p-4 rounded-lg backdrop-blur-sm border ${
+                message.role === 'user'
+                  ? 'bg-message-user-bg text-message-user-text border-accent-primary/20 ml-12'
+                  : 'bg-message-agent-bg text-message-agent-text border-border-subtle mr-12'
               }`}
             >
-              <Text as="div" className="font-semibold mb-2 text-sm">
+              <Text as="div" className="font-semibold mb-2 text-sm opacity-80">
                 {message.role === 'user' ? 'You' : 'Assistant'}
               </Text>
               <Text as="p" className="text-base leading-relaxed">

@@ -153,14 +153,17 @@ export function MemoryBrowser({
         <Box
           as="aside"
           aria-label="Memory browser"
-          className="fixed top-0 right-0 w-96 h-screen bg-background border-l border-gray-200 shadow-xl z-[1000] flex flex-col overflow-hidden"
+          className="fixed top-0 right-0 w-96 h-screen bg-bg-surface/95 backdrop-blur-md border-l border-border-default shadow-xl z-[1000] flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <Box as="header" className="p-4 border-b border-gray-200 bg-gray-50">
+          <Box
+            as="header"
+            className="p-4 border-b border-border-default bg-bg-elevated/50 backdrop-blur-sm"
+          >
             <Text as="h2" variant="heading" size="lg" className="mb-1">
               🧠 Agent Memory
             </Text>
-            <Text variant="caption" size="sm" className="text-muted">
+            <Text variant="caption" size="sm" className="text-text-secondary">
               {stats
                 ? `${stats.count} ${stats.count === 1 ? 'memory' : 'memories'} stored`
                 : 'Real-time memory as the agent learns'}
@@ -171,14 +174,14 @@ export function MemoryBrowser({
           {stats && stats.showWarning && (
             <Box
               role="alert"
-              className="p-3 bg-yellow-100 border-b border-yellow-400 flex items-center gap-2"
+              className="p-3 bg-warning/10 border-b border-warning/30 flex items-center gap-2"
             >
               <span className="text-xl">⚠️</span>
               <Box className="flex-1">
-                <Text variant="body" size="sm" className="text-yellow-900 font-semibold mb-0.5">
+                <Text variant="body" size="sm" className="text-warning font-semibold mb-0.5">
                   Memory capacity at {Math.round(stats.capacityPercent * 100)}%
                 </Text>
-                <Text variant="caption" size="sm" className="text-yellow-800">
+                <Text variant="caption" size="sm" className="text-warning/90">
                   {stats.count} of {stats.maxMemories} memories used. Consider deleting old
                   memories.
                 </Text>
@@ -211,11 +214,11 @@ export function MemoryBrowser({
 
           {/* Create Button (Footer) */}
           {onCreateMemory && (
-            <Box className="p-4 border-t border-gray-200 bg-background">
+            <Box className="p-4 border-t border-border-default bg-bg-elevated/50 backdrop-blur-sm">
               <Button
                 onClick={() => setShowCreateModal(true)}
-                className="w-full bg-green-600 hover:bg-green-700 shadow-sm"
-                variant="default"
+                className="w-full shadow-sm"
+                variant="primary"
                 size="md"
                 title="Create a new memory"
               >
@@ -232,9 +235,12 @@ export function MemoryBrowser({
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-memory-title"
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]"
+          className="fixed inset-0 bg-bg-overlay/80 backdrop-blur-sm flex items-center justify-center z-[2000]"
         >
-          <Box role="document" className="bg-background rounded-lg p-6 max-w-lg w-[90%] shadow-2xl">
+          <Box
+            role="document"
+            className="bg-bg-surface/95 backdrop-blur-md rounded-lg p-6 max-w-lg w-[90%] shadow-modal border border-border-default"
+          >
             <Text id="create-memory-title" as="h3" variant="heading" size="lg" className="mb-4">
               Create New Memory
             </Text>
