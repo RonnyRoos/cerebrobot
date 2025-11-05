@@ -5,7 +5,7 @@ import { useMemories } from '../hooks/useMemories.js';
 import { useMemo, useEffect, useCallback, useState } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
 import { Toast } from './Toast.js';
-import { Box, Stack, Text, Button } from '@workspace/ui';
+import { Box, Stack, Text, Button, Textarea } from '@workspace/ui';
 import type { MemoryCreatedEvent, MemoryDeletedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
@@ -235,24 +235,41 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         </Text>
       </Box>
 
-      <div className="chat-history" aria-live="polite">
-        {messages.map((message) => (
-          <article key={message.id} data-role={message.role}>
-            <header>{message.role === 'user' ? 'You' : 'Assistant'}</header>
-            <p>{message.role === 'user' ? `You: ${message.content}` : message.content}</p>
-            {message.latencyMs != null && (
-              <small aria-label="latency">Latency: {message.latencyMs} ms</small>
-            )}
-            {message.tokenUsage && (
-              <small aria-label="token usage">
-                Context usage: {message.tokenUsage.utilisationPct}% (
-                {message.tokenUsage.recentTokens}/{message.tokenUsage.budget} tokens)
-              </small>
-            )}
-            {message.status === 'streaming' && <small aria-label="streaming">Streaming…</small>}
-          </article>
-        ))}
-      </div>
+      <Box className="flex-1 overflow-y-auto p-4" aria-live="polite">
+        <Stack gap="4">
+          {messages.map((message) => (
+            <Box
+              key={message.id}
+              className={`p-4 rounded-lg ${
+                message.role === 'user' ? 'bg-accent-primary/10 ml-12' : 'bg-bg-secondary mr-12'
+              }`}
+            >
+              <Text as="div" className="font-semibold mb-2 text-sm">
+                {message.role === 'user' ? 'You' : 'Assistant'}
+              </Text>
+              <Text as="p" className="text-base leading-relaxed">
+                {message.content}
+              </Text>
+              {message.latencyMs != null && (
+                <Text as="small" className="text-text-tertiary mt-2 block" aria-label="latency">
+                  Latency: {message.latencyMs} ms
+                </Text>
+              )}
+              {message.tokenUsage && (
+                <Text as="small" className="text-text-tertiary mt-1 block" aria-label="token usage">
+                  Context usage: {message.tokenUsage.utilisationPct}% (
+                  {message.tokenUsage.recentTokens}/{message.tokenUsage.budget} tokens)
+                </Text>
+              )}
+              {message.status === 'streaming' && (
+                <Text as="small" className="text-accent-primary mt-1 block" aria-label="streaming">
+                  Streaming…
+                </Text>
+              )}
+            </Box>
+          ))}
+        </Stack>
+      </Box>
 
       {/* Show history loading error if thread not found */}
       {historyError && (
@@ -318,47 +335,61 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         </Box>
       )}
 
-      <form
+      <Box
+        as="form"
         onSubmit={(event) => {
           event.preventDefault();
           void handleSend();
         }}
+        className="p-4 border-t border-border"
       >
-        <label htmlFor="chat-message">Message</label>
-        <textarea
-          id="chat-message"
-          name="message"
-          rows={3}
-          value={pendingMessage}
-          onChange={(event) => setPendingMessage(event.target.value)}
-          onKeyDown={(event) => {
-            if (
-              event.key === 'Enter' &&
-              !event.shiftKey &&
-              !event.altKey &&
-              !event.ctrlKey &&
-              !event.metaKey
-            ) {
-              event.preventDefault();
-              void handleSend();
-            }
-          }}
-          disabled={isStreaming}
-        />
-        <div className="chat-actions">
-          <button type="submit" disabled={disableSend}>
-            Send
-          </button>
-          {canCancel && (
-            <Button type="button" variant="danger" onClick={handleCancel}>
-              Cancel
+        <Stack gap="3">
+          <Box>
+            <Text as="label" htmlFor="chat-message" className="text-sm font-medium mb-2 block">
+              Message
+            </Text>
+            <Textarea
+              id="chat-message"
+              name="message"
+              rows={3}
+              value={pendingMessage}
+              onChange={(event) => setPendingMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.altKey &&
+                  !event.ctrlKey &&
+                  !event.metaKey
+                ) {
+                  event.preventDefault();
+                  void handleSend();
+                }
+              }}
+              disabled={isStreaming}
+              placeholder="Type your message here..."
+            />
+          </Box>
+          <Stack direction="horizontal" gap="2" justify="start">
+            <Button type="submit" variant="primary" disabled={disableSend}>
+              Send
             </Button>
-          )}
-          <button type="button" onClick={handleNewThread} disabled={!activeThreadId}>
-            New Thread
-          </button>
-        </div>
-      </form>
+            {canCancel && (
+              <Button type="button" variant="danger" onClick={handleCancel}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleNewThread}
+              disabled={!activeThreadId}
+            >
+              New Thread
+            </Button>
+          </Stack>
+        </Stack>
+      </Box>
 
       {/* Memory Browser Sidebar */}
       <MemoryBrowser
