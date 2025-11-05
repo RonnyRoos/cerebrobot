@@ -1,51 +1,57 @@
 /**
- * Chat-specific color tokens documentation: see chat-colors.css
- * Defines 12 semantic color tokens for light/dark themes with WCAG AA compliance
+ * Global Styles & Design System Tokens
+ * 
+ * Spec: /specs/013-neon-flux-design-system/spec.md
+ * Tokens organized in three tiers: primitives → semantic → component
  */
+
+/* Import design system tokens (Tier 1-3) */
+@import './tokens/primitives.css';
+@import './tokens/semantic.css';
+@import './tokens/component.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Message Colors - Light Mode */
-    --color-message-user-bg: 239 84% 67%; /* Soft blue */
-    --color-message-user-text: 222 47% 11%; /* Dark text */
-    --color-message-agent-bg: 240 5% 96%; /* Light gray */
-    --color-message-agent-text: 222 47% 11%; /* Dark text */
-
-    /* Code Block Colors - Light Mode */
-    --color-code-block-bg: 0 0% 98%; /* Near-white */
-    --color-code-block-border: 0 0% 89%; /* Light border */
-    --color-code-inline-bg: 0 0% 95%; /* Inline code */
-
-    /* Utility Colors - Light Mode */
-    --color-timestamp: 240 4% 46%; /* Muted gray */
-    --color-link: 221 83% 53%; /* Link blue */
-    --color-link-hover: 221 83% 43%; /* Darker blue */
-    --color-copy-button: 0 0% 60%; /* Gray */
-    --color-copy-button-success: 142 71% 45%; /* Green */
+  /* Neon Flux Base Styles */
+  body {
+    @apply bg-bg-base text-text-primary antialiased;
+    font-family:
+      'Inter',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
   }
 
-  .dark {
-    /* Message Colors - Dark Mode (Neon Flux) */
-    --color-message-user-bg: 277 92% 62%; /* Purple #a855f7 */
-    --color-message-user-text: 240 5% 97%; /* Light text #f8fafc */
-    --color-message-agent-bg: 221 91% 60%; /* Blue #3b82f6 */
-    --color-message-agent-text: 240 5% 97%; /* Light text #f8fafc */
+  /* Animated gradient background (Neon Flux signature) */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 20% 50%, hsla(277, 92%, 62%, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsla(330, 81%, 60%, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 40% 20%, hsla(221, 91%, 60%, 0.1) 0%, transparent 50%);
+    animation: gradient-shift 15s ease infinite;
+    z-index: -1;
+    pointer-events: none;
+  }
 
-    /* Code Block Colors - Dark Mode (Neon Flux) */
-    --color-code-block-bg: 240 20% 5%; /* Dark bg #0a0a0f */
-    --color-code-block-border: 277 92% 62%; /* Purple border #a855f7 */
-    --color-code-inline-bg: 240 21% 15%; /* Dark #1e1e2e */
-
-    /* Utility Colors - Dark Mode (Neon Flux) */
-    --color-timestamp: 215 16% 47%; /* Muted #64748b */
-    --color-link: 187 95% 43%; /* Cyan #06b6d4 */
-    --color-link-hover: 187 95% 53%; /* Brighter cyan */
-    --color-copy-button: 277 92% 62%; /* Purple #a855f7 */
-    --color-copy-button-success: 142 71% 55%; /* Green (keep) */
+  @keyframes gradient-shift {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(-10%, 10%);
+    }
   }
 
   /* Prevent transitions during theme switch to avoid flash */
@@ -55,6 +61,22 @@
 }
 
 @layer components {
+  /* Message appearance animation (Neon Flux) */
+  @keyframes message-appear {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-message-appear {
+    animation: message-appear 0.4s ease;
+  }
+
   /* Chat typography optimizations */
   .prose-chat {
     @apply text-chat-body;

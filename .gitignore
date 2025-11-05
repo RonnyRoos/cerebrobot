@@ -13,3 +13,6 @@ coverage/
 config/agents/*
 !config/agents/.gitkeep
 !config/agents/template.json
+
+*storybook.log
+storybook-static

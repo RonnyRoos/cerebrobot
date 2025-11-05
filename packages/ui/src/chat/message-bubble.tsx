@@ -54,13 +54,13 @@ class MarkdownErrorBoundary extends Component<
 }
 
 const messageBubbleVariants = cva(
-  'rounded-2xl px-5 py-4 max-w-[65%] break-words backdrop-blur-md border shadow-lg animate-message-appear',
+  'rounded-xl px-5 py-4 max-w-[65%] break-words backdrop-blur-md border shadow-lg animate-message-appear',
   {
     variants: {
       sender: {
-        user: 'ml-auto bg-message-user-bg/20 text-message-user-text border-message-user-bg/30 shadow-[0_0_20px_rgba(168,85,247,0.3)]',
+        user: 'ml-auto bg-message-user-bg/20 text-message-user-text border-message-user-bg/30 shadow-glow-purple',
         agent:
-          'mr-auto bg-message-agent-bg/15 text-message-agent-text border-message-agent-bg/20 shadow-[0_0_20px_rgba(59,130,246,0.3)]',
+          'mr-auto bg-message-agent-bg/15 text-message-agent-text border-message-agent-bg/20 shadow-glow-blue',
       },
     },
     defaultVariants: {

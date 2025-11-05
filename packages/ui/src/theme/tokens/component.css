@@ -1,0 +1,128 @@
+/**
+ * Component-Specific Design Tokens (Tier 3)
+ * 
+ * Purpose: Backward-compatible aliases and component-scoped tokens
+ * Naming: Component-scoped (e.g., --button-bg-primary, --message-bubble-glow)
+ * Usage: Use sparingly - most components should use semantic tokens directly
+ * 
+ * Spec: /specs/013-neon-flux-design-system/spec.md (FR-021 Backward Compatibility)
+ * Contract: /specs/013-neon-flux-design-system/contracts/migration-strategy.md
+ */
+
+:root {
+  /* ========================================
+     Backward-Compatible Aliases for Existing Chat Components
+     Migration Path: Existing chat code uses these, new code uses semantic tokens
+     Deprecation: Version 2.0 (after all components migrated)
+     ======================================== */
+
+  /* Message Bubble Tokens (Dark Theme Default - Neon Flux) */
+  --color-message-user-bg: var(--color-accent-primary); /* Purple #a855f7 */
+  --color-message-user-text: var(--color-text-primary); /* Light text */
+  --color-message-agent-bg: var(--color-accent-secondary); /* Blue #3b82f6 */
+  --color-message-agent-text: var(--color-text-primary); /* Light text */
+
+  /* Code Block Tokens (Dark Theme Default - Neon Flux) */
+  --color-code-block-bg: var(--color-bg-dark); /* #0a0a0f */
+  --color-code-block-border: var(--color-accent-primary); /* Purple border */
+  --color-code-inline-bg: 240 21% 15%; /* Dark inline bg #1e1e2e */
+
+  /* Utility Tokens (Dark Theme Default) */
+  --color-timestamp: 215 16% 47%; /* Muted #64748b */
+  --color-link: var(--color-accent-quaternary); /* Cyan #06b6d4 */
+  --color-link-hover: 187 95% 53%; /* Brighter cyan */
+  --color-copy-button: var(--color-accent-primary); /* Purple */
+  --color-copy-button-success: var(--color-success); /* Green */
+
+  /* Message Bubble Elevation (Neon Flux glows) */
+  --message-bubble-glow-user: var(--elevation-glow-user-message);
+  --message-bubble-glow-agent: var(--elevation-glow-assistant-message);
+
+  /* ========================================
+     Component-Specific Tokens (Optional)
+     Use only when component has complex token logic
+     ======================================== */
+
+  /* Button Tokens (can be overridden per variant) */
+  --button-bg-primary: var(--color-accent-primary);
+  --button-bg-primary-hover: var(--color-interactive-hover);
+  --button-bg-primary-active: var(--color-interactive-active);
+  --button-bg-secondary: transparent;
+  --button-bg-secondary-hover: 277 92% 62% / 0.1;
+  --button-text-primary: var(--color-text-primary);
+  --button-text-secondary: var(--color-accent-primary);
+  --button-border-secondary: var(--color-accent-primary);
+
+  /* Input/Form Tokens */
+  --input-bg: var(--color-bg-surface);
+  --input-border: var(--color-border-default);
+  --input-border-focus: var(--color-accent-primary);
+  --input-text: var(--color-text-primary);
+  --input-placeholder: var(--color-text-tertiary);
+
+  /* Card/Panel Tokens */
+  --card-bg: var(--color-bg-surface);
+  --card-border: var(--color-border-subtle);
+  --card-elevation: var(--elevation-card);
+  --card-radius: var(--radius-card);
+
+  /* Modal/Dialog Tokens */
+  --modal-bg: var(--color-bg-elevated);
+  --modal-overlay-bg: var(--color-bg-overlay);
+  --modal-elevation: var(--elevation-modal);
+}
+
+/* ========================================
+   Theme Overrides: Light Mode
+   Applied via .theme-light class on <html> element
+   ======================================== */
+
+.theme-light {
+  /* Message Bubble Tokens (Light Mode) */
+  --color-message-user-bg: 239 84% 67%; /* Soft blue */
+  --color-message-user-text: var(--color-text-inverse); /* Dark text */
+  --color-message-agent-bg: 240 5% 96%; /* Light gray */
+  --color-message-agent-text: var(--color-text-inverse); /* Dark text */
+
+  /* Code Block Tokens (Light Mode) */
+  --color-code-block-bg: 0 0% 98%; /* Near-white */
+  --color-code-block-border: 0 0% 89%; /* Light border */
+  --color-code-inline-bg: 0 0% 95%; /* Inline code */
+
+  /* Utility Tokens (Light Mode) */
+  --color-timestamp: 240 4% 46%;
+  --color-link: 221 83% 53%;
+  --color-link-hover: 221 83% 43%;
+  --color-copy-button: 0 0% 60%;
+
+  /* Input/Form Tokens (Light Mode) */
+  --input-bg: var(--color-white);
+  --input-border: var(--color-border-subtle);
+
+  /* Card/Panel Tokens (Light Mode) */
+  --card-bg: var(--color-white);
+}
+
+/* ========================================
+   .dark Class Compatibility (Legacy)
+   Maintains compatibility with existing .dark class from spec 012
+   Migration Note: New code should use .theme-dark instead
+   All dark theme tokens defined in :root (dark is default)
+   ======================================== */
+
+/* ========================================
+   Deprecation Notices
+   These tokens are marked for removal in v2.0
+   Console warnings should be added in development mode
+   ======================================== */
+
+/*
+ * DEPRECATED TOKENS (v2.0):
+ * --color-message-user-bg (use --color-accent-primary)
+ * --color-message-agent-bg (use --color-accent-secondary)
+ * --color-code-block-bg (use --color-bg-dark)
+ * --message-bubble-glow-user (use --elevation-glow-user-message)
+ * --message-bubble-glow-agent (use --elevation-glow-assistant-message)
+ * 
+ * Migration Guide: See /specs/013-neon-flux-design-system/contracts/migration-strategy.md
+ */

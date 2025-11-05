@@ -4,7 +4,6 @@ import { UserSetup } from './components/UserSetup';
 import { ThreadListView } from './components/ThreadListView';
 import { AgentPicker } from './components/AgentPicker';
 import { AgentsPage } from './pages/AgentsPage';
-import { DesignSystemTest } from './components/DesignSystemTest';
 import { useUserId } from './hooks/useUserId';
 
 /**
@@ -36,7 +35,6 @@ export function App(): JSX.Element {
 
   // Initialize showAgentsPage from URL path
   const [showAgentsPage, setShowAgentsPage] = useState(window.location.pathname === '/agents');
-  const [showDesignSystem, setShowDesignSystem] = useState(window.location.pathname === '/design-library');
   const [agentContextMode, setAgentContextMode] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<{ threadId: string; agentId: string } | null>(
     null,
@@ -48,7 +46,6 @@ export function App(): JSX.Element {
   useEffect(() => {
     const handlePopState = () => {
       setShowAgentsPage(window.location.pathname === '/agents');
-      setShowDesignSystem(window.location.pathname === '/design-library');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -64,12 +61,6 @@ export function App(): JSX.Element {
   const navigateToThreads = useCallback(() => {
     window.history.pushState({}, '', '/');
     setShowAgentsPage(false);
-    setShowDesignSystem(false);
-  }, []);
-
-  const navigateToDesignLibrary = useCallback(() => {
-    window.history.pushState({}, '', '/design-library');
-    setShowDesignSystem(true);
   }, []);
 
   // Handler for selecting a thread (receives both threadId and agentId)
@@ -122,29 +113,12 @@ export function App(): JSX.Element {
     return <UserSetup onUserIdReady={handleUserIdReady} />;
   }
 
-  // Show design library showcase
-  if (showDesignSystem) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0f]">
-        <div className="p-4">
-          <button 
-            onClick={navigateToThreads}
-            className="px-4 py-2 rounded-xl backdrop-blur-md bg-white/80 dark:bg-[#1e1e2e]/60 border border-gray-200 dark:border-[#a855f7]/20 text-gray-900 dark:text-white font-semibold shadow-lg dark:shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:dark:border-[#a855f7] transition-all"
-          >
-            ← Back to Threads
-          </button>
-        </div>
-        <DesignSystemTest />
-      </div>
-    );
-  }
-
   // Show agents management page
   if (showAgentsPage && userId) {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0a0a0f]">
         <div className="p-4">
-          <button 
+          <button
             onClick={navigateToThreads}
             className="px-4 py-2 rounded-xl backdrop-blur-md bg-white/80 dark:bg-[#1e1e2e]/60 border border-gray-200 dark:border-[#a855f7]/20 text-gray-900 dark:text-white font-semibold shadow-lg dark:shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:dark:border-[#a855f7] transition-all"
           >

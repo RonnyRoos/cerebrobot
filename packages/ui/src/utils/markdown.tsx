@@ -7,7 +7,10 @@ import { CodeBlock } from '../chat/code-block';
  */
 export const defaultMarkdownComponents: Components = {
   // Replace code blocks with CodeBlock component
-  code: ({ inline, className, children, ...props }) => {
+  code: ({ className, children, ...props }) => {
+    // Type assertion for inline property which exists at runtime but not in types
+    const inline = 'inline' in props ? (props as { inline?: boolean }).inline : false;
+
     // Extract language from className (format: language-xxx)
     const match = /language-(\w+)/.exec(className || '');
     const language = match ? match[1] : undefined;

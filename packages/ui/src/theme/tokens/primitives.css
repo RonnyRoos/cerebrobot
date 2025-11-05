@@ -1,0 +1,147 @@
+/**
+ * Primitive Design Tokens (Tier 1)
+ * 
+ * Purpose: Context-free, fundamental values that serve as the foundation
+ * Naming: Descriptive (color scale, size number)
+ * Usage: Never use directly in components - use semantic tokens instead
+ * 
+ * Spec: /specs/013-neon-flux-design-system/spec.md (FR-001 to FR-004)
+ * Contract: /specs/013-neon-flux-design-system/contracts/token-api.md
+ */
+
+:root {
+  /* ========================================
+     Color Primitives (HSL format without hsl() wrapper)
+     Format: --color-{color}-{shade}
+     Rationale: Tailwind convention for opacity support (bg-purple-500/20)
+     ======================================== */
+
+  /* Purple Scale (Neon Flux primary accent) */
+  --color-purple-500: 277 92% 62%; /* #a855f7 - primary purple */
+
+  /* Blue Scale (Neon Flux secondary accent) */
+  --color-blue-500: 221 91% 60%; /* #3b82f6 - electric blue */
+
+  /* Pink Scale (Neon Flux tertiary accent) */
+  --color-pink-500: 330 81% 60%; /* #ec4899 - hot pink */
+
+  /* Cyan Scale (Neon Flux quaternary accent) */
+  --color-cyan-500: 187 95% 43%; /* #06b6d4 - cyan */
+
+  /* Neutral Scale (text, backgrounds, borders) */
+  --color-neutral-50: 240 5% 97%; /* #f9f9fb - near white */
+  --color-neutral-100: 240 5% 94%; /* #eff0f3 - light gray */
+  --color-neutral-200: 240 5% 89%; /* #e0e1e6 - border gray */
+  --color-neutral-300: 240 4% 78%; /* #c3c4ca - muted gray */
+  --color-neutral-400: 240 3% 65%; /* #a3a4ab - placeholder gray */
+  --color-neutral-500: 240 3% 52%; /* #82838c - secondary text */
+  --color-neutral-600: 240 4% 40%; /* #61626c - tertiary text */
+  --color-neutral-700: 240 5% 28%; /* #424350 - dark gray */
+  --color-neutral-800: 240 10% 15%; /* #1f202e - darker gray */
+  --color-neutral-900: 222 47% 11%; /* #0f111a - almost black */
+
+  /* Special Colors */
+  --color-black: 0 0% 0%; /* #000000 - pure black */
+  --color-white: 0 0% 100%; /* #ffffff - pure white */
+  --color-bg-dark: 240 20% 5%; /* #0a0a0f - dark background (Neon Flux) */
+
+  /* ========================================
+     Spacing Primitives (4px base unit)
+     Format: --space-{multiplier}
+     Rationale: 4px ensures even spacing, aligns with 8px grid
+     ======================================== */
+
+  --space-1: 0.25rem; /*  4px */
+  --space-2: 0.5rem; /*  8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-8: 2rem; /* 32px */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px */
+  --space-16: 4rem; /* 64px */
+
+  /* ========================================
+     Typography Primitives
+     Format: --font-{property}-{variant}
+     Rationale: Rem-based for responsive scaling, system font stack for performance
+     ======================================== */
+
+  /* Font Families */
+  --font-family-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: 'Geist Mono', 'Courier New', 'Consolas', monospace;
+
+  /* Font Sizes (rem-based for accessibility) */
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-2xl: 1.5rem; /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-4xl: 2.25rem; /* 36px */
+
+  /* Line Heights */
+  --line-height-none: 1;
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Letter Spacing */
+  --letter-spacing-tighter: -0.05em;
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+  --letter-spacing-wider: 0.05em;
+
+  /* ========================================
+     Elevation Primitives (Box Shadows)
+     Format: --shadow-{type}-{variant}
+     Rationale: Separate depth shadows from glow effects
+     ======================================== */
+
+  /* Depth Shadows (standard elevation) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+  /* Glow Shadows (Neon Flux aesthetic) */
+  --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.3);
+  --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.3);
+  --shadow-glow-pink: 0 0 20px rgba(236, 72, 153, 0.3);
+  --shadow-glow-cyan: 0 0 20px rgba(6, 182, 212, 0.3);
+
+  /* ========================================
+     Border Radius Primitives
+     Format: --radius-{size}
+     Rationale: Consistent rounding across UI elements
+     ======================================== */
+
+  --radius-none: 0;
+  --radius-sm: 0.25rem; /*  4px */
+  --radius-md: 0.5rem; /*  8px */
+  --radius-lg: 1rem; /* 16px */
+  --radius-xl: 1.5rem; /* 24px */
+  --radius-full: 9999px; /* Pill shape */
+
+  /* ========================================
+     Blur Primitives (Glassmorphism)
+     Format: --blur-{intensity}
+     Rationale: Backdrop-filter blur for Neon Flux glass effect
+     ======================================== */
+
+  --blur-sm: 4px;
+  --blur-md: 12px;
+  --blur-lg: 24px;
+}
