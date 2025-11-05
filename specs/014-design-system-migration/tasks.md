@@ -4,13 +4,17 @@ description: "Task list for Design System Migration & UX Rebuild"
 
 # Tasks: Design System Migration & UX Rebuild
 
-**Status**: Phase 4 COMPLETE (38/111 tasks, 34%)
+# Tasks: Design System Migration & UX Rebuild
 
-**ESLint Progress**: 108 → 81 violations (27 eliminated, 25% reduction)
+**Status**: Phases 1-4 COMPLETE (50/111 tasks, 45%)
+
+**ESLint Progress**: 108 → 0 violations (100% elimination) ✅
 
 **CSS Deletion**: 7/7 files deleted (100%) ✅
 
-**Tests**: 48/48 passing ✅
+**Tests**: 705/705 passing (360 ui + 61 shared + 48 client + 236 server) ✅
+
+**Components Migrated**: 20 components using @workspace/ui ✅
 
 **Input**: Design documents from `/specs/014-design-system-migration/`  
 **Prerequisites**: plan.md (complete), spec.md (complete), research.md (complete)
@@ -130,8 +134,27 @@ description: "Task list for Design System Migration & UX Rebuild"
 - [X] T040 [P] [US2] Migrate MemoryConfigSection component at `apps/client/src/components/MemoryConfigSection.tsx` to use Stack, Input from @workspace/ui, delete `apps/client/src/components/MemoryConfigSection.css` ✅ CSS deleted
 - [X] T041 [P] [US2] Migrate AutonomyConfigSection component at `apps/client/src/components/AutonomyConfigSection.tsx` to use Stack, Input from @workspace/ui, delete `apps/client/src/components/AutonomyConfigSection.css` ✅ CSS deleted
 - [X] T042 [US2] Migrate AgentForm component at `apps/client/src/components/AgentForm.tsx` to use Stack/Box for layout, delete `apps/client/src/components/AgentForm.css` ✅ CSS deleted
-- [X] T043 [US2] Run hygiene loop for client: `cd apps/client && pnpm lint && pnpm format:write && pnpm test` ✅ All tests pass (48/48)
+- [X] T043 [US2] Run hygiene loop for client: `cd apps/client && pnpm lint && pnpm format:write && pnpm test` ✅ All tests pass (705 total: 360 ui + 61 shared + 48 client + 236 server)
 - [X] T044 [US2] Verify all 7 CSS files deleted (AgentForm.css, BasicInfoSection.css, LLMConfigSection.css, MemoryConfigSection.css, AutonomyConfigSection.css, FieldError.css, ValidationMessage.css) ✅ 7/7 deleted (100%)
+
+**ADDITIONAL MIGRATIONS (beyond Phase 4 scope):**
+- [X] Toast component migrated to @workspace/ui (Box, Stack, Text, Button)
+- [X] AgentPicker component migrated to @workspace/ui (Stack, Text) + native HTML select with design system Tailwind classes
+- [X] MemoryBrowser (6 components): MemoryBrowser, MemoryList, MemoryEditor, MemoryCreateForm, MemorySearch, ConfirmDialog all migrated to @workspace/ui
+
+**BUG FIXES (commit 62973c9):**
+- [X] Fixed AgentPicker select component (was using Radix Select API incorrectly, converted to native HTML select)
+- [X] Added Tailwind color aliases (background, foreground, input, muted, muted-foreground, destructive, border) for backward compatibility
+- [X] Installed missing autoprefixer dependency in packages/ui
+
+**VERIFICATION COMPLETE:**
+- [X] ✅ 0 CSS files remain (verified with `find apps/client/src -name "*.css"`)
+- [X] ✅ 0 CSS imports remain (verified with `grep -r "import.*\.css"`)
+- [X] ✅ 0 inline styles remain (verified with `grep -r "style={{"`)
+- [X] ✅ 0 backup/orphaned files (verified with find for *.old, *.backup)
+- [X] ✅ 20 components using @workspace/ui (verified with `grep -r "from '@workspace/ui'"`)
+- [X] ✅ All 705 tests passing
+- [X] ✅ ESLint: 0 violations (100% elimination from 108)
 
 ### Manual Smoke Test (US2)
 
