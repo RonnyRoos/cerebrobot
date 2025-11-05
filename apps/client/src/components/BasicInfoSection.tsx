@@ -9,8 +9,8 @@
  * Extracted from AgentForm for better separation of concerns.
  */
 
+import { Stack, Text, Input, Textarea } from '@workspace/ui';
 import { FieldError } from './FieldError.js';
-import './BasicInfoSection.css';
 
 export interface BasicInfoSectionProps {
   name: string;
@@ -28,12 +28,16 @@ export function BasicInfoSection({
   errors,
 }: BasicInfoSectionProps) {
   return (
-    <section className="form-section basic-info-section">
-      <h2 className="section-heading">Basic Info</h2>
+    <Stack as="section" direction="vertical" gap="6" className="p-6 border-b border-border">
+      <Text as="h2" variant="heading" size="xl">
+        Basic Info
+      </Text>
 
-      <div className="form-group">
-        <label htmlFor="agent-name">Name</label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="agent-name" variant="body" className="font-medium">
+          Name
+        </Text>
+        <Input
           id="agent-name"
           type="text"
           value={name}
@@ -42,11 +46,13 @@ export function BasicInfoSection({
           aria-describedby={errors?.name ? 'agent-name-error' : undefined}
         />
         <FieldError fieldId="agent-name" error={errors?.name} />
-      </div>
+      </Stack>
 
-      <div className="form-group">
-        <label htmlFor="agent-system-prompt">System Prompt</label>
-        <textarea
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="agent-system-prompt" variant="body" className="font-medium">
+          System Prompt
+        </Text>
+        <Textarea
           id="agent-system-prompt"
           value={systemPrompt}
           onChange={(e) => onChange('systemPrompt', e.target.value)}
@@ -55,11 +61,13 @@ export function BasicInfoSection({
           aria-describedby={errors?.systemPrompt ? 'agent-system-prompt-error' : undefined}
         />
         <FieldError fieldId="agent-system-prompt" error={errors?.systemPrompt} />
-      </div>
+      </Stack>
 
-      <div className="form-group">
-        <label htmlFor="agent-persona">Persona Tag</label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="agent-persona" variant="body" className="font-medium">
+          Persona Tag
+        </Text>
+        <Input
           id="agent-persona"
           type="text"
           value={personaTag}
@@ -68,7 +76,7 @@ export function BasicInfoSection({
           aria-describedby={errors?.personaTag ? 'agent-persona-error' : undefined}
         />
         <FieldError fieldId="agent-persona" error={errors?.personaTag} />
-      </div>
-    </section>
+      </Stack>
+    </Stack>
   );
 }

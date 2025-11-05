@@ -6,6 +6,7 @@
  */
 
 import { useEffect } from 'react';
+import { Box, Stack, Text, Button } from '@workspace/ui';
 
 interface ToastProps {
   /** Message to display */
@@ -32,69 +33,38 @@ export function Toast({
     return () => clearTimeout(timer);
   }, [timeout, onDismiss]);
 
-  const colors = {
-    success: { bg: '#10b981', border: '#059669' },
-    error: { bg: '#ef4444', border: '#dc2626' },
-    info: { bg: '#3b82f6', border: '#2563eb' },
+  // Map toast types to Tailwind classes using design tokens
+  const typeStyles = {
+    success: 'bg-green-600 border-green-700',
+    error: 'bg-destructive border-destructive',
+    info: 'bg-blue-600 border-blue-700',
   };
 
-  const color = colors[type];
-
   return (
-    <div
+    <Box
       role="alert"
       aria-live="polite"
-      style={{
-        position: 'fixed',
-        top: '5rem',
-        right: '1rem',
-        backgroundColor: color.bg,
-        color: 'white',
-        padding: '0.75rem 1rem',
-        borderRadius: '0.375rem',
-        border: `1px solid ${color.border}`,
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        zIndex: 3000,
-        maxWidth: '20rem',
-        fontSize: '0.875rem',
-        fontWeight: '500',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        animation: 'slideIn 0.2s ease-out',
-      }}
+      className={`
+        fixed top-20 right-4 z-[3000] max-w-sm
+        rounded-md border shadow-lg
+        animate-slide-in-right
+        ${typeStyles[type]}
+      `}
     >
-      <span>{message}</span>
-      <button
-        onClick={onDismiss}
-        aria-label="Dismiss notification"
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'white',
-          cursor: 'pointer',
-          padding: '0',
-          fontSize: '1.25rem',
-          lineHeight: '1',
-          opacity: 0.8,
-        }}
-      >
-        ×
-      </button>
-      <style>
-        {`
-          @keyframes slideIn {
-            from {
-              transform: translateX(100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
-          }
-        `}
-      </style>
-    </div>
+      <Stack direction="horizontal" align="center" gap="2" className="p-3">
+        <Text as="span" variant="body" className="text-white text-sm font-medium flex-1">
+          {message}
+        </Text>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDismiss}
+          aria-label="Dismiss notification"
+          className="text-white hover:text-white/80 p-0 h-auto min-h-0 text-xl leading-none opacity-80"
+        >
+          ×
+        </Button>
+      </Stack>
+    </Box>
   );
 }

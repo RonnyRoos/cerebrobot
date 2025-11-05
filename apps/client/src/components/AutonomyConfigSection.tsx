@@ -12,8 +12,8 @@
  */
 
 import type { AgentConfig } from '@cerebrobot/chat-shared';
+import { Stack, Text, Input, Textarea } from '@workspace/ui';
 import { FieldError } from './FieldError';
-import './AutonomyConfigSection.css';
 
 type AutonomyConfig = NonNullable<AgentConfig['autonomy']>;
 type EvaluatorConfig = AutonomyConfig['evaluator'];
@@ -42,25 +42,40 @@ export function AutonomyConfigSection({
   errors,
 }: AutonomyConfigSectionProps) {
   return (
-    <section className="form-section autonomy-config-section">
-      <h2 className="section-heading">Autonomy</h2>
+    <Stack as="section" direction="vertical" gap="6" className="p-6 border-b border-border">
+      <Stack direction="vertical" gap="2">
+        <Text as="h2" variant="heading" size="xl">
+          Autonomy
+        </Text>
+      </Stack>
 
-      <div className="form-group">
-        <label>
-          <input type="checkbox" checked={autonomy.enabled} onChange={onToggle} />
-          Enable Autonomy
+      <Stack direction="vertical" gap="2">
+        <label htmlFor="autonomy-enabled" className="flex items-center gap-2">
+          <Input
+            id="autonomy-enabled"
+            type="checkbox"
+            checked={autonomy.enabled}
+            onChange={onToggle}
+          />
+          <Text as="span" variant="body">
+            Enable Autonomy
+          </Text>
         </label>
-      </div>
+      </Stack>
 
       {autonomy.enabled && (
-        <div className="autonomy-config">
+        <Stack direction="vertical" gap="6">
           {/* Evaluator Configuration */}
-          <div className="subsection">
-            <h3 className="subsection-heading">Evaluator</h3>
+          <Stack direction="vertical" gap="4">
+            <Text as="h3" variant="heading" size="lg">
+              Evaluator
+            </Text>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-evaluator-model">Model</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-evaluator-model">
+                Model
+              </Text>
+              <Input
                 id="autonomy-evaluator-model"
                 type="text"
                 value={autonomy.evaluator.model}
@@ -71,11 +86,13 @@ export function AutonomyConfigSection({
                 }
               />
               <FieldError fieldId="autonomy-evaluator-model" error={errors?.evaluator?.model} />
-            </div>
+            </Stack>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-evaluator-temperature">Temperature</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-evaluator-temperature">
+                Temperature
+              </Text>
+              <Input
                 id="autonomy-evaluator-temperature"
                 type="number"
                 step="0.1"
@@ -94,11 +111,13 @@ export function AutonomyConfigSection({
                 fieldId="autonomy-evaluator-temperature"
                 error={errors?.evaluator?.temperature}
               />
-            </div>
+            </Stack>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-evaluator-max-tokens">Max Tokens</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-evaluator-max-tokens">
+                Max Tokens
+              </Text>
+              <Input
                 id="autonomy-evaluator-max-tokens"
                 type="number"
                 min="1"
@@ -115,11 +134,13 @@ export function AutonomyConfigSection({
                 fieldId="autonomy-evaluator-max-tokens"
                 error={errors?.evaluator?.maxTokens}
               />
-            </div>
+            </Stack>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-evaluator-system-prompt">System Prompt</label>
-              <textarea
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-evaluator-system-prompt">
+                System Prompt
+              </Text>
+              <Textarea
                 id="autonomy-evaluator-system-prompt"
                 value={autonomy.evaluator.systemPrompt}
                 onChange={(e) => onEvaluatorChange('systemPrompt', e.target.value)}
@@ -135,16 +156,20 @@ export function AutonomyConfigSection({
                 fieldId="autonomy-evaluator-system-prompt"
                 error={errors?.evaluator?.systemPrompt}
               />
-            </div>
-          </div>
+            </Stack>
+          </Stack>
 
           {/* Limits Configuration */}
-          <div className="subsection">
-            <h3 className="subsection-heading">Limits</h3>
+          <Stack direction="vertical" gap="4">
+            <Text as="h3" variant="heading" size="lg">
+              Limits
+            </Text>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-limits-max-followups">Max Follow-ups Per Session</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-limits-max-followups">
+                Max Follow-ups Per Session
+              </Text>
+              <Input
                 id="autonomy-limits-max-followups"
                 type="number"
                 min="1"
@@ -165,11 +190,13 @@ export function AutonomyConfigSection({
                 fieldId="autonomy-limits-max-followups"
                 error={errors?.limits?.maxFollowUpsPerSession}
               />
-            </div>
+            </Stack>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-limits-min-delay">Min Delay (ms)</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-limits-min-delay">
+                Min Delay (ms)
+              </Text>
+              <Input
                 id="autonomy-limits-min-delay"
                 type="number"
                 min="1000"
@@ -183,11 +210,13 @@ export function AutonomyConfigSection({
                 }
               />
               <FieldError fieldId="autonomy-limits-min-delay" error={errors?.limits?.minDelayMs} />
-            </div>
+            </Stack>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-limits-max-delay">Max Delay (ms)</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-limits-max-delay">
+                Max Delay (ms)
+              </Text>
+              <Input
                 id="autonomy-limits-max-delay"
                 type="number"
                 min="1000"
@@ -201,16 +230,20 @@ export function AutonomyConfigSection({
                 }
               />
               <FieldError fieldId="autonomy-limits-max-delay" error={errors?.limits?.maxDelayMs} />
-            </div>
-          </div>
+            </Stack>
+          </Stack>
 
           {/* Memory Context Configuration */}
-          <div className="subsection">
-            <h3 className="subsection-heading">Memory Context</h3>
+          <Stack direction="vertical" gap="4">
+            <Text as="h3" variant="heading" size="lg">
+              Memory Context
+            </Text>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-memory-recent-count">Recent Memory Count</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-memory-recent-count">
+                Recent Memory Count
+              </Text>
+              <Input
                 id="autonomy-memory-recent-count"
                 type="number"
                 min="0"
@@ -231,11 +264,13 @@ export function AutonomyConfigSection({
                 fieldId="autonomy-memory-recent-count"
                 error={errors?.memoryContext?.recentMemoryCount}
               />
-            </div>
+            </Stack>
 
-            <div className="form-group">
-              <label htmlFor="autonomy-memory-recent-messages">Include Recent Messages</label>
-              <input
+            <Stack direction="vertical" gap="2">
+              <Text as="label" htmlFor="autonomy-memory-recent-messages">
+                Include Recent Messages
+              </Text>
+              <Input
                 id="autonomy-memory-recent-messages"
                 type="number"
                 min="0"
@@ -256,10 +291,10 @@ export function AutonomyConfigSection({
                 fieldId="autonomy-memory-recent-messages"
                 error={errors?.memoryContext?.includeRecentMessages}
               />
-            </div>
-          </div>
-        </div>
+            </Stack>
+          </Stack>
+        </Stack>
       )}
-    </section>
+    </Stack>
   );
 }

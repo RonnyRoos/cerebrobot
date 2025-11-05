@@ -12,8 +12,8 @@
  */
 
 import type { AgentConfig } from '@cerebrobot/chat-shared';
+import { Stack, Text, Input } from '@workspace/ui';
 import { FieldError } from './FieldError.js';
-import './LLMConfigSection.css';
 
 type LLMConfig = NonNullable<AgentConfig['llm']>;
 
@@ -25,12 +25,16 @@ export interface LLMConfigSectionProps {
 
 export function LLMConfigSection({ llm, onChange, errors }: LLMConfigSectionProps) {
   return (
-    <section className="form-section llm-config-section">
-      <h2 className="section-heading">LLM Config</h2>
+    <Stack as="section" direction="vertical" gap="6" className="p-6 border-b border-border">
+      <Text as="h2" variant="heading" size="xl">
+        LLM Config
+      </Text>
 
-      <div className="form-group">
-        <label htmlFor="llm-model">Model</label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="llm-model" variant="body" className="font-medium">
+          Model
+        </Text>
+        <Input
           id="llm-model"
           type="text"
           value={llm.model}
@@ -39,11 +43,13 @@ export function LLMConfigSection({ llm, onChange, errors }: LLMConfigSectionProp
           aria-describedby={errors?.model ? 'llm-model-error' : undefined}
         />
         <FieldError fieldId="llm-model" error={errors?.model} />
-      </div>
+      </Stack>
 
-      <div className="form-group">
-        <label htmlFor="llm-temperature">Temperature</label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="llm-temperature" variant="body" className="font-medium">
+          Temperature
+        </Text>
+        <Input
           id="llm-temperature"
           type="number"
           step="0.1"
@@ -55,11 +61,13 @@ export function LLMConfigSection({ llm, onChange, errors }: LLMConfigSectionProp
           aria-describedby={errors?.temperature ? 'llm-temperature-error' : undefined}
         />
         <FieldError fieldId="llm-temperature" error={errors?.temperature} />
-      </div>
+      </Stack>
 
-      <div className="form-group">
-        <label htmlFor="llm-api-key">API Key</label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="llm-api-key" variant="body" className="font-medium">
+          API Key
+        </Text>
+        <Input
           id="llm-api-key"
           type="password"
           value={llm.apiKey}
@@ -68,11 +76,13 @@ export function LLMConfigSection({ llm, onChange, errors }: LLMConfigSectionProp
           aria-describedby={errors?.apiKey ? 'llm-api-key-error' : undefined}
         />
         <FieldError fieldId="llm-api-key" error={errors?.apiKey} />
-      </div>
+      </Stack>
 
-      <div className="form-group">
-        <label htmlFor="llm-api-base">API Base URL</label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="llm-api-base" variant="body" className="font-medium">
+          API Base URL
+        </Text>
+        <Input
           id="llm-api-base"
           type="url"
           value={llm.apiBase ?? ''}
@@ -81,13 +91,16 @@ export function LLMConfigSection({ llm, onChange, errors }: LLMConfigSectionProp
           aria-describedby={errors?.apiBase ? 'llm-api-base-error' : undefined}
         />
         <FieldError fieldId="llm-api-base" error={errors?.apiBase} />
-      </div>
+      </Stack>
 
-      <div className="form-group">
-        <label htmlFor="llm-max-tokens">
-          Max Tokens <span className="optional-label">(optional)</span>
-        </label>
-        <input
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="llm-max-tokens" variant="body" className="font-medium">
+          Max Tokens{' '}
+          <Text as="span" variant="caption" className="text-muted">
+            (optional)
+          </Text>
+        </Text>
+        <Input
           id="llm-max-tokens"
           type="number"
           min="1"
@@ -100,7 +113,7 @@ export function LLMConfigSection({ llm, onChange, errors }: LLMConfigSectionProp
           aria-describedby={errors?.maxTokens ? 'llm-max-tokens-error' : undefined}
         />
         <FieldError fieldId="llm-max-tokens" error={errors?.maxTokens} />
-      </div>
-    </section>
+      </Stack>
+    </Stack>
   );
 }

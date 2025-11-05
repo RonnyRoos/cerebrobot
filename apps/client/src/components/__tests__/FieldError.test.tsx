@@ -34,19 +34,19 @@ describe('FieldError', () => {
       expect(screen.getByText('This field is required')).toBeInTheDocument();
     });
 
-    it('should render with error styling class', () => {
+    it('should render with Tailwind error styling classes', () => {
       const { container } = render(<FieldError error="Invalid input" />);
 
-      const errorElement = container.querySelector('.field-error');
+      // Check for Stack with text-destructive class
+      const errorElement = container.querySelector('.text-destructive');
       expect(errorElement).toBeInTheDocument();
     });
 
-    it('should display error icon', () => {
-      const { container } = render(<FieldError error="Validation failed" />);
+    it('should display error icon (⚠)', () => {
+      render(<FieldError error="Validation failed" />);
 
-      // Check for icon span or element
-      const icon = container.querySelector('.field-error-icon');
-      expect(icon).toBeInTheDocument();
+      // Check for warning triangle icon
+      expect(screen.getByText('⚠')).toBeInTheDocument();
     });
   });
 

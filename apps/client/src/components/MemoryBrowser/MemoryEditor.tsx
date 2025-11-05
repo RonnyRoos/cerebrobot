@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Box, Stack, Text, Textarea, Button } from '@workspace/ui';
 import type { MemoryEntry } from '@cerebrobot/chat-shared';
 
 interface MemoryEditorProps {
@@ -81,126 +82,68 @@ export function MemoryEditor({
   const isValid = characterCount >= MIN_LENGTH && characterCount <= MAX_LENGTH;
 
   return (
-    <div
-      style={{
-        padding: '1rem',
-        backgroundColor: '#f9fafb',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.5rem',
-      }}
-    >
-      <textarea
+    <Box className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+      <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         disabled={isSaving}
         placeholder="Enter memory content..."
-        style={{
-          width: '100%',
-          minHeight: '100px',
-          padding: '0.5rem',
-          border: `1px solid ${isOverLimit ? '#ef4444' : '#d1d5db'}`,
-          borderRadius: '0.375rem',
-          fontSize: '0.875rem',
-          fontFamily: 'inherit',
-          resize: 'vertical',
-        }}
+        className={`min-h-[100px] resize-y ${isOverLimit ? 'border-destructive' : ''}`}
         aria-label="Memory content"
         aria-invalid={!isValid}
         aria-describedby="character-count validation-error api-error"
       />
 
       {/* Character count */}
-      <div
+      <Text
         id="character-count"
-        style={{
-          marginTop: '0.5rem',
-          fontSize: '0.75rem',
-          color: isOverLimit ? '#ef4444' : '#6b7280',
-          textAlign: 'right',
-        }}
+        variant="caption"
+        size="sm"
+        className={`mt-2 text-right block ${isOverLimit ? 'text-destructive' : 'text-muted'}`}
       >
         {characterCount} / {MAX_LENGTH} characters
-      </div>
+      </Text>
 
       {/* Validation error */}
       {validationError && (
-        <div
+        <Box
           id="validation-error"
           role="alert"
-          style={{
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.375rem',
-            color: '#991b1b',
-            fontSize: '0.875rem',
-          }}
+          className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md"
         >
-          {validationError}
-        </div>
+          <Text variant="body" size="sm" className="text-red-900">
+            {validationError}
+          </Text>
+        </Box>
       )}
 
       {/* API error */}
       {error && (
-        <div
+        <Box
           id="api-error"
           role="alert"
-          style={{
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.375rem',
-            color: '#991b1b',
-            fontSize: '0.875rem',
-          }}
+          className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md"
         >
-          {error}
-        </div>
+          <Text variant="body" size="sm" className="text-red-900">
+            {error}
+          </Text>
+        </Box>
       )}
 
       {/* Action buttons */}
-      <div
-        style={{
-          marginTop: '1rem',
-          display: 'flex',
-          gap: '0.5rem',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <button
-          onClick={handleCancel}
-          disabled={isSaving}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#ffffff',
-            color: '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            fontSize: '0.875rem',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            opacity: isSaving ? 0.5 : 1,
-          }}
-        >
+      <Stack direction="horizontal" gap="2" className="mt-4 justify-end">
+        <Button variant="secondary" onClick={handleCancel} disabled={isSaving}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={handleSave}
           disabled={!isValid || isSaving}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: isValid && !isSaving ? '#3b82f6' : '#9ca3af',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '0.375rem',
-            fontSize: '0.875rem',
-            cursor: isValid && !isSaving ? 'pointer' : 'not-allowed',
-          }}
+          variant="default"
+          className={!isValid || isSaving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}
         >
           {isSaving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Stack>
+    </Box>
   );
 }

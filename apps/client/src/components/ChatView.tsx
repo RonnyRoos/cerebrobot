@@ -5,6 +5,7 @@ import { useMemories } from '../hooks/useMemories.js';
 import { useMemo, useEffect, useCallback, useState } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
 import { Toast } from './Toast.js';
+import { Box, Stack, Text, Button } from '@workspace/ui';
 import type { MemoryCreatedEvent, MemoryDeletedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
@@ -212,39 +213,27 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   const disableSend = !pendingMessage.trim() || isStreaming || !isConnected;
 
   return (
-    <section aria-label="Chat panel">
+    <Box as="section" aria-label="Chat panel">
       {/* Back to threads navigation */}
-      <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid #e5e7eb' }}>
-        <button
-          onClick={onBack}
-          style={{
-            padding: '0.25rem 0.75rem',
-            backgroundColor: 'transparent',
-            color: '#3b82f6',
-            border: '1px solid #3b82f6',
-            borderRadius: '0.375rem',
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-          }}
-        >
+      <Box className="p-2 px-4 border-b border-border">
+        <Button variant="ghost" onClick={onBack} className="text-sm">
           ← Back to Threads
-        </button>
-      </div>
+        </Button>
+      </Box>
 
       {/* Connection status indicator */}
-      <div
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: isConnected ? '#f0fdf4' : '#fef2f2',
-          borderBottom: '1px solid #e5e7eb',
-          fontSize: '0.875rem',
-        }}
+      <Box
+        className={`px-4 py-2 border-b border-border text-sm ${
+          isConnected ? 'bg-green-50' : 'bg-destructive/10'
+        }`}
       >
-        <span style={{ marginRight: '0.5rem' }}>{isConnected ? '🟢' : '🔴'}</span>
-        <span style={{ color: isConnected ? '#15803d' : '#991b1b' }}>
+        <Text as="span" className="mr-2">
+          {isConnected ? '🟢' : '🔴'}
+        </Text>
+        <Text as="span" className={isConnected ? 'text-green-800' : 'text-destructive'}>
           {isConnected ? 'Connected' : 'Disconnected'}
-        </span>
-      </div>
+        </Text>
+      </Box>
 
       <div className="chat-history" aria-live="polite">
         {messages.map((message) => (
@@ -267,100 +256,66 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
 
       {/* Show history loading error if thread not found */}
       {historyError && (
-        <div role="alert" style={{ padding: '1rem', backgroundColor: '#fef2f2', margin: '1rem' }}>
-          <strong style={{ color: '#991b1b' }}>Failed to load conversation history</strong>
-          <p style={{ color: '#7f1d1d', margin: '0.5rem 0 0 0' }}>{historyError.message}</p>
-          <button
-            onClick={onBack}
-            style={{
-              marginTop: '0.5rem',
-              padding: '0.5rem 1rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-            }}
-          >
+        <Box role="alert" className="p-4 bg-destructive/10 m-4">
+          <Text as="strong" className="text-destructive">
+            Failed to load conversation history
+          </Text>
+          <Text as="p" className="text-destructive/90 mt-2">
+            {historyError.message}
+          </Text>
+          <Button variant="primary" onClick={onBack} className="mt-2">
             Back to Thread List
-          </button>
-        </div>
+          </Button>
+        </Box>
       )}
 
       {/* Show message streaming or thread error */}
       {error && (
-        <div
+        <Box
           role="alert"
-          style={{
-            margin: '1rem',
-            padding: '1rem',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.5rem',
-          }}
+          className="m-4 p-4 bg-destructive/10 border border-destructive/50 rounded-lg"
         >
-          <strong style={{ color: '#991b1b' }}>{error.message}</strong>
+          <Text as="strong" className="text-destructive">
+            {error.message}
+          </Text>
           {error.retryable ? (
-            <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem' }}>
-              <span style={{ color: '#b91c1c' }}>You can try again.</span>
-              <button
+            <Stack direction="horizontal" gap="3" className="mt-3">
+              <Text as="span" className="text-destructive/80">
+                You can try again.
+              </Text>
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => onRetry()}
                 disabled={isStreaming}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#3b82f6',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  opacity: isStreaming ? 0.6 : 1,
-                }}
               >
                 Retry
-              </button>
-            </div>
+              </Button>
+            </Stack>
           ) : null}
-        </div>
+        </Box>
       )}
 
       {/* Show cancelled message retry option */}
       {cancelledMessage && !error && (
-        <div
-          role="status"
-          style={{
-            margin: '1rem',
-            padding: '1rem',
-            backgroundColor: '#fef3c7',
-            border: '1px solid #fde68a',
-            borderRadius: '0.5rem',
-          }}
-        >
-          <strong style={{ color: '#92400e' }}>Message cancelled</strong>
-          <div
-            style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}
-          >
-            <span style={{ color: '#78350f' }}>
+        <Box role="status" className="m-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <Text as="strong" className="text-yellow-900">
+            Message cancelled
+          </Text>
+          <Stack direction="horizontal" gap="3" align="center" className="mt-3">
+            <Text as="span" className="text-yellow-800">
               Your message is ready to edit and resend in the input field above.
-            </span>
-            <button
+            </Text>
+            <Button
               type="button"
+              variant="primary"
               onClick={() => onRetry()}
               disabled={isStreaming}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: '#3b82f6',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '0.375rem',
-                cursor: 'pointer',
-                opacity: isStreaming ? 0.6 : 1,
-              }}
             >
               Dismiss
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Stack>
+        </Box>
       )}
 
       <form
@@ -395,20 +350,9 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
             Send
           </button>
           {canCancel && (
-            <button
-              type="button"
-              onClick={handleCancel}
-              style={{
-                backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.375rem',
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-              }}
-            >
+            <Button type="button" variant="danger" onClick={handleCancel}>
               Cancel
-            </button>
+            </Button>
           )}
           <button type="button" onClick={handleNewThread} disabled={!activeThreadId}>
             New Thread
@@ -437,6 +381,6 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       {toastMessage && (
         <Toast message={toastMessage} type="success" onDismiss={() => setToastMessage(null)} />
       )}
-    </section>
+    </Box>
   );
 }

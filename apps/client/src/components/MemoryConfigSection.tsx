@@ -11,8 +11,8 @@
  */
 
 import type { AgentConfig } from '@cerebrobot/chat-shared';
+import { Stack, Text, Input } from '@workspace/ui';
 import { FieldError } from './FieldError';
-import './MemoryConfigSection.css';
 
 type MemoryConfig = NonNullable<AgentConfig['memory']>;
 
@@ -24,19 +24,27 @@ export interface MemoryConfigSectionProps {
 
 export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSectionProps) {
   return (
-    <section className="form-section memory-config-section">
-      <h2 className="section-heading">Memory Config</h2>
-      <p className="section-description">
-        Memory configuration controls semantic retrieval and hot-path management.
-      </p>
+    <Stack as="section" direction="vertical" gap="6" className="p-6 border-b border-border">
+      <Stack direction="vertical" gap="2">
+        <Text as="h2" variant="heading" size="xl">
+          Memory Config
+        </Text>
+        <Text as="p" variant="caption" className="text-muted">
+          Memory configuration controls semantic retrieval and hot-path management.
+        </Text>
+      </Stack>
 
       {/* Hot-Path Management */}
-      <div className="subsection">
-        <h3 className="subsection-heading">Hot-Path Management</h3>
+      <Stack direction="vertical" gap="4">
+        <Text as="h3" variant="heading" size="lg">
+          Hot-Path Management
+        </Text>
 
-        <div className="form-group">
-          <label htmlFor="memory-hot-path-limit">Hot Path Limit</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-hot-path-limit">
+            Hot Path Limit
+          </Text>
+          <Input
             id="memory-hot-path-limit"
             type="number"
             min="1"
@@ -48,11 +56,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             aria-describedby={errors?.hotPathLimit ? 'memory-hot-path-limit-error' : undefined}
           />
           <FieldError fieldId="memory-hot-path-limit" error={errors?.hotPathLimit} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-hot-path-token-budget">Hot Path Token Budget</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-hot-path-token-budget">
+            Hot Path Token Budget
+          </Text>
+          <Input
             id="memory-hot-path-token-budget"
             type="number"
             min="100"
@@ -66,11 +76,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             }
           />
           <FieldError fieldId="memory-hot-path-token-budget" error={errors?.hotPathTokenBudget} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-hot-path-margin-pct">Hot Path Margin %</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-hot-path-margin-pct">
+            Hot Path Margin %
+          </Text>
+          <Input
             id="memory-hot-path-margin-pct"
             type="number"
             min="0"
@@ -84,11 +96,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             }
           />
           <FieldError fieldId="memory-hot-path-margin-pct" error={errors?.hotPathMarginPct} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-recent-message-floor">Recent Message Floor</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-recent-message-floor">
+            Recent Message Floor
+          </Text>
+          <Input
             id="memory-recent-message-floor"
             type="number"
             min="0"
@@ -102,16 +116,20 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             }
           />
           <FieldError fieldId="memory-recent-message-floor" error={errors?.recentMessageFloor} />
-        </div>
-      </div>
+        </Stack>
+      </Stack>
 
       {/* Embedding Configuration */}
-      <div className="subsection">
-        <h3 className="subsection-heading">Embedding Configuration</h3>
+      <Stack direction="vertical" gap="4">
+        <Text as="h3" variant="heading" size="lg">
+          Embedding Configuration
+        </Text>
 
-        <div className="form-group">
-          <label htmlFor="memory-embedding-model">Embedding Model</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-embedding-model">
+            Embedding Model
+          </Text>
+          <Input
             id="memory-embedding-model"
             type="text"
             value={memory.embeddingModel}
@@ -120,11 +138,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             aria-describedby={errors?.embeddingModel ? 'memory-embedding-model-error' : undefined}
           />
           <FieldError fieldId="memory-embedding-model" error={errors?.embeddingModel} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-embedding-endpoint">Embedding Endpoint</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-embedding-endpoint">
+            Embedding Endpoint
+          </Text>
+          <Input
             id="memory-embedding-endpoint"
             type="url"
             value={memory.embeddingEndpoint}
@@ -135,11 +155,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             }
           />
           <FieldError fieldId="memory-embedding-endpoint" error={errors?.embeddingEndpoint} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-api-key">API Key</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-api-key">
+            API Key
+          </Text>
+          <Input
             id="memory-api-key"
             type="password"
             value={memory.apiKey}
@@ -148,16 +170,20 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             aria-describedby={errors?.apiKey ? 'memory-api-key-error' : undefined}
           />
           <FieldError fieldId="memory-api-key" error={errors?.apiKey} />
-        </div>
-      </div>
+        </Stack>
+      </Stack>
 
       {/* Semantic Search */}
-      <div className="subsection">
-        <h3 className="subsection-heading">Semantic Search</h3>
+      <Stack direction="vertical" gap="4">
+        <Text as="h3" variant="heading" size="lg">
+          Semantic Search
+        </Text>
 
-        <div className="form-group">
-          <label htmlFor="memory-similarity-threshold">Similarity Threshold</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-similarity-threshold">
+            Similarity Threshold
+          </Text>
+          <Input
             id="memory-similarity-threshold"
             type="number"
             min="0"
@@ -171,11 +197,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             }
           />
           <FieldError fieldId="memory-similarity-threshold" error={errors?.similarityThreshold} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-max-tokens">Max Tokens</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-max-tokens">
+            Max Tokens
+          </Text>
+          <Input
             id="memory-max-tokens"
             type="number"
             min="100"
@@ -187,11 +215,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             aria-describedby={errors?.maxTokens ? 'memory-max-tokens-error' : undefined}
           />
           <FieldError fieldId="memory-max-tokens" error={errors?.maxTokens} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-injection-budget">Injection Budget</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-injection-budget">
+            Injection Budget
+          </Text>
+          <Input
             id="memory-injection-budget"
             type="number"
             min="100"
@@ -203,11 +233,13 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             aria-describedby={errors?.injectionBudget ? 'memory-injection-budget-error' : undefined}
           />
           <FieldError fieldId="memory-injection-budget" error={errors?.injectionBudget} />
-        </div>
+        </Stack>
 
-        <div className="form-group">
-          <label htmlFor="memory-retrieval-timeout-ms">Retrieval Timeout (ms)</label>
-          <input
+        <Stack direction="vertical" gap="2">
+          <Text as="label" htmlFor="memory-retrieval-timeout-ms">
+            Retrieval Timeout (ms)
+          </Text>
+          <Input
             id="memory-retrieval-timeout-ms"
             type="number"
             min="100"
@@ -221,8 +253,8 @@ export function MemoryConfigSection({ memory, onChange, errors }: MemoryConfigSe
             }
           />
           <FieldError fieldId="memory-retrieval-timeout-ms" error={errors?.retrievalTimeoutMs} />
-        </div>
-      </div>
-    </section>
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }

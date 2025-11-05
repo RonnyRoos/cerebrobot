@@ -36,6 +36,25 @@ module.exports = {
       },
       rules: {
         'react/react-in-jsx-scope': 'off',
+        // Design System Enforcement Rules
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector: 'ImportDeclaration[source.value=/\\.css$/]',
+            message: 'CSS file imports are not allowed. Use design system primitives from @workspace/ui instead.',
+          },
+          {
+            selector: 'JSXAttribute[name.name="style"]',
+            message: 'Inline styles are not allowed. Use design system props or CSS variables instead.',
+          },
+        ],
+      },
+    },
+    {
+      // Exemption for Storybook stories - allow inline styles for demonstrations
+      files: ['**/*.stories.tsx'],
+      rules: {
+        'no-restricted-syntax': 'off',
       },
     },
   ],

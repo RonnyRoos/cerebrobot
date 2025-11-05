@@ -1,9 +1,11 @@
 /**
  * AgentCard Component
  * Displays a single agent with metadata and action buttons
+ * Migrated to design system primitives (T025)
  */
 
 import type { AgentListItem } from '@cerebrobot/chat-shared';
+import { Box, Stack, Text, Button } from '@workspace/ui';
 
 interface AgentCardProps {
   agent: AgentListItem;
@@ -22,32 +24,51 @@ export function AgentCard({ agent, onEdit, onDelete }: AgentCardProps) {
   };
 
   return (
-    <div className="agent-card">
-      <div className="agent-card-header">
-        <h3 className="agent-card-name">{agent.name}</h3>
+    <Box className="rounded-lg border border-border bg-card p-6 shadow-md">
+      {/* Header: Name + Autonomy Badge */}
+      <Stack direction="horizontal" gap="3" align="center" className="mb-4">
+        <Text as="h3" variant="heading" size="lg" className="flex-1">
+          {agent.name}
+        </Text>
         {agent.autonomyEnabled && (
-          <span className="agent-card-badge autonomy-enabled">Autonomy Enabled</span>
+          <Text
+            as="span"
+            variant="caption"
+            className="rounded-full bg-accent-primary/10 px-3 py-1 text-accent-primary"
+          >
+            Autonomy Enabled
+          </Text>
         )}
-      </div>
-      <div className="agent-card-metadata">
-        <div className="agent-card-meta-item">
-          <span className="agent-card-meta-label">Created:</span>
-          <span className="agent-card-meta-value">{formatDate(agent.createdAt)}</span>
-        </div>
-        <div className="agent-card-meta-item">
-          <span className="agent-card-meta-label">Updated:</span>
-          <span className="agent-card-meta-value">{formatDate(agent.updatedAt)}</span>
-        </div>
-      </div>
-      <div className="agent-card-actions">
-        <button className="agent-card-button view-button">View</button>
-        <button className="agent-card-button edit-button" onClick={() => onEdit?.(agent.id)}>
+      </Stack>
+
+      {/* Metadata */}
+      <Stack gap="2" className="mb-4">
+        <Stack direction="horizontal" gap="2">
+          <Text variant="caption" className="text-muted">
+            Created:
+          </Text>
+          <Text variant="body">{formatDate(agent.createdAt)}</Text>
+        </Stack>
+        <Stack direction="horizontal" gap="2">
+          <Text variant="caption" className="text-muted">
+            Updated:
+          </Text>
+          <Text variant="body">{formatDate(agent.updatedAt)}</Text>
+        </Stack>
+      </Stack>
+
+      {/* Actions */}
+      <Stack direction="horizontal" gap="2">
+        <Button variant="ghost" size="sm">
+          View
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => onEdit?.(agent.id)}>
           Edit
-        </button>
-        <button className="agent-card-button delete-button" onClick={() => onDelete?.(agent.id)}>
+        </Button>
+        <Button variant="danger" size="sm" onClick={() => onDelete?.(agent.id)}>
           Delete
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Stack>
+    </Box>
   );
 }

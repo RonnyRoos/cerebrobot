@@ -94,13 +94,15 @@ describe('ValidationMessage', () => {
       expect(warningElement).toBeInTheDocument();
     });
 
-    it('should apply different styling for warning severity', () => {
+    it('should apply different Tailwind styling for warning severity', () => {
       const errors = ['Warning message'];
 
       const { container } = render(<ValidationMessage errors={errors} severity="warning" />);
 
       const warningElement = container.querySelector('[data-severity="warning"]');
-      expect(warningElement).toHaveClass('validation-warning');
+      // Check for Tailwind warning classes (bg-yellow-50, border-yellow-500)
+      expect(warningElement).toHaveClass('bg-yellow-50');
+      expect(warningElement).toHaveClass('border-yellow-500');
     });
   });
 });

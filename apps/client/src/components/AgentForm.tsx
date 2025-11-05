@@ -14,13 +14,13 @@
 import { useState, useEffect } from 'react';
 import type { Agent, AgentConfig } from '@cerebrobot/chat-shared';
 import { AgentConfigSchema } from '@cerebrobot/chat-shared';
+import { Stack, Button } from '@workspace/ui';
 import { useValidation } from '../hooks/useValidation.js';
 import { ValidationMessage } from './ValidationMessage.js';
 import { BasicInfoSection } from './BasicInfoSection.js';
 import { LLMConfigSection } from './LLMConfigSection.js';
 import { MemoryConfigSection } from './MemoryConfigSection.js';
 import { AutonomyConfigSection } from './AutonomyConfigSection.js';
-import './AgentForm.css';
 
 export interface AgentFormProps {
   mode: 'create' | 'edit';
@@ -246,10 +246,12 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
   const hasErrors = Object.keys(errors).length > 0;
 
   return (
-    <form className="agent-form" aria-label="form" onSubmit={handleSubmit}>
+    <Stack as="form" direction="vertical" gap="0" aria-label="form" onSubmit={handleSubmit}>
       {/* Validation Message */}
       {hasErrors && (
-        <ValidationMessage errors={['Please fix the validation errors below']} severity="error" />
+        <Stack className="p-6 border-b border-border">
+          <ValidationMessage errors={['Please fix the validation errors below']} severity="error" />
+        </Stack>
       )}
 
       {/* Basic Info Section */}
@@ -286,14 +288,18 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
       />
 
       {/* Form Actions */}
-      <div className="form-actions">
-        <button type="submit" className="btn btn-primary">
+      <Stack
+        direction="horizontal"
+        gap="4"
+        className="p-6 border-t border-border bg-background sticky bottom-0"
+      >
+        <Button type="submit" variant="primary">
           {mode === 'create' ? 'Create' : 'Update'}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+        </Button>
+        <Button type="button" variant="secondary" onClick={handleCancel}>
           Cancel
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Stack>
+    </Stack>
   );
 }

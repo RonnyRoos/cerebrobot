@@ -3,6 +3,20 @@ export { cn } from './utils/cn';
 // Design System - Primitives (T049)
 export { Box, Stack, Text, Button } from './components/primitives';
 
+// Design System - Form Components (T021)
+export { Input, type InputProps } from './components/input';
+export { Textarea, type TextareaProps } from './components/textarea';
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+} from './components/select';
+
 // Design System - Theme
 export { Theme as ThemeProvider, useTheme } from './theme/theme-provider';
 export type {

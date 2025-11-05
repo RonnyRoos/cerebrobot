@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useThreads } from '../hooks/useThreads.js';
 import { ThreadListItem } from './ThreadListItem.js';
+import { Box, Stack, Text, Button } from '@workspace/ui';
 import type { AgentListResponse } from '@cerebrobot/chat-shared';
 
 interface ThreadListViewProps {
@@ -15,6 +16,7 @@ interface ThreadListViewProps {
 
 /**
  * Main thread list view component
+ * Migrated to design system primitives (T028)
  *
  * Displays:
  * - List of conversation threads sorted by most recent first
@@ -74,189 +76,68 @@ export function ThreadListView({
   // Error state (FR-012)
   if (error) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <div
-          role="alert"
-          style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1rem',
-          }}
-        >
-          <strong style={{ color: '#991b1b', display: 'block', marginBottom: '0.5rem' }}>
+      <Stack gap="4" className="p-8 text-center">
+        <Box role="alert" className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <Text variant="heading" size="md" className="mb-2 text-destructive">
             Failed to load conversation threads
-          </strong>
-          <p style={{ color: '#7f1d1d', margin: 0 }}>{error.message}</p>
-        </div>
-        <button
-          onClick={handleReload}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
+          </Text>
+          <Text variant="body" className="text-destructive/80">
+            {error.message}
+          </Text>
+        </Box>
+        <Button variant="primary" onClick={handleReload}>
           Reload Page
-        </button>
-      </div>
+        </Button>
+      </Stack>
     );
   }
 
   return (
-    <section style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box as="section" className="flex h-screen flex-col">
       {/* Header with New Conversation button */}
-      <header
-        style={{
-          padding: '1rem',
-          borderBottom: '2px solid #e5e7eb',
-        }}
-      >
+      <Box as="header" className="border-b-2 border-border p-4">
         {/* Back to All Threads button (only in Agent Context Mode) */}
         {agentContextMode && (
-          <button
-            onClick={onExitAgentContext}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: 'transparent',
-              color: '#3b82f6',
-              border: '1px solid #3b82f6',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              marginBottom: '0.75rem',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#eff6ff';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
+          <Button variant="ghost" onClick={onExitAgentContext} className="mb-3">
             ← Back to All Threads
-          </button>
+          </Button>
         )}
 
         {/* Header title and New Conversation button */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>
+        <Stack direction="horizontal" align="center" justify="between">
+          <Text as="h2" variant="heading" size="xl">
             {agentContextMode
               ? `🤖 ${agentNameMap.get(agentContextMode) || 'Agent'} Conversations`
               : 'Conversations'}
-          </h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          </Text>
+          <Stack direction="horizontal" gap="2">
             {/* Manage Agents button (only in All Threads mode) */}
             {!agentContextMode && onNavigateToAgents && (
-              <button
-                onClick={onNavigateToAgents}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: 'transparent',
-                  color: '#3b82f6',
-                  border: '1px solid #3b82f6',
-                  borderRadius: '0.375rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#eff6ff';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
+              <Button variant="secondary" onClick={onNavigateToAgents}>
                 ⚙️ Manage Agents
-              </button>
+              </Button>
             )}
-            <button
-              onClick={onNewThread}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#2563eb';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#3b82f6';
-              }}
-            >
+            <Button variant="primary" onClick={onNewThread}>
               + New Conversation
-            </button>
-          </div>
-        </div>
-      </header>
+            </Button>
+          </Stack>
+        </Stack>
+      </Box>
 
       {/* Thread list or empty state */}
       {threads.length === 0 ? (
         // Empty state (FR-008)
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem',
-            textAlign: 'center',
-          }}
-        >
-          <p
-            style={{
-              color: '#6b7280',
-              fontSize: '1.125rem',
-              marginBottom: '1.5rem',
-            }}
-          >
+        <Stack gap="6" align="center" justify="center" className="flex-1 p-8 text-center">
+          <Text variant="body" size="lg" className="text-muted">
             No conversations yet. Start a new one!
-          </p>
-          <button
-            onClick={onNewThread}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              fontSize: '1rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
+          </Text>
+          <Button variant="primary" size="lg" onClick={onNewThread}>
             Start Your First Conversation
-          </button>
-        </div>
+          </Button>
+        </Stack>
       ) : (
         // Thread list (FR-001, FR-003)
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-          }}
-        >
+        <Box className="flex-1 overflow-y-auto">
           {threads.map((thread) => (
             <ThreadListItem
               key={thread.threadId}
@@ -265,8 +146,8 @@ export function ThreadListView({
               onSelect={() => onSelectThread(thread.threadId, thread.agentId)}
             />
           ))}
-        </div>
+        </Box>
       )}
-    </section>
+    </Box>
   );
 }

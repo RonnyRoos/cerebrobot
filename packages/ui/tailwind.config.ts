@@ -22,6 +22,13 @@ const config: Config = {
         'text-tertiary': 'hsl(var(--color-text-tertiary) / <alpha-value>)',
         'text-disabled': 'hsl(var(--color-text-disabled) / <alpha-value>)',
         'text-inverse': 'hsl(var(--color-text-inverse) / <alpha-value>)',
+        muted: 'hsl(var(--color-text-secondary) / <alpha-value>)', /* Alias for text-secondary */
+        'muted-foreground': 'hsl(var(--color-text-tertiary) / <alpha-value>)', /* Alias for text-tertiary (placeholder text) */
+        destructive: 'hsl(var(--color-error) / <alpha-value>)', /* Alias for error */
+        foreground: 'hsl(var(--color-text-primary) / <alpha-value>)', /* Alias for text-primary */
+        background: 'hsl(var(--color-bg-surface) / <alpha-value>)', /* Alias for bg-surface */
+        input: 'hsl(var(--color-border-default) / <alpha-value>)', /* Alias for border-default */
+        border: 'hsl(var(--color-border-default) / <alpha-value>)', /* Alias for border-default */
         'bg-base': 'hsl(var(--color-bg-base) / <alpha-value>)',
         'bg-surface': 'hsl(var(--color-bg-surface) / <alpha-value>)',
         'bg-elevated': 'hsl(var(--color-bg-elevated) / <alpha-value>)',

@@ -13,7 +13,7 @@
  * - Field association via aria-describedby pattern
  */
 
-import './FieldError.css';
+import { Stack, Text } from '@workspace/ui';
 
 export interface FieldErrorProps {
   error?: string | null;
@@ -29,11 +29,21 @@ export function FieldError({ error, fieldId }: FieldErrorProps) {
   const errorId = fieldId ? `${fieldId}-error` : undefined;
 
   return (
-    <div className="field-error" role="alert" aria-live="polite" id={errorId}>
-      <span className="field-error-icon" aria-hidden="true">
+    <Stack
+      direction="horizontal"
+      gap="2"
+      align="center"
+      role="alert"
+      aria-live="polite"
+      id={errorId}
+      className="mt-1 text-sm text-destructive"
+    >
+      <Text as="span" className="shrink-0 text-base leading-none" aria-hidden="true">
         ⚠
-      </span>
-      <span className="field-error-text">{error}</span>
-    </div>
+      </Text>
+      <Text as="span" className="flex-1">
+        {error}
+      </Text>
+    </Stack>
   );
 }

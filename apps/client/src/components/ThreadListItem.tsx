@@ -1,5 +1,6 @@
 import { useCallback, useState, memo } from 'react';
 import type { ThreadMetadata } from '@cerebrobot/chat-shared';
+import { Stack, Text } from '@workspace/ui';
 
 interface ThreadListItemProps {
   thread: ThreadMetadata;
@@ -9,6 +10,7 @@ interface ThreadListItemProps {
 
 /**
  * Renders a single conversation thread in the thread list
+ * Migrated to design system primitives (T027)
  *
  * Displays:
  * - Thread title (derived from first user message or "New Conversation")
@@ -63,68 +65,43 @@ const ThreadListItemComponent = ({
     <button
       type="button"
       onClick={handleClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        cursor: 'pointer',
-        padding: '1rem',
-        borderBottom: '1px solid #e5e7eb',
-        border: 'none',
-        background: 'transparent',
-        backgroundColor: isHovered ? '#f9fafb' : 'transparent',
-        transition: 'background-color 0.15s ease',
-      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       aria-label={`Open conversation: ${thread.title}`}
+      className={`w-full cursor-pointer border-0 border-b border-border bg-transparent p-4 text-left transition-colors ${
+        isHovered ? 'bg-muted/50' : ''
+      }`}
     >
-      <h3
-        style={{
-          margin: '0 0 0.5rem 0',
-          fontSize: '1rem',
-          fontWeight: 600,
-          color: '#111827',
-        }}
-      >
-        {thread.title}
-      </h3>
+      <Stack gap="2">
+        <Text as="h3" variant="heading" size="md">
+          {thread.title}
+        </Text>
 
-      {!thread.isEmpty && (
-        <p
-          style={{
-            color: '#6b7280',
-            margin: '0 0 0.5rem 0',
-            fontSize: '0.875rem',
-            lineHeight: '1.25rem',
-          }}
-        >
-          <span style={{ fontWeight: 500 }}>
-            {thread.lastMessageRole === 'user' ? 'You: ' : 'Assistant: '}
-          </span>
-          {thread.lastMessage}
-        </p>
-      )}
-
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          fontSize: '0.75rem',
-          color: '#9ca3af',
-        }}
-      >
-        {agentName && (
-          <>
-            <span style={{ color: '#6366f1', fontWeight: 500 }}>{agentName}</span>
-            <span>·</span>
-          </>
+        {!thread.isEmpty && (
+          <Text variant="body" className="text-muted">
+            <Text as="span" className="font-medium">
+              {thread.lastMessageRole === 'user' ? 'You: ' : 'Assistant: '}
+            </Text>
+            {thread.lastMessage}
+          </Text>
         )}
-        <span>{formatTimestamp(thread.updatedAt)}</span>
-        <span>·</span>
-        <span>
-          {thread.messageCount} {thread.messageCount === 1 ? 'message' : 'messages'}
-        </span>
-      </div>
+
+        <Stack direction="horizontal" gap="2" className="text-xs text-muted">
+          {agentName && (
+            <>
+              <Text as="span" className="font-medium text-accent-primary">
+                {agentName}
+              </Text>
+              <Text as="span">·</Text>
+            </>
+          )}
+          <Text as="span">{formatTimestamp(thread.updatedAt)}</Text>
+          <Text as="span">·</Text>
+          <Text as="span">
+            {thread.messageCount} {thread.messageCount === 1 ? 'message' : 'messages'}
+          </Text>
+        </Stack>
+      </Stack>
     </button>
   );
 };
