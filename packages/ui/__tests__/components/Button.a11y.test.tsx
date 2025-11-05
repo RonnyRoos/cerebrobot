@@ -384,7 +384,7 @@ describe('Button Accessibility', () => {
       render(<Button variant="primary">Primary</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('bg-accent-primary');
+      expect(button.className).toContain('bg-gradient-to-br');
       expect(button.className).toContain('text-white');
     });
 
@@ -392,7 +392,7 @@ describe('Button Accessibility', () => {
       render(<Button variant="secondary">Secondary</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('border-border-subtle');
+      expect(button.className).toContain('border-2');
       expect(button.className).toContain('text-text-primary');
     });
 
@@ -418,7 +418,7 @@ describe('Button Accessibility', () => {
       
       const button = screen.getByRole('button');
       // Verify active classes exist
-      expect(button.className).toContain('active:scale-98');
+      expect(button.className).toContain('active:scale-[0.98]');
     });
 
     it('should provide transition for smooth state changes', () => {

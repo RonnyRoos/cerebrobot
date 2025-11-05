@@ -63,12 +63,6 @@ export function App(): JSX.Element {
     setShowAgentsPage(false);
   }, []);
 
-  // NOTE: Design library navigation - reserved for spec 012 completion
-  // const navigateToDesignLibrary = useCallback(() => {
-  //   window.history.pushState({}, '', '/design-library');
-  //   setShowDesignSystem(true);
-  // }, []);
-
   // Handler for selecting a thread (receives both threadId and agentId)
   // Does NOT change agentContextMode - user returns to same view they came from
   const handleSelectThread = useCallback((threadId: string, agentId: string) => {

@@ -45,6 +45,10 @@
 - Use the approved Node.js, Fastify, LangGraph, Zod, and Pino versions—justify any deviation in an ADR ([Tech Stack Guardrails](docs/tech-stack.md)).
 - Adhere to the TypeScript patterns for exports, typing, and async error handling instead of restating them here ([TypeScript Code Style](docs/code-style.md)).
 - Keep commits small, thoroughly linted, and tied to observable behavior; document exceptions via ADRs ([Engineering Best Practices](docs/best-practices.md)).
+- **Design Library First** (Constitution Principle IX): All UI components MUST use `@workspace/ui`; missing components MUST be added to the design library before use.
+  - **Workflow**: Check Storybook at `http://localhost:6006` → Reuse existing primitives (Box, Stack, Text, Button) → If missing, add to `/packages/ui/src/components/` → Document in Storybook (`.stories.tsx`) → Test (unit + a11y) → Export from `/packages/ui/src/index.ts` → Import from `@workspace/ui` in apps.
+  - **Anti-patterns**: Do NOT create one-off UI components in `/apps/client/src/components/` if they could be generalized; do NOT hardcode colors/spacing (use design tokens); do NOT skip Storybook documentation; do NOT mix design systems.
+  - See [TypeScript Code Style](docs/code-style.md) for component composition patterns and [Tech Stack Guardrails](docs/tech-stack.md) for Neon Flux theme details.
 
 ## Testing & QA
 - Mirror CI locally using the `pnpm` scripts referenced in the best practices guide; never merge with failing lint, format, or test runs ([Engineering Best Practices](docs/best-practices.md)).

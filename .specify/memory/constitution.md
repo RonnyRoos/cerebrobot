@@ -1,37 +1,44 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.1.0 → 1.2.0
-Action: Add MCP Server utilization principle to leverage available tooling
+Version change: 1.2.0 → 1.3.0
+Action: Add Design Library First principle to enforce component reuse and consistency
 
 Added principles:
-- VIII. MCP Server Utilization: New principle mandating effective use of available MCP servers
+- IX. Design Library First: New principle mandating @workspace/ui component usage and contribution workflow
 
 Modified principles:
-- None (existing principles unchanged)
+- None (existing principles unchanged, renumbering only)
 
 Sections modified:
-- Development Workflow & Quality Gates: "Before starting" and "During implementation" steps now reference MCP servers
+- Core Principles: Added Principle IX after MCP Server Utilization
+- Development Workflow & Quality Gates: "During implementation" now references design library check
+
+Added stack requirements:
+- @workspace/ui design library (Neon Flux theme, ShadCN UI-based primitives)
+- Storybook 10.0.2+ for component documentation at http://localhost:6006
+- Tailwind CSS 3.4.15+ with custom design tokens
 
 Runtime guidance docs requiring updates:
-- ⚠ AGENTS.md: Should reference MCP servers in working cadence section
-- ⚠ docs/best-practices.md: Could benefit from MCP server usage examples
-- ✅ .github/copilot-instructions.md: Already mentions MCP servers in context
+- ⚠ docs/tech-stack.md: Should document @workspace/ui, Storybook, Tailwind, CVA versions
+- ⚠ AGENTS.md: Should reference design library workflow in coding expectations
+- ⚠ docs/code-style.md: Should include component composition patterns
 
 Templates requiring updates:
 - ✅ plan-template.md: No changes needed (generic principle checks)
 - ✅ spec-template.md: No changes needed (implementation agnostic)
-- ✅ tasks-template.md: No changes needed (task types independent of tooling)
+- ✅ tasks-template.md: Could reference design library contribution tasks in component work
 
 Follow-up actions:
-- Update AGENTS.md to include MCP server usage in working cadence
-- Consider adding MCP server examples to docs/best-practices.md
+- Update docs/tech-stack.md to include design library stack (Tailwind, CVA, Storybook)
+- Update AGENTS.md to document "check design library first, contribute missing components" workflow
+- Update docs/code-style.md with component composition examples
 
-Rationale for version 1.2.0 (MINOR):
-- New principle added (MCP Server Utilization) with concrete usage guidelines
-- Material guidance expansion for LLM agents on leveraging available tooling
-- Not breaking (MAJOR): existing workflows remain valid, new principle enhances them
-- Not patch (PATCH): substantive new guidance, formalized tooling expectations
+Rationale for version 1.3.0 (MINOR):
+- New principle added (Design Library First) with concrete workflow and anti-patterns
+- Material guidance expansion enforcing component reuse over ad-hoc UI code
+- Not breaking (MAJOR): existing code remains valid, new principle constrains future development
+- Not patch (PATCH): substantive new workflow requirement, formalized design system discipline
 -->
 
 
@@ -212,6 +219,54 @@ LLM agents MUST leverage available Model Context Protocol (MCP) servers to enhan
 
 **Rationale**: MCP servers provide specialized capabilities that reduce errors, improve efficiency, and enable sophisticated workflows beyond basic file operations. SequentialThinking prevents incomplete multi-step solutions. Context7 ensures implementation follows current library conventions. Serena enables surgical code changes without excessive file reading. Playwright catches UI regressions that unit tests miss. Memory preserves institutional knowledge across sessions. Mandating their use where applicable prevents LLM agents from defaulting to less effective manual approaches.
 
+### IX. Design Library First
+
+All UI components MUST use the `@workspace/ui` design library. Missing components MUST be added to the library before use.
+
+**Design Library Stack**:
+- **Package**: `@workspace/ui` (monorepo package at `/packages/ui/`)
+- **Theme**: Neon Flux (glassmorphism, gradients, glows) with dark/light/high-contrast modes
+- **Primitives**: Box, Stack, Text, Button (composable, token-driven)
+- **Foundation**: ShadCN UI patterns + Tailwind CSS 3.4.15+ + CVA (class-variance-authority)
+- **Documentation**: Storybook 10.0.2+ at `http://localhost:6006` (run `pnpm storybook`)
+- **Tokens**: Three-tier system (primitives → semantic → component) in `/packages/ui/src/theme/tokens/`
+
+**Workflow (NON-NEGOTIABLE)**:
+1. **Check design library first** — Browse Storybook at `http://localhost:6006` or search `/packages/ui/src/` for existing components
+2. **Reuse existing components** — Use Box, Stack, Text, Button primitives to compose layouts; import from `@workspace/ui`
+3. **If component missing** — Add it to `/packages/ui/src/components/` following existing patterns (polymorphic, token props, CVA variants)
+4. **Document in Storybook** — Create `.stories.tsx` file in `/packages/ui/src/stories/` with interactive examples
+5. **Test thoroughly** — Add unit tests (`/packages/ui/__tests__/components/`) and accessibility tests (axe-core)
+6. **Then use in app** — Import from `@workspace/ui` in `/apps/client/` or `/apps/server/`
+
+**Rules**:
+- Do NOT create one-off UI components in `/apps/client/src/components/` if they could be generalized
+- Do NOT use inline Tailwind classes for complex styling; extract to design library components with proper variants
+- Do NOT hardcode colors/spacing; use design tokens (`--color-accent-primary`, `--space-4`, etc.)
+- Do NOT skip Storybook documentation; undocumented components become unmaintainable
+- All design library changes MUST pass hygiene loop (`pnpm lint`, `pnpm format:write`, `pnpm test`)
+
+**Component Contribution Checklist**:
+- [ ] Component file in `/packages/ui/src/components/` (e.g., `card.tsx`)
+- [ ] TypeScript types exported (props interface, ref forwarding if needed)
+- [ ] CVA variants for visual variations (size, variant, state)
+- [ ] Token-driven styling (colors from semantic tokens, spacing from `--space-*`)
+- [ ] Polymorphic `as` prop if appropriate (render as different HTML elements)
+- [ ] Unit tests in `/packages/ui/__tests__/components/`
+- [ ] Accessibility tests with axe-core validation
+- [ ] Storybook stories in `/packages/ui/src/stories/` (at least 3 variants)
+- [ ] Exported from `/packages/ui/src/index.ts`
+- [ ] Used in at least one app to validate real-world usage
+
+**Anti-Patterns to Avoid**:
+- Do NOT create `/apps/client/src/components/ui/` directory—design library is `/packages/ui/`
+- Do NOT copy-paste ShadCN UI components directly—adapt to Neon Flux theme and token system
+- Do NOT mix design systems—stick to Neon Flux aesthetic (gradients, glassmorphism, glows)
+- Do NOT skip tests for "simple" components—accessibility issues hide in trivial code
+- Do NOT use external component libraries (Material-UI, Chakra, etc.) without ADR justification
+
+**Rationale**: Centralized design library ensures visual consistency, reduces code duplication, and accelerates development by providing battle-tested primitives. The Storybook-driven workflow prevents undocumented components and enables interactive exploration. Token-based theming supports dark/light modes without scattered color logic. The "add then use" workflow treats the design library as first-class infrastructure, not an afterthought, ensuring every component is tested, documented, and reusable across features.
+
 ## Development Workflow & Quality Gates
 
 **Before starting any implementation**:
@@ -226,8 +281,9 @@ LLM agents MUST leverage available Model Context Protocol (MCP) servers to enhan
 2. Run the hygiene loop after every significant change (Principle I)
 3. Keep commits small and focused (Principle IV)
 4. Document API or flow changes in `docs/` (Principle II)
-5. **Use Serena MCP server for code navigation and refactoring** (Principle VIII)
-6. **Use Playwright MCP server for UI debugging when applicable** (Principle VIII)
+5. **Check design library (`@workspace/ui`) before creating UI components; contribute missing components first** (Principle IX)
+6. **Use Serena MCP server for code navigation and refactoring** (Principle VIII)
+7. **Use Playwright MCP server for UI debugging when applicable** (Principle VIII)
 
 **Before merging**:
 1. All hygiene steps pass (`pnpm lint`, `pnpm format:write`, `pnpm test`)
@@ -261,4 +317,4 @@ LLM agents MUST leverage available Model Context Protocol (MCP) servers to enhan
 - Principles tested against actual development friction; prune or refine as needed
 - Versioning and amendment history preserved in git commits
 
-**Version**: 1.2.0 | **Ratified**: 2025-10-07 | **Last Amended**: 2025-11-02
+**Version**: 1.3.0 | **Ratified**: 2025-10-07 | **Last Amended**: 2025-11-03

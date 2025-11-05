@@ -1,0 +1,69 @@
+/**
+ * Storybook UI Overrides for Neon Flux Theme
+ * 
+ * Purpose: Minimal overrides to Storybook's UI chrome to match Neon Flux aesthetic
+ * Strategy: Let design system tokens do the work, only override Storybook-specific elements
+ * 
+ * Industry Best Practice: Keep Storybook overrides minimal (Material-UI, Chakra approach)
+ */
+
+/* Force Neon Flux background on Storybook UI chrome */
+.sb-show-main {
+  background: hsl(var(--color-bg-base)) !important;
+}
+
+/* Docs page background */
+.sbdocs,
+.sbdocs-wrapper,
+.sbdocs-content {
+  background: hsl(var(--color-bg-base)) !important;
+  color: hsl(var(--color-text-primary)) !important;
+}
+
+/* Preview canvas background */
+.sb-main-padded,
+.sb-main-centered,
+.sb-main-fullscreen {
+  background: hsl(var(--color-bg-base)) !important;
+}
+
+/* Code blocks in docs */
+.sbdocs pre {
+  background: hsl(var(--color-code-block-bg)) !important;
+  border: 1px solid hsl(var(--color-code-block-border) / 0.3) !important;
+  color: hsl(var(--color-text-secondary)) !important;
+}
+
+.sbdocs code {
+  background: hsl(var(--color-code-inline-bg)) !important;
+  color: hsl(var(--color-accent-quaternary)) !important;
+}
+
+/* Docs typography */
+.sbdocs h1,
+.sbdocs h2,
+.sbdocs h3,
+.sbdocs h4,
+.sbdocs p,
+.sbdocs li {
+  color: hsl(var(--color-text-primary)) !important;
+}
+
+/* Tables in docs */
+.sbdocs-table {
+  color: hsl(var(--color-text-primary)) !important;
+}
+
+.sbdocs-table th {
+  color: hsl(var(--color-text-secondary)) !important;
+  border-bottom: 1px solid hsl(var(--color-border-default)) !important;
+}
+
+.sbdocs-table td {
+  border-bottom: 1px solid hsl(var(--color-border-subtle)) !important;
+}
+
+/* Story containers - use transparent to show decorator background */
+.docs-story > div {
+  background: transparent !important;
+}

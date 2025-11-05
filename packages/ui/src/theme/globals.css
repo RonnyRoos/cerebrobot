@@ -15,6 +15,45 @@
 @tailwind utilities;
 
 @layer base {
+  /* Neon Flux Base Styles */
+  body {
+    @apply bg-bg-base text-text-primary antialiased;
+    font-family:
+      'Inter',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Animated gradient background (Neon Flux signature) */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 20% 50%, hsla(277, 92%, 62%, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsla(330, 81%, 60%, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 40% 20%, hsla(221, 91%, 60%, 0.1) 0%, transparent 50%);
+    animation: gradient-shift 15s ease infinite;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  @keyframes gradient-shift {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(-10%, 10%);
+    }
+  }
+
   /* Prevent transitions during theme switch to avoid flash */
   .theme-switching * {
     transition: none !important;
@@ -22,6 +61,22 @@
 }
 
 @layer components {
+  /* Message appearance animation (Neon Flux) */
+  @keyframes message-appear {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-message-appear {
+    animation: message-appear 0.4s ease;
+  }
+
   /* Chat typography optimizations */
   .prose-chat {
     @apply text-chat-body;

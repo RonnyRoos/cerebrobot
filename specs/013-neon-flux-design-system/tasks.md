@@ -104,8 +104,8 @@
 - [x] T034 [US1] Verify all primitive tokens (T006-T011) are complete and match data-model.md
 - [x] T035 [US1] Verify semantic tokens (T012-T013) correctly reference primitives
 - [x] T036 [US1] Verify Tailwind config (T017-T021) generates correct utility classes
-- [x] T037 [US1] Test token usage in apps/client: create `apps/client/src/components/TokenDemo.tsx` using tokens
-- [x] T038 [US1] Update `apps/client/src/main.tsx` to import token stylesheets
+- [x] T037 [US1] Verify token usage via Storybook Tokens.stories.tsx (replaced ad-hoc demo component)
+- [x] T038 [US1] Verify ThemeProvider integration in `apps/client/src/main.tsx` (imports theme CSS)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -158,7 +158,7 @@
 - [x] T056 [US3] Verify localStorage persistence (T026) saves/loads theme correctly
 - [x] T057 [US3] Verify SSR support (T027) prevents FOUC
 - [x] T058 [US3] Integrate Theme component in `apps/client/src/main.tsx` (wrap App)
-- [x] T059 [US3] Create ThemeToggle component in `apps/client/src/components/ThemeToggle.tsx` (demo useTheme hook)
+- [x] T059 [US3] Verify theme switching via Storybook theme toolbar addon (replaced standalone toggle component)
 
 **Checkpoint**: All P1/P2 user stories should now be independently functional
 
@@ -181,7 +181,7 @@
 - [x] T063 [P] [US4] Refactor MessageBubble in `packages/ui/src/chat/message-bubble.tsx` (replace hardcoded shadows with --shadow-glow-purple, use Box component)
 - [x] T064 [P] [US4] Refactor CodeBlock in `packages/ui/src/chat/code-block.tsx` (use semantic tokens, Box + Text primitives)
 - [~] T065 [US4] Capture baseline screenshots for visual regression (SKIPPED per constitution)
-- [x] T066 [US4] Verify visual appearance via manual smoke test at /design-library and / (completed via Playwright automation)
+- [x] T066 [US4] Verify visual appearance via Storybook Chat stories and live chat at / (completed via Playwright automation)
 
 **Checkpoint**: Chat components migrated without breaking existing functionality
 
@@ -218,17 +218,17 @@
 
 ### Tests for User Story 6 ⚠️
 
-- [x] T072 [P] [US6] Manual validation: Run Storybook, verify all pages load and theme switching works
+- [X] T072 [P] [US6] Manual validation: Run Storybook, verify all pages load and theme switching works
 
 ### Implementation for User Story 6
 
-- [x] T073 [US6] Installed Storybook 10.0.2 with React + Vite integration
-- [x] T074 [US6] Setup Storybook in `packages/ui/.storybook/` with ThemeProvider integration
-- [x] T075 [P] [US6] Created token reference stories (Tokens.stories.tsx: colors, spacing, typography, elevation)
-- [x] T076 [P] [US6] Created component stories (Primitives.stories.tsx: Box, Stack, Text, Button with interactive controls)
-- [x] T077 [P] [US6] Created chat component stories (Chat.stories.tsx: MessageBubble, CodeBlock, Avatar, Timestamp, TypingIndicator)
-- [x] T078 [US6] Configured Storybook preview with theme CSS imports and ThemeProvider decorator
-- [x] T079 [US6] Added Storybook scripts to package.json: `pnpm storybook` runs at `http://localhost:6006`
+- [X] T073 [US6] Installed Storybook 10.0.2 with React + Vite integration
+- [X] T074 [US6] Setup Storybook in `packages/ui/.storybook/` with ThemeProvider integration
+- [X] T075 [P] [US6] Created token reference stories (Tokens.stories.tsx: colors, spacing, typography, elevation)
+- [X] T076 [P] [US6] Created component stories (Primitives.stories.tsx: Box, Stack, Text, Button with interactive controls)
+- [X] T077 [P] [US6] Created chat component stories (Chat.stories.tsx: MessageBubble, CodeBlock, Avatar, Timestamp, TypingIndicator)
+- [X] T078 [US6] Configured Storybook preview with theme CSS imports and ThemeProvider decorator
+- [X] T079 [US6] Added Storybook scripts to package.json: `pnpm storybook` runs at `http://localhost:6006`
 
 **Checkpoint**: Storybook documentation complete and accessible - industry standard achieved
 

@@ -209,6 +209,77 @@ Task: "Create [Entity2] model in src/models/[entity2].py"
 
 ---
 
+## Design Library Contribution Example
+
+**Context**: When a UI component is missing from `@workspace/ui`, it must be added to the design library BEFORE use in apps (Constitution Principle IX).
+
+**Workflow**: Check Storybook (`http://localhost:6006`) → If component missing → Add to `/packages/ui/` → Document → Test → Export → Use in app
+
+### Example: Adding a Card Component to Design Library
+
+**User Story Context**: US2 requires a Card component for displaying agent information, but Card doesn't exist in `@workspace/ui`.
+
+#### Tasks Breakdown
+
+```markdown
+### Implementation for User Story 2
+
+#### Design Library Contribution (Card Component)
+
+- [ ] T020 [P] [US2] Check Storybook at http://localhost:6006 to verify Card component doesn't exist
+- [ ] T021 [P] [US2] Create Card component in `packages/ui/src/components/primitives/card.tsx` (polymorphic, CVA variants: default/elevated/ghost, padding: none/sm/md/lg)
+- [ ] T022 [P] [US2] Add TypeScript types for Card props (variant, padding, as, className)
+- [ ] T023 [P] [US2] Unit tests for Card in `packages/ui/__tests__/components/card.test.tsx` (variants, polymorphic rendering, token props)
+- [ ] T024 [P] [US2] Accessibility tests for Card in `packages/ui/__tests__/a11y/card.test.tsx` (axe-core validation, ARIA attributes)
+- [ ] T025 [US2] Create Card stories in `packages/ui/src/stories/Card.stories.tsx` (Default, Elevated, Ghost, WithPadding variants)
+- [ ] T026 [US2] Export Card from `packages/ui/src/index.ts`
+- [ ] T027 [US2] Verify Card renders in Storybook at http://localhost:6006
+
+#### App Integration (Use Card in AgentsPage)
+
+- [ ] T028 [US2] Import Card from `@workspace/ui` in `apps/client/src/pages/AgentsPage.tsx`
+- [ ] T029 [US2] Refactor AgentsPage to use Card component (replace hardcoded divs)
+- [ ] T030 [US2] Verify AgentsPage renders correctly with Card component
+```
+
+### Task Pattern for Any Design Library Component
+
+When adding a component to `@workspace/ui`, use this task pattern:
+
+1. **Verification Task** (`[P]`): Check Storybook to confirm component is missing
+2. **Component Implementation** (`[P]`): Create component file with CVA variants and token-driven styling
+3. **TypeScript Types** (`[P]`): Define props interface, export types
+4. **Unit Tests** (`[P]`): Test variants, polymorphic behavior, token props
+5. **Accessibility Tests** (`[P]`): Axe-core validation, WCAG compliance
+6. **Storybook Stories**: Document component with interactive examples (at least 3 variants)
+7. **Export**: Add to `packages/ui/src/index.ts`
+8. **Storybook Verification**: Confirm component appears in Storybook navigation
+9. **App Integration**: Import from `@workspace/ui` and use in target app
+10. **Visual Verification**: Test component in actual app context
+
+**Parallel Opportunities**: Tasks 1-5 can run in parallel (different files, no dependencies)
+
+**Critical Path**: Task 6 (Storybook) depends on Task 2 (Component) → Task 7 (Export) depends on Task 2 → Task 8 (Verification) depends on Tasks 6+7 → Task 9 (Integration) depends on Task 7
+
+### Design Library Contribution Checklist (Reference)
+
+Per Constitution Principle IX, ensure each component includes:
+
+- [ ] Component file in `/packages/ui/src/components/primitives/` or `/packages/ui/src/components/`
+- [ ] TypeScript props interface with proper types (variant, size, state, polymorphic `as`)
+- [ ] CVA variants for visual variations (use `class-variance-authority`)
+- [ ] Token-driven styling (colors from `--color-*`, spacing from `--space-*`, etc.)
+- [ ] Polymorphic `as` prop if semantically flexible
+- [ ] Unit tests in `/packages/ui/__tests__/components/`
+- [ ] Accessibility tests with axe-core (WCAG AA compliance)
+- [ ] Storybook stories in `/packages/ui/src/stories/` (minimum 3 variants)
+- [ ] Exported from `/packages/ui/src/index.ts`
+- [ ] Verified in Storybook at `http://localhost:6006`
+- [ ] Used in at least one app to validate real-world usage
+- [ ] Hygiene loop passed (`pnpm lint`, `pnpm format:write`, `pnpm test`)
+
+---
+
 ## Implementation Strategy
 
 ### MVP First (User Story 1 Only)

@@ -21,15 +21,16 @@ describe('Button Component', () => {
       render(<Button>Primary Button</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('bg-accent-primary');
+      expect(button.className).toContain('bg-gradient-to-br');
+      expect(button.className).toContain('from-purple-500');
     });
 
     it('should render secondary variant', () => {
       render(<Button variant="secondary">Secondary Button</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('border');
-      expect(button.className).toContain('border-border-subtle');
+      expect(button.className).toContain('border-2');
+      expect(button.className).toContain('border-border-default');
     });
 
     it('should render tertiary variant', () => {
@@ -43,7 +44,8 @@ describe('Button Component', () => {
       render(<Button variant="danger">Delete</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('bg-red-600');
+      expect(button.className).toContain('bg-gradient-to-br');
+      expect(button.className).toContain('from-error');
     });
   });
 
@@ -52,8 +54,8 @@ describe('Button Component', () => {
       render(<Button>Medium Button</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('px-4');
-      expect(button.className).toContain('py-2');
+      expect(button.className).toContain('px-6');
+      expect(button.className).toContain('py-2.5');
       expect(button.className).toContain('text-base');
     });
 
@@ -61,8 +63,8 @@ describe('Button Component', () => {
       render(<Button size="sm">Small Button</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('px-3');
-      expect(button.className).toContain('py-1.5');
+      expect(button.className).toContain('px-4');
+      expect(button.className).toContain('py-2');
       expect(button.className).toContain('text-sm');
     });
 
@@ -70,8 +72,8 @@ describe('Button Component', () => {
       render(<Button size="lg">Large Button</Button>);
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('px-6');
-      expect(button.className).toContain('py-3');
+      expect(button.className).toContain('px-8');
+      expect(button.className).toContain('py-3.5');
       expect(button.className).toContain('text-lg');
     });
   });
@@ -301,8 +303,8 @@ describe('Button Component', () => {
       
       const button = screen.getByRole('button');
       expect(button.className).toContain('border'); // secondary
-      expect(button.className).toContain('px-6'); // lg
-      expect(button.className).toContain('py-3'); // lg
+      expect(button.className).toContain('px-8'); // lg
+      expect(button.className).toContain('py-3.5'); // lg
       expect(button).toBeDisabled(); // loading
       expect(button.textContent).toContain('Saving...');
     });
@@ -319,8 +321,8 @@ describe('Button Component', () => {
       );
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('bg-accent-primary'); // primary
-      expect(button.className).toContain('px-3'); // sm
+      expect(button.className).toContain('bg-gradient-to-br'); // primary
+      expect(button.className).toContain('px-4'); // sm
       expect(button.className).toContain('w-full'); // fullWidth
     });
   });
@@ -338,8 +340,8 @@ describe('Button Component', () => {
       );
       
       const button = screen.getByRole('button');
-      expect(button.className).toContain('bg-accent-primary');
-      expect(button.className).toContain('px-4');
+      expect(button.className).toContain('bg-gradient-to-br');
+      expect(button.className).toContain('px-6');
       expect(button.className).toContain('custom-button');
     });
   });

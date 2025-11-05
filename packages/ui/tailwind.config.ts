@@ -12,6 +12,10 @@ const config: Config = {
          ======================================== */
 
       colors: {
+        /* Basic Colors */
+        white: 'hsl(var(--color-white) / <alpha-value>)',
+        black: 'hsl(var(--color-black) / <alpha-value>)',
+
         /* Semantic Colors (prefer these in new code) */
         'text-primary': 'hsl(var(--color-text-primary) / <alpha-value>)',
         'text-secondary': 'hsl(var(--color-text-secondary) / <alpha-value>)',
