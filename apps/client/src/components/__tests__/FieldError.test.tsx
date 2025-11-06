@@ -37,8 +37,8 @@ describe('FieldError', () => {
     it('should render with Tailwind error styling classes', () => {
       const { container } = render(<FieldError error="Invalid input" />);
 
-      // Check for Stack with text-destructive class
-      const errorElement = container.querySelector('.text-destructive');
+      // Check for text-error class on error message
+      const errorElement = container.querySelector('.text-error');
       expect(errorElement).toBeInTheDocument();
     });
 

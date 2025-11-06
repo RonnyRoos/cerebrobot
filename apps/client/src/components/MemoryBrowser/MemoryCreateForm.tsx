@@ -101,12 +101,7 @@ export function MemoryCreateForm({ onSave, onCancel }: MemoryCreateFormProps): J
         <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSave}
-          disabled={!isValid || isSaving}
-          variant="default"
-          className={!isValid || isSaving ? 'bg-gray-300' : 'bg-green-600 hover:bg-green-700'}
-        >
+        <Button onClick={handleSave} disabled={!isValid || isSaving} variant="primary">
           {isSaving ? 'Creating...' : 'Create'}
         </Button>
       </Stack>

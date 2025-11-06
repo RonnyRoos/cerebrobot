@@ -82,7 +82,7 @@ export function MemoryEditor({
   const isValid = characterCount >= MIN_LENGTH && characterCount <= MAX_LENGTH;
 
   return (
-    <Box className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+    <Box className="p-4 bg-surface border border-border rounded-lg">
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}

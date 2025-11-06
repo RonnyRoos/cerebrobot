@@ -50,14 +50,15 @@ export function AutonomyConfigSection({
       </Stack>
 
       <Stack direction="vertical" gap="2">
-        <label htmlFor="autonomy-enabled" className="flex items-center gap-2">
-          <Input
+        <label htmlFor="autonomy-enabled" className="flex items-center gap-3 cursor-pointer">
+          <input
             id="autonomy-enabled"
             type="checkbox"
             checked={autonomy.enabled}
             onChange={onToggle}
+            className="w-5 h-5 rounded border-2 border-border-default bg-bg-surface checked:bg-accent-primary checked:border-accent-primary focus:ring-2 focus:ring-accent-primary focus:ring-offset-2 cursor-pointer"
           />
-          <Text as="span" variant="body">
+          <Text as="span" variant="body" size="base">
             Enable Autonomy
           </Text>
         </label>
@@ -78,7 +79,7 @@ export function AutonomyConfigSection({
               <Input
                 id="autonomy-evaluator-model"
                 type="text"
-                value={autonomy.evaluator.model}
+                value={autonomy.evaluator?.model ?? ''}
                 onChange={(e) => onEvaluatorChange('model', e.target.value)}
                 aria-invalid={errors?.evaluator?.model ? 'true' : 'false'}
                 aria-describedby={
@@ -98,7 +99,7 @@ export function AutonomyConfigSection({
                 step="0.1"
                 min="0"
                 max="2"
-                value={autonomy.evaluator.temperature}
+                value={autonomy.evaluator?.temperature ?? 0.5}
                 onChange={(e) => onEvaluatorChange('temperature', parseFloat(e.target.value))}
                 aria-invalid={errors?.evaluator?.temperature ? 'true' : 'false'}
                 aria-describedby={
@@ -123,7 +124,7 @@ export function AutonomyConfigSection({
                 min="1"
                 max="10000"
                 step="1"
-                value={autonomy.evaluator.maxTokens}
+                value={autonomy.evaluator?.maxTokens ?? 500}
                 onChange={(e) => onEvaluatorChange('maxTokens', parseInt(e.target.value, 10))}
                 aria-invalid={errors?.evaluator?.maxTokens ? 'true' : 'false'}
                 aria-describedby={
@@ -142,7 +143,7 @@ export function AutonomyConfigSection({
               </Text>
               <Textarea
                 id="autonomy-evaluator-system-prompt"
-                value={autonomy.evaluator.systemPrompt}
+                value={autonomy.evaluator?.systemPrompt ?? ''}
                 onChange={(e) => onEvaluatorChange('systemPrompt', e.target.value)}
                 rows={4}
                 aria-invalid={errors?.evaluator?.systemPrompt ? 'true' : 'false'}
@@ -175,7 +176,7 @@ export function AutonomyConfigSection({
                 min="1"
                 max="100"
                 step="1"
-                value={autonomy.limits.maxFollowUpsPerSession}
+                value={autonomy.limits?.maxFollowUpsPerSession ?? 10}
                 onChange={(e) =>
                   onLimitsChange('maxFollowUpsPerSession', parseInt(e.target.value, 10))
                 }
@@ -202,7 +203,7 @@ export function AutonomyConfigSection({
                 min="1000"
                 max="3600000"
                 step="1000"
-                value={autonomy.limits.minDelayMs}
+                value={autonomy.limits?.minDelayMs ?? 5000}
                 onChange={(e) => onLimitsChange('minDelayMs', parseInt(e.target.value, 10))}
                 aria-invalid={errors?.limits?.minDelayMs ? 'true' : 'false'}
                 aria-describedby={
@@ -222,7 +223,7 @@ export function AutonomyConfigSection({
                 min="1000"
                 max="3600000"
                 step="1000"
-                value={autonomy.limits.maxDelayMs}
+                value={autonomy.limits?.maxDelayMs ?? 60000}
                 onChange={(e) => onLimitsChange('maxDelayMs', parseInt(e.target.value, 10))}
                 aria-invalid={errors?.limits?.maxDelayMs ? 'true' : 'false'}
                 aria-describedby={
@@ -249,7 +250,7 @@ export function AutonomyConfigSection({
                 min="0"
                 max="100"
                 step="1"
-                value={autonomy.memoryContext.recentMemoryCount}
+                value={autonomy.memoryContext?.recentMemoryCount ?? 5}
                 onChange={(e) =>
                   onMemoryContextChange('recentMemoryCount', parseInt(e.target.value, 10))
                 }
@@ -276,7 +277,7 @@ export function AutonomyConfigSection({
                 min="0"
                 max="100"
                 step="1"
-                value={autonomy.memoryContext.includeRecentMessages}
+                value={autonomy.memoryContext?.includeRecentMessages ?? 10}
                 onChange={(e) =>
                   onMemoryContextChange('includeRecentMessages', parseInt(e.target.value, 10))
                 }

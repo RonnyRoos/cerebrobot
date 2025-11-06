@@ -51,7 +51,7 @@ export function MemorySearch({
   };
 
   return (
-    <Box as="form" onSubmit={handleSubmit} className="p-3 border-b border-gray-200 bg-gray-50">
+    <Box as="form" onSubmit={handleSubmit} className="p-3 border-b border-border bg-surface">
       <Stack direction="horizontal" gap="2" align="center">
         {/* Search Input */}
         <Input
@@ -84,7 +84,7 @@ export function MemorySearch({
 
       {/* Search hint */}
       {!isSearchActive && (
-        <Text variant="caption" className="text-muted mt-2 text-[0.6875rem]">
+        <Text variant="caption" className="mt-2">
           Search using natural language (e.g., &ldquo;preferences&rdquo;, &ldquo;chocolate&rdquo;)
         </Text>
       )}

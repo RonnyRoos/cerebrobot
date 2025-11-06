@@ -25,8 +25,8 @@ describe('AgentList', () => {
         />,
       );
 
-      // Should show empty state message
-      expect(screen.getByText(/no agents found/i)).toBeInTheDocument();
+      // Should show empty state message (updated for enhanced EmptyState)
+      expect(screen.getByText(/no agents configured/i)).toBeInTheDocument();
 
       // Should show "New Agent" button
       expect(screen.getByRole('button', { name: /new agent/i })).toBeInTheDocument();

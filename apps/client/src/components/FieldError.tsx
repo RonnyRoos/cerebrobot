@@ -36,12 +36,12 @@ export function FieldError({ error, fieldId }: FieldErrorProps) {
       role="alert"
       aria-live="polite"
       id={errorId}
-      className="mt-1 text-sm text-destructive"
+      className="mt-1"
     >
-      <Text as="span" className="shrink-0 text-base leading-none" aria-hidden="true">
+      <Text as="span" className="shrink-0 text-base leading-none text-error" aria-hidden="true">
         ⚠
       </Text>
-      <Text as="span" className="flex-1">
+      <Text as="span" className="flex-1 text-sm text-error">
         {error}
       </Text>
     </Stack>

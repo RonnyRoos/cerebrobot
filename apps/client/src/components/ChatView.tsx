@@ -2,6 +2,7 @@ import { useThread } from '../hooks/useThread.js';
 import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
 import { useMemories } from '../hooks/useMemories.js';
+import { useAgents } from '../hooks/useAgents.js';
 import { useMemo, useEffect, useCallback, useState } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
 import { Toast } from './Toast.js';
@@ -27,6 +28,11 @@ interface ChatViewProps {
  * - Converts history messages to DisplayMessage format for useChatMessages
  */
 export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): JSX.Element {
+  // Load agent info to display agent name
+  const { agents } = useAgents();
+  const currentAgent = agents.find((agent) => agent.id === agentId);
+  const agentName = currentAgent?.name || 'Agent';
+
   // Load thread history if resuming an existing thread (not 'new' sentinel)
   const effectiveThreadId = threadId && threadId !== 'new' ? threadId : null;
   const { messages: historyMessages, error: historyError } = useThreadHistory(
@@ -213,22 +219,36 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   const disableSend = !pendingMessage.trim() || isStreaming || !isConnected;
 
   return (
-    <Box as="section" aria-label="Chat panel">
-      {/* Back to threads navigation with connection status */}
+    <Box as="section" aria-label="Chat panel" className="flex flex-col h-full">
+      {/* Header with Back button, Agent name, and connection status */}
       <Box className="p-2 px-4 border-b border-border flex items-center justify-between">
+        {/* Back button (left) */}
         <Button variant="ghost" onClick={onBack} className="text-sm">
           ← Back to Threads
         </Button>
-        {/* Minimal connection status indicator */}
-        <Box className="flex items-center gap-1.5">
-          <Box
-            className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-error'}`}
-            aria-label={isConnected ? 'Connected' : 'Disconnected'}
-          />
-          <Text as="span" className="text-xs text-text-tertiary">
-            {isConnected ? 'Connected' : 'Disconnected'}
+
+        {/* Centered agent name with connection status (center) */}
+        <Box className="flex items-center gap-3">
+          <Text
+            as="h1"
+            className="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent"
+          >
+            {agentName}
           </Text>
+          {/* Connection status indicator */}
+          <Box className="flex items-center gap-1.5">
+            <Box
+              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-error'}`}
+              aria-label={isConnected ? 'Connected' : 'Disconnected'}
+            />
+            <Text as="span" className="text-xs text-text-tertiary">
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </Text>
+          </Box>
         </Box>
+
+        {/* Empty space to balance flexbox (right) - ensures center alignment */}
+        <Box className="w-[120px]" />
       </Box>
 
       <Box className="flex-1 overflow-y-auto p-4" aria-live="polite">
@@ -236,14 +256,14 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
           {messages.map((message) => (
             <Box
               key={message.id}
-              className={`p-4 rounded-lg backdrop-blur-sm border ${
+              className={`p-4 rounded-2xl border backdrop-blur-md ${
                 message.role === 'user'
-                  ? 'bg-message-user-bg text-message-user-text border-accent-primary/20 ml-12'
-                  : 'bg-message-agent-bg text-message-agent-text border-border-subtle mr-12'
+                  ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-accent-primary/30 ml-12 shadow-glow-purple'
+                  : 'bg-gradient-to-br from-blue-500/15 to-purple-500/15 border-accent-secondary/20 mr-12 shadow-glow-blue'
               }`}
             >
               <Text as="div" className="font-semibold mb-2 text-sm opacity-80">
-                {message.role === 'user' ? 'You' : 'Assistant'}
+                {message.role === 'user' ? 'You' : agentName}
               </Text>
               <Text as="p" className="text-base leading-relaxed">
                 {message.content}

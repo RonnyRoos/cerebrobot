@@ -19,7 +19,7 @@ interface AgentListProps {
 export function AgentList({ agents, onNewAgent, onEditAgent, onDeleteAgent }: AgentListProps) {
   if (agents.length === 0) {
     return (
-      <Stack gap="4" className="p-6">
+      <Stack gap="4" className="p-6 h-screen flex flex-col">
         <Stack direction="horizontal" align="center" justify="between">
           <Text as="h2" variant="heading" size="xl">
             Agents
@@ -28,7 +28,13 @@ export function AgentList({ agents, onNewAgent, onEditAgent, onDeleteAgent }: Ag
             New Agent
           </Button>
         </Stack>
-        <EmptyState message="No agents found" />
+        <EmptyState
+          icon="🤖"
+          heading="No agents configured"
+          description="Agents are AI assistants with specific capabilities and personalities. Create your first agent to start building intelligent conversations."
+          buttonText="Create Your First Agent"
+          onButtonClick={onNewAgent}
+        />
       </Stack>
     );
   }

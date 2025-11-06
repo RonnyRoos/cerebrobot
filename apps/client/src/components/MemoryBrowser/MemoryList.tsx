@@ -165,7 +165,7 @@ export function MemoryList({
           <Text variant="body" size="sm" className="text-muted font-medium mb-2">
             No matching memories found
           </Text>
-          <Text variant="caption" size="sm" className="text-gray-400 leading-relaxed">
+          <Text variant="caption" size="sm" className="text-text-tertiary leading-relaxed">
             {searchQuery ? `No memories match "${searchQuery}".` : 'No memories match your search.'}{' '}
             Try different terms or browse all memories.
           </Text>
@@ -205,7 +205,7 @@ export function MemoryList({
         direction="horizontal"
         gap="0"
         align="center"
-        className="justify-between mb-3 pb-3 border-b border-gray-200"
+        className="justify-between mb-3 pb-3 border-b border-border"
       >
         <Text variant="caption" size="sm" className="text-muted font-medium">
           {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
@@ -238,18 +238,18 @@ export function MemoryList({
                   ? 'bg-green-100 border-green-600'
                   : similarity !== undefined && similarity >= 0.9
                     ? 'bg-green-50 border-green-300 shadow-sm shadow-green-100'
-                    : 'bg-gray-50 border-gray-200'
+                    : 'bg-surface border-border'
               }`}
             >
               {/* Similarity score badge (T035, enhanced in T075/T081) */}
               {similarity !== undefined && (
                 <Box
-                  className={`inline-block mb-2 px-2 py-0.5 text-[0.6875rem] font-semibold rounded ${
+                  className={`inline-block mb-2 px-2 py-0.5 text-xs font-semibold rounded ${
                     similarity >= 0.9
                       ? 'text-green-700 bg-green-200 border border-green-700'
                       : similarity >= 0.7
                         ? 'text-blue-700 bg-blue-100'
-                        : 'text-muted bg-gray-100'
+                        : 'text-muted bg-muted'
                   }`}
                   title={`Similarity: ${similarity.toFixed(3)} (${similarity >= 0.95 ? 'Exact match' : similarity >= 0.9 ? 'Very close match' : similarity >= 0.7 ? 'Related memory' : 'Weak match'})`}
                 >
@@ -270,7 +270,7 @@ export function MemoryList({
               ) : (
                 <>
                   {/* Memory content */}
-                  <Text variant="body" size="sm" className="text-gray-900 leading-relaxed mb-2">
+                  <Text variant="body" size="sm" className="text-text-primary leading-relaxed mb-2">
                     {memory.content}
                   </Text>
 
@@ -328,7 +328,7 @@ export function MemoryList({
                       <Text
                         variant="caption"
                         size="sm"
-                        className="text-gray-400 font-mono mt-2 block"
+                        className="text-text-tertiary font-mono mt-2 block"
                       >
                         {memory.key}
                       </Text>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useThreads } from '../hooks/useThreads.js';
 import { ThreadListItem } from './ThreadListItem.js';
+import { EmptyState } from './EmptyState.js';
 import { Box, Stack, Text, Button } from '@workspace/ui';
 import type { AgentListResponse } from '@cerebrobot/chat-shared';
 
@@ -113,7 +114,7 @@ export function ThreadListView({
           <Stack direction="horizontal" gap="2">
             {/* Manage Agents button (only in All Threads mode) */}
             {!agentContextMode && onNavigateToAgents && (
-              <Button variant="secondary" onClick={onNavigateToAgents}>
+              <Button variant="ghost" onClick={onNavigateToAgents}>
                 ⚙️ Manage Agents
               </Button>
             )}
@@ -126,15 +127,16 @@ export function ThreadListView({
 
       {/* Thread list or empty state */}
       {threads.length === 0 ? (
-        // Empty state (FR-008)
-        <Stack gap="6" align="center" justify="center" className="flex-1 p-8 text-center">
-          <Text variant="body" size="lg" className="text-muted">
-            No conversations yet. Start a new one!
-          </Text>
-          <Button variant="primary" size="lg" onClick={onNewThread}>
-            Start Your First Conversation
-          </Button>
-        </Stack>
+        // Empty state (FR-008) - Enhanced with EmptyState component (T087)
+        <Box className="flex-1">
+          <EmptyState
+            icon="💬"
+            heading="No conversations yet"
+            description="Start chatting with your AI agents by creating your first conversation. Your conversation history will appear here."
+            buttonText="Start Your First Conversation"
+            onButtonClick={onNewThread}
+          />
+        </Box>
       ) : (
         // Thread list (FR-001, FR-003)
         <Box className="flex-1 overflow-y-auto">

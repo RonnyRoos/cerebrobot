@@ -70,21 +70,10 @@ function getInitialFormData(mode: 'create' | 'edit', initialData?: Agent): Parti
     },
     autonomy: {
       enabled: false,
-      evaluator: {
-        model: '',
-        temperature: 0.5,
-        maxTokens: 500,
-        systemPrompt: '',
-      },
-      limits: {
-        maxFollowUpsPerSession: 10,
-        minDelayMs: 5000,
-        maxDelayMs: 60000,
-      },
-      memoryContext: {
-        recentMemoryCount: 5,
-        includeRecentMessages: 10,
-      },
+      // When autonomy is disabled, leave nested fields undefined so Zod skips validation
+      evaluator: undefined,
+      limits: undefined,
+      memoryContext: undefined,
     },
   };
 }
@@ -158,13 +147,38 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
   };
 
   const handleAutonomyToggle = () => {
-    setFormData((prev) => ({
-      ...prev,
-      autonomy: {
-        ...prev.autonomy!,
-        enabled: !prev.autonomy?.enabled,
-      },
-    }));
+    setFormData((prev) => {
+      const newEnabled = !prev.autonomy?.enabled;
+
+      return {
+        ...prev,
+        autonomy: {
+          enabled: newEnabled,
+          // When enabling, initialize with defaults; when disabling, set to undefined
+          evaluator: newEnabled
+            ? prev.autonomy?.evaluator ?? {
+                model: '',
+                temperature: 0.5,
+                maxTokens: 500,
+                systemPrompt: '',
+              }
+            : undefined,
+          limits: newEnabled
+            ? prev.autonomy?.limits ?? {
+                maxFollowUpsPerSession: 10,
+                minDelayMs: 5000,
+                maxDelayMs: 60000,
+              }
+            : undefined,
+          memoryContext: newEnabled
+            ? prev.autonomy?.memoryContext ?? {
+                recentMemoryCount: 5,
+                includeRecentMessages: 10,
+              }
+            : undefined,
+        },
+      };
+    });
   };
 
   const handleAutonomyEvaluatorChange = (
@@ -293,7 +307,7 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
         gap="4"
         className="p-6 border-t border-border bg-background sticky bottom-0"
       >
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={hasErrors}>
           {mode === 'create' ? 'Create' : 'Update'}
         </Button>
         <Button type="button" variant="secondary" onClick={handleCancel}>
