@@ -12,7 +12,7 @@
  * - Conditional rendering (null if no errors)
  */
 
-import './ValidationMessage.css';
+import { Box, Text } from '@workspace/ui';
 
 export interface ValidationMessageProps {
   errors?: string[];
@@ -26,26 +26,32 @@ export function ValidationMessage({ errors, severity = 'error' }: ValidationMess
   }
 
   const isSingleError = errors.length === 1;
-  const severityClass = severity === 'warning' ? 'validation-warning' : 'validation-error';
+  const isWarning = severity === 'warning';
 
   return (
-    <div
-      className={`validation-message ${severityClass}`}
+    <Box
       role="alert"
       aria-live="polite"
       data-severity={severity}
+      className={`p-3 px-4 rounded mb-4 text-sm leading-relaxed ${
+        isWarning
+          ? 'bg-yellow-50 border-l-4 border-yellow-500 text-yellow-900'
+          : 'bg-destructive/10 border-l-4 border-destructive text-destructive'
+      }`}
     >
       {isSingleError ? (
-        <p className="validation-message-text">{errors[0]}</p>
+        <Text as="p" className="m-0">
+          {errors[0]}
+        </Text>
       ) : (
-        <ul className="validation-message-list">
+        <Box as="ul" className="m-0 pl-5 list-disc">
           {errors.map((error, index) => (
-            <li key={index} className="validation-message-item">
+            <Text as="li" key={index} className="my-1 first:mt-0 last:mb-0">
               {error}
-            </li>
+            </Text>
           ))}
-        </ul>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }

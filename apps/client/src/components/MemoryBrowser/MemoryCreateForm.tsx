@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import { Box, Stack, Text, Textarea, Button } from '@workspace/ui';
 
 interface MemoryCreateFormProps {
   /** Callback when save is clicked */
@@ -45,137 +46,65 @@ export function MemoryCreateForm({ onSave, onCancel }: MemoryCreateFormProps): J
   };
 
   return (
-    <div>
+    <Box>
       {/* Duplicate warning banner (T082) - shown until dismissed */}
       {showDuplicateWarning && content.length > 0 && (
-        <div
-          style={{
-            padding: '0.75rem',
-            backgroundColor: '#fef3c7',
-            border: '1px solid #fde68a',
-            borderRadius: '0.375rem',
-            color: '#92400e',
-            fontSize: '0.875rem',
-            marginBottom: '1rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div>
-            <strong>💡 Tip:</strong> Duplicate memories are automatically detected and blocked.
-            Similar content (≥95%) will be rejected.
-          </div>
-          <button
-            onClick={() => setShowDuplicateWarning(false)}
-            style={{
-              marginLeft: '0.5rem',
-              padding: '0.125rem 0.25rem',
-              backgroundColor: 'transparent',
-              border: 'none',
-              color: '#92400e',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              fontWeight: '600',
-            }}
-            aria-label="Dismiss warning"
-          >
-            ✕
-          </button>
-        </div>
+        <Box className="p-3 bg-yellow-100 border border-yellow-200 rounded-md mb-4">
+          <Stack direction="horizontal" gap="2" align="start" className="justify-between">
+            <Text variant="body" size="sm" className="text-yellow-800">
+              <strong>💡 Tip:</strong> Duplicate memories are automatically detected and blocked.
+              Similar content (≥95%) will be rejected.
+            </Text>
+            <Button
+              onClick={() => setShowDuplicateWarning(false)}
+              variant="ghost"
+              size="sm"
+              className="text-yellow-800 hover:bg-yellow-200 px-2 py-1 text-xs font-semibold"
+              aria-label="Dismiss warning"
+            >
+              ✕
+            </Button>
+          </Stack>
+        </Box>
       )}
 
-      <textarea
+      <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Enter memory content..."
         disabled={isSaving}
-        style={{
-          width: '100%',
-          minHeight: '8rem',
-          padding: '0.75rem',
-          border: '1px solid #d1d5db',
-          borderRadius: '0.375rem',
-          fontSize: '0.875rem',
-          fontFamily: 'inherit',
-          resize: 'vertical',
-          marginBottom: '0.5rem',
-        }}
+        className="min-h-[8rem] mb-2 resize-y"
       />
 
       {/* Character Count */}
-      <div
-        style={{
-          fontSize: '0.75rem',
-          color: charCount > MAX_LENGTH ? '#dc2626' : '#6b7280',
-          marginBottom: '1rem',
-          textAlign: 'right',
-        }}
+      <Text
+        variant="caption"
+        size="sm"
+        className={`mb-4 text-right block ${charCount > MAX_LENGTH ? 'text-destructive' : 'text-muted'}`}
       >
         {charCount} / {MAX_LENGTH}
         {charCount > MAX_LENGTH && ' (exceeds maximum)'}
         {charCount < MIN_LENGTH && ' (minimum 1 character)'}
-      </div>
+      </Text>
 
       {/* Error Message */}
       {error && (
-        <div
-          style={{
-            padding: '0.75rem',
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.375rem',
-            color: '#dc2626',
-            fontSize: '0.875rem',
-            marginBottom: '1rem',
-          }}
-        >
-          {error}
-        </div>
+        <Box className="p-3 bg-red-50 border border-red-200 rounded-md mb-4">
+          <Text variant="body" size="sm" className="text-destructive">
+            {error}
+          </Text>
+        </Box>
       )}
 
       {/* Buttons */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.75rem',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <button
-          onClick={onCancel}
-          disabled={isSaving}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'white',
-            color: '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            opacity: isSaving ? 0.5 : 1,
-          }}
-        >
+      <Stack direction="horizontal" gap="3" className="justify-end">
+        <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
           Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!isValid || isSaving}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: isValid && !isSaving ? '#10b981' : '#d1d5db',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: isValid && !isSaving ? 'pointer' : 'not-allowed',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-          }}
-        >
+        </Button>
+        <Button onClick={handleSave} disabled={!isValid || isSaving} variant="primary">
           {isSaving ? 'Creating...' : 'Create'}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Stack>
+    </Box>
   );
 }

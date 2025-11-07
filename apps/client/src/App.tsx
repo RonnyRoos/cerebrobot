@@ -5,6 +5,7 @@ import { ThreadListView } from './components/ThreadListView';
 import { AgentPicker } from './components/AgentPicker';
 import { AgentsPage } from './pages/AgentsPage';
 import { useUserId } from './hooks/useUserId';
+import { Box, Button } from '@workspace/ui';
 
 /**
  * Main application component
@@ -116,17 +117,14 @@ export function App(): JSX.Element {
   // Show agents management page
   if (showAgentsPage && userId) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0f]">
-        <div className="p-4">
-          <button
-            onClick={navigateToThreads}
-            className="px-4 py-2 rounded-xl backdrop-blur-md bg-white/80 dark:bg-[#1e1e2e]/60 border border-gray-200 dark:border-[#a855f7]/20 text-gray-900 dark:text-white font-semibold shadow-lg dark:shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:dark:border-[#a855f7] transition-all"
-          >
+      <Box className="min-h-screen">
+        <Box className="p-4">
+          <Button variant="ghost" onClick={navigateToThreads}>
             ← Back to Threads
-          </button>
-        </div>
+          </Button>
+        </Box>
         <AgentsPage />
-      </div>
+      </Box>
     );
   }
 

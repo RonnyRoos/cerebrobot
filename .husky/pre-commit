@@ -1,0 +1,45 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Design System Enforcement Checks
+# Prevent legacy CSS patterns from being committed
+
+echo "🔍 Running design system enforcement checks..."
+
+# Detect CSS imports in client components (exclude design library theme)
+STAGED_TSX=$(git diff --cached --name-only --diff-filter=ACM | grep "apps/client/.*\.tsx$" || true)
+
+if [ -n "$STAGED_TSX" ]; then
+  # Check for CSS imports
+  CSS_IMPORTS=$(echo "$STAGED_TSX" | xargs grep -l "import.*\.css" 2>/dev/null || true)
+  if [ -n "$CSS_IMPORTS" ]; then
+    echo "❌ CSS imports detected in client components:"
+    echo "$CSS_IMPORTS"
+    echo "💡 Use design system primitives from @workspace/ui instead."
+    exit 1
+  fi
+
+  # Check for inline styles
+  INLINE_STYLES=$(echo "$STAGED_TSX" | xargs grep -l 'style={{' 2>/dev/null || true)
+  if [ -n "$INLINE_STYLES" ]; then
+    echo "❌ Inline styles detected:"
+    echo "$INLINE_STYLES"
+    echo "💡 Use design system props or CSS variables instead."
+    exit 1
+  fi
+
+  # Check for hardcoded colors (hex, rgb, rgba)
+  HARDCODED_COLORS=$(echo "$STAGED_TSX" | xargs grep -E "#[0-9a-fA-F]{6}|rgb\(|rgba\(" 2>/dev/null || true)
+  if [ -n "$HARDCODED_COLORS" ]; then
+    echo "❌ Hardcoded colors detected:"
+    echo "$HARDCODED_COLORS"
+    echo "💡 Use design tokens (CSS variables) instead."
+    exit 1
+  fi
+fi
+
+echo "✅ Design system checks passed"
+
+# Run hygiene loop
+echo "🔧 Running hygiene loop (lint → format → test)..."
+pnpm lint && pnpm format:write && pnpm test

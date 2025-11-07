@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Box, Text, Button } from '@workspace/ui';
 import type { MemoryEntry, MemorySearchResult, MemoryStatsResponse } from '@cerebrobot/chat-shared';
 import { MemoryList } from './MemoryList.js';
 import { MemorySearch } from './MemorySearch.js';
@@ -136,126 +137,60 @@ export function MemoryBrowser({
   return (
     <>
       {/* Toggle Button (Always Visible) */}
-      <button
+      <Button
         onClick={toggleSidebar}
         aria-label={isOpen ? 'Close memory sidebar' : 'Open memory sidebar'}
         aria-expanded={isOpen}
-        style={{
-          position: 'fixed',
-          top: '1rem',
-          right: '1rem',
-          padding: '0.5rem 1rem',
-          backgroundColor: '#3b82f6',
-          color: 'white',
-          border: 'none',
-          borderRadius: '0.375rem',
-          cursor: 'pointer',
-          fontSize: '0.875rem',
-          fontWeight: '500',
-          zIndex: 1001,
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-        }}
+        className="fixed top-4 right-4 z-[1001] shadow-md"
+        variant="default"
+        size="sm"
       >
         {isOpen ? '✕ Close' : '🧠 Memory'}
-      </button>
+      </Button>
 
       {/* Sidebar Panel */}
       {isOpen && (
-        <aside
+        <Box
+          as="aside"
           aria-label="Memory browser"
-          style={{
-            position: 'fixed',
-            top: 0,
-            right: 0,
-            width: '24rem',
-            height: '100vh',
-            backgroundColor: 'white',
-            borderLeft: '1px solid #e5e7eb',
-            boxShadow: '-4px 0 6px -1px rgba(0, 0, 0, 0.1)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
+          className="fixed top-0 right-0 w-96 h-screen bg-bg-surface/95 backdrop-blur-md border-l border-border-default shadow-xl z-[1000] flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <header
-            style={{
-              padding: '1rem',
-              borderBottom: '1px solid #e5e7eb',
-              backgroundColor: '#f9fafb',
-            }}
+          <Box
+            as="header"
+            className="p-4 border-b border-border-default bg-bg-elevated/50 backdrop-blur-sm"
           >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                color: '#111827',
-              }}
-            >
+            <Text as="h2" variant="heading" size="lg" className="mb-1">
               🧠 Agent Memory
-            </h2>
-            <p
-              style={{
-                margin: '0.25rem 0 0 0',
-                fontSize: '0.75rem',
-                color: '#6b7280',
-              }}
-            >
+            </Text>
+            <Text variant="caption" size="sm" className="text-text-secondary">
               {stats
                 ? `${stats.count} ${stats.count === 1 ? 'memory' : 'memories'} stored`
                 : 'Real-time memory as the agent learns'}
-            </p>
-          </header>
+            </Text>
+          </Box>
 
           {/* Capacity Warning Banner (US5: T079) */}
           {stats && stats.showWarning && (
-            <div
+            <Box
               role="alert"
-              style={{
-                padding: '0.75rem 1rem',
-                backgroundColor: '#fef3c7',
-                borderBottom: '1px solid #fbbf24',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
+              className="p-3 bg-warning/10 border-b border-warning/30 flex items-center gap-2"
             >
-              <span style={{ fontSize: '1.25rem' }}>⚠️</span>
-              <div style={{ flex: 1 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    color: '#92400e',
-                  }}
-                >
+              <span className="text-xl">⚠️</span>
+              <Box className="flex-1">
+                <Text variant="body" size="sm" className="text-warning font-semibold mb-0.5">
                   Memory capacity at {Math.round(stats.capacityPercent * 100)}%
-                </p>
-                <p
-                  style={{
-                    margin: '0.125rem 0 0 0',
-                    fontSize: '0.75rem',
-                    color: '#78350f',
-                  }}
-                >
+                </Text>
+                <Text variant="caption" size="sm" className="text-warning/90">
                   {stats.count} of {stats.maxMemories} memories used. Consider deleting old
                   memories.
-                </p>
-              </div>
-            </div>
+                </Text>
+              </Box>
+            </Box>
           )}
 
           {/* Memory List Container */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '1rem',
-            }}
-          >
+          <Box className="flex-1 overflow-y-auto p-4">
             {/* Search Component (US2: T039) */}
             <MemorySearch
               onSearch={handleSearch}
@@ -275,81 +210,40 @@ export function MemoryBrowser({
               onUpdateMemory={onUpdateMemory}
               onDeleteMemory={onDeleteMemory}
             />
-          </div>
+          </Box>
 
           {/* Create Button (Footer) */}
           {onCreateMemory && (
-            <div
-              style={{
-                padding: '1rem',
-                borderTop: '1px solid #e5e7eb',
-                backgroundColor: 'white',
-              }}
-            >
-              <button
+            <Box className="p-4 border-t border-border-default bg-bg-elevated/50 backdrop-blur-sm">
+              <Button
                 onClick={() => setShowCreateModal(true)}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.375rem',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                }}
+                className="w-full shadow-sm"
+                variant="primary"
+                size="md"
                 title="Create a new memory"
               >
                 + Create Memory
-              </button>
-            </div>
+              </Button>
+            </Box>
           )}
-        </aside>
+        </Box>
       )}
 
       {/* Create Memory Modal (US4: T063) */}
       {showCreateModal && (
-        <div
+        <Box
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-memory-title"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 2000,
-          }}
+          className="fixed inset-0 bg-bg-overlay/80 backdrop-blur-sm flex items-center justify-center z-[2000]"
         >
-          <div
+          <Box
             role="document"
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '0.5rem',
-              padding: '1.5rem',
-              maxWidth: '32rem',
-              width: '90%',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            }}
+            className="bg-bg-surface/95 backdrop-blur-md rounded-lg p-6 max-w-lg w-[90%] shadow-modal border border-border-default"
           >
-            <h3
-              id="create-memory-title"
-              style={{
-                margin: '0 0 1rem 0',
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                color: '#111827',
-              }}
-            >
+            <Text id="create-memory-title" as="h3" variant="heading" size="lg" className="mb-4">
               Create New Memory
-            </h3>
+            </Text>
             <MemoryCreateForm
               onSave={async (content: string) => {
                 await onCreateMemory?.(content);
@@ -357,8 +251,8 @@ export function MemoryBrowser({
               }}
               onCancel={() => setShowCreateModal(false)}
             />
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
     </>
   );

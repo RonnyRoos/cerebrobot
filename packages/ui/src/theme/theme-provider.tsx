@@ -95,7 +95,8 @@ export function Theme({
     root.classList.add(`theme-${theme}`);
 
     // Add .dark class for backward compatibility with existing components
-    if (theme === 'dark') {
+    // (both 'dark' and 'high-contrast' themes use dark backgrounds)
+    if (theme === 'dark' || theme === 'high-contrast') {
       root.classList.add('dark');
     }
 

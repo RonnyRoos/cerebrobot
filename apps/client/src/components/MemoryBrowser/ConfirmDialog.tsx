@@ -6,6 +6,8 @@
  * Implementation: User Story 3 (T053)
  */
 
+import { Box, Stack, Text, Button } from '@workspace/ui';
+
 interface ConfirmDialogProps {
   /** Whether the dialog is open */
   isOpen: boolean;
@@ -45,106 +47,34 @@ export function ConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <div
+    <Box
       role="dialog"
       aria-modal="true"
       aria-labelledby="dialog-title"
       aria-describedby="dialog-message"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
     >
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          padding: '1.5rem',
-          borderRadius: '0.5rem',
-          maxWidth: '400px',
-          width: '90%',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-        }}
-      >
+      <Box className="bg-background p-6 rounded-lg max-w-md w-[90%] shadow-2xl">
         {/* Title */}
-        <h2
-          id="dialog-title"
-          style={{
-            margin: 0,
-            marginBottom: '0.75rem',
-            fontSize: '1.125rem',
-            fontWeight: 600,
-            color: '#111827',
-          }}
-        >
+        <Text id="dialog-title" as="h2" variant="heading" size="lg" className="mb-3">
           {title}
-        </h2>
+        </Text>
 
         {/* Message */}
-        <p
-          id="dialog-message"
-          style={{
-            margin: 0,
-            marginBottom: '1.5rem',
-            fontSize: '0.875rem',
-            color: '#6b7280',
-            lineHeight: '1.5',
-          }}
-        >
+        <Text id="dialog-message" variant="caption" className="text-muted mb-6 leading-relaxed">
           {message}
-        </p>
+        </Text>
 
         {/* Actions */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.75rem',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <button
-            onClick={onCancel}
-            disabled={isProcessing}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#ffffff',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: isProcessing ? 'not-allowed' : 'pointer',
-              opacity: isProcessing ? 0.5 : 1,
-            }}
-          >
+        <Stack direction="horizontal" gap="3" className="justify-end">
+          <Button variant="secondary" onClick={onCancel} disabled={isProcessing}>
             {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isProcessing}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#ef4444',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: isProcessing ? 'not-allowed' : 'pointer',
-              opacity: isProcessing ? 0.5 : 1,
-            }}
-          >
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isProcessing}>
             {isProcessing ? 'Processing...' : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
   );
 }

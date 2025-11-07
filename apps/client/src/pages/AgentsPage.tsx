@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import type { AgentConfig } from '@cerebrobot/chat-shared';
+import { Box, Button, Text } from '@workspace/ui';
 import { useAgents } from '../hooks/useAgents.js';
 import { useAgent } from '../hooks/useAgent.js';
 import { useCreateAgent } from '../hooks/useCreateAgent.js';
@@ -111,20 +112,24 @@ export function AgentsPage() {
   // Show create form
   if (showCreateForm) {
     return (
-      <div className="agents-page">
-        <div className="agents-page-header">
-          <button onClick={handleCancelCreate} className="btn btn-secondary">
+      <Box className="min-h-screen">
+        <Box className="p-4 border-b border-border flex items-center gap-4">
+          <Button variant="ghost" onClick={handleCancelCreate}>
             ← Back to Agents
-          </button>
-          <h1>Create New Agent</h1>
-        </div>
+          </Button>
+          <Text as="h1" variant="heading" size="2xl">
+            Create New Agent
+          </Text>
+        </Box>
         {createError && (
-          <div className="error-message" role="alert">
-            {createError}
-          </div>
+          <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+            <Text variant="body" className="text-error">
+              {createError}
+            </Text>
+          </Box>
         )}
         <AgentForm mode="create" onSubmit={handleSubmitCreate} onCancel={handleCancelCreate} />
-      </div>
+      </Box>
     );
   }
 
@@ -133,65 +138,83 @@ export function AgentsPage() {
     // Loading agent data
     if (loadingAgent) {
       return (
-        <div className="agents-page">
-          <div className="agents-page-header">
-            <button onClick={handleCancelEdit} className="btn btn-secondary">
+        <Box className="min-h-screen">
+          <Box className="p-4 border-b border-border flex items-center gap-4">
+            <Button variant="ghost" onClick={handleCancelEdit}>
               ← Back to Agents
-            </button>
-            <h1>Edit Agent</h1>
-          </div>
-          <div className="loading-state">Loading agent data...</div>
-        </div>
+            </Button>
+            <Text as="h1" variant="heading" size="2xl">
+              Edit Agent
+            </Text>
+          </Box>
+          <Box className="p-8 flex items-center justify-center">
+            <Text variant="body" size="lg" className="text-text-tertiary">
+              Loading agent data...
+            </Text>
+          </Box>
+        </Box>
       );
     }
 
     // Error loading agent
     if (loadAgentError) {
       return (
-        <div className="agents-page">
-          <div className="agents-page-header">
-            <button onClick={handleCancelEdit} className="btn btn-secondary">
+        <Box className="min-h-screen">
+          <Box className="p-4 border-b border-border flex items-center gap-4">
+            <Button variant="ghost" onClick={handleCancelEdit}>
               ← Back to Agents
-            </button>
-            <h1>Edit Agent</h1>
-          </div>
-          <div className="error-message" role="alert">
-            Error loading agent: {loadAgentError}
-          </div>
-        </div>
+            </Button>
+            <Text as="h1" variant="heading" size="2xl">
+              Edit Agent
+            </Text>
+          </Box>
+          <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+            <Text variant="body" className="text-error">
+              Error loading agent: {loadAgentError}
+            </Text>
+          </Box>
+        </Box>
       );
     }
 
     // Agent not found
     if (!editingAgent) {
       return (
-        <div className="agents-page">
-          <div className="agents-page-header">
-            <button onClick={handleCancelEdit} className="btn btn-secondary">
+        <Box className="min-h-screen">
+          <Box className="p-4 border-b border-border flex items-center gap-4">
+            <Button variant="ghost" onClick={handleCancelEdit}>
               ← Back to Agents
-            </button>
-            <h1>Edit Agent</h1>
-          </div>
-          <div className="error-message" role="alert">
-            Agent not found
-          </div>
-        </div>
+            </Button>
+            <Text as="h1" variant="heading" size="2xl">
+              Edit Agent
+            </Text>
+          </Box>
+          <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+            <Text variant="body" className="text-error">
+              Agent not found
+            </Text>
+          </Box>
+        </Box>
       );
     }
 
     // Show edit form with loaded agent data
     return (
-      <div className="agents-page">
-        <div className="agents-page-header">
-          <button onClick={handleCancelEdit} className="btn btn-secondary">
+      <Box className="min-h-screen">
+        <Box className="p-4 border-b border-border flex items-center gap-4">
+          <Button variant="ghost" onClick={handleCancelEdit}>
             ← Back to Agents
-          </button>
-          <h1>Edit Agent</h1>
-        </div>
+          </Button>
+          <Text as="h1" variant="heading" size="2xl">
+            Edit Agent
+          </Text>
+        </Box>
         {updateError && (
-          <div className="error-message" role="alert">
-            {updateError}
-          </div>
+          <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+            <Text variant="body" className="text-error">
+              {updateError}
+            </Text>
+          </Box>
         )}
         <AgentForm
           mode="edit"
@@ -199,40 +222,48 @@ export function AgentsPage() {
           onSubmit={handleSubmitEdit}
           onCancel={handleCancelEdit}
         />
-      </div>
+      </Box>
     );
   }
 
   // Show agent list
   if (loading) {
     return (
-      <div className="agents-page">
-        <div className="loading-state">Loading agents...</div>
-      </div>
+      <Box className="min-h-screen p-8 flex items-center justify-center">
+        <Text variant="body" size="lg" className="text-text-tertiary">
+          Loading agents...
+        </Text>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="agents-page">
-        <div className="error-state">
-          <p>Error loading agents: {error}</p>
-        </div>
-      </div>
+      <Box className="min-h-screen p-4">
+        <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+          <Text variant="body" className="text-error">
+            Error loading agents: {error}
+          </Text>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="agents-page">
+    <Box className="min-h-screen">
       {successMessage && (
-        <div className="success-message" role="status">
-          {successMessage}
-        </div>
+        <Box className="p-4 bg-success/10 border-l-4 border-success" role="status">
+          <Text variant="body" className="text-success">
+            {successMessage}
+          </Text>
+        </Box>
       )}
       {deleteError && (
-        <div className="error-message" role="alert">
-          {deleteError}
-        </div>
+        <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+          <Text variant="body" className="text-error">
+            {deleteError}
+          </Text>
+        </Box>
       )}
       <AgentList
         agents={agents}
@@ -250,6 +281,6 @@ export function AgentsPage() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
-    </div>
+    </Box>
   );
 }

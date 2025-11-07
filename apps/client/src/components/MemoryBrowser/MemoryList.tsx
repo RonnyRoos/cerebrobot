@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react';
+import { Box, Stack, Text, Button } from '@workspace/ui';
 import type { MemoryEntry, MemorySearchResult } from '@cerebrobot/chat-shared';
 import { MemoryEditor } from './MemoryEditor.js';
 import { ConfirmDialog } from './ConfirmDialog.js';
@@ -132,36 +133,25 @@ export function MemoryList({
   // Loading state
   if (isLoading) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        style={{
-          textAlign: 'center',
-          padding: '2rem 1rem',
-          color: '#6b7280',
-        }}
-      >
-        <p style={{ margin: 0, fontSize: '0.875rem' }}>Loading memories...</p>
-      </div>
+      <Box role="status" aria-live="polite" className="text-center py-8 px-4">
+        <Text variant="body" size="sm" className="text-muted">
+          Loading memories...
+        </Text>
+      </Box>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div
-        role="alert"
-        style={{
-          padding: '1rem',
-          backgroundColor: '#fef2f2',
-          border: '1px solid #fecaca',
-          borderRadius: '0.375rem',
-          marginBottom: '1rem',
-        }}
-      >
-        <strong style={{ color: '#991b1b', fontSize: '0.875rem' }}>Failed to load memories</strong>
-        <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#7f1d1d' }}>{error}</p>
-      </div>
+      <Box role="alert" className="p-4 bg-red-50 border border-red-200 rounded-md mb-4">
+        <Text variant="body" size="sm" className="text-red-900 font-semibold">
+          Failed to load memories
+        </Text>
+        <Text variant="caption" size="sm" className="text-red-800 mt-2">
+          {error}
+        </Text>
+      </Box>
     );
   }
 
@@ -170,42 +160,30 @@ export function MemoryList({
     // Empty search results (T036)
     if (isSearchResults) {
       return (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '2rem 1rem',
-            color: '#9ca3af',
-          }}
-        >
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔍</div>
-          <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>
+        <Box className="text-center py-8 px-4">
+          <Text className="text-3xl mb-2">🔍</Text>
+          <Text variant="body" size="sm" className="text-muted font-medium mb-2">
             No matching memories found
-          </p>
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', lineHeight: '1.5' }}>
+          </Text>
+          <Text variant="caption" size="sm" className="text-text-tertiary leading-relaxed">
             {searchQuery ? `No memories match "${searchQuery}".` : 'No memories match your search.'}{' '}
             Try different terms or browse all memories.
-          </p>
-        </div>
+          </Text>
+        </Box>
       );
     }
 
     // Empty memory list
     return (
-      <div
-        style={{
-          textAlign: 'center',
-          padding: '2rem 1rem',
-          color: '#9ca3af',
-        }}
-      >
-        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧠</div>
-        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: '500', color: '#6b7280' }}>
+      <Box className="text-center py-8 px-4">
+        <Text className="text-3xl mb-2">🧠</Text>
+        <Text variant="body" size="sm" className="text-muted font-medium mb-2">
           No memories yet
-        </p>
-        <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', lineHeight: '1.5' }}>
+        </Text>
+        <Text variant="caption" size="sm" className="text-gray-400 leading-relaxed">
           Memories will appear here as your agent learns about you during conversations.
-        </p>
-      </div>
+        </Text>
+      </Box>
     );
   }
 
@@ -223,44 +201,27 @@ export function MemoryList({
   return (
     <>
       {/* Sort Toggle */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-          paddingBottom: '0.75rem',
-          borderBottom: '1px solid #e5e7eb',
-        }}
+      <Stack
+        direction="horizontal"
+        gap="0"
+        align="center"
+        className="justify-between mb-3 pb-3 border-b border-border"
       >
-        <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '500' }}>
+        <Text variant="caption" size="sm" className="text-muted font-medium">
           {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
-        </span>
-        <button
+        </Text>
+        <Button
           onClick={() => setSortNewestFirst((prev) => !prev)}
-          style={{
-            fontSize: '0.75rem',
-            color: '#3b82f6',
-            backgroundColor: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0.25rem 0.5rem',
-            borderRadius: '0.25rem',
-            fontWeight: '500',
-          }}
+          variant="ghost"
+          size="sm"
+          className="text-blue-600 hover:bg-blue-50 px-2 py-1 text-xs font-medium"
           aria-label={`Sort by ${sortNewestFirst ? 'oldest' : 'newest'} first`}
         >
           {sortNewestFirst ? '↓ Newest first' : '↑ Oldest first'}
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
-      <ul
-        style={{
-          listStyle: 'none',
-          margin: 0,
-          padding: 0,
-        }}
-      >
+      <Box as="ul" className="list-none m-0 p-0">
         {sortedMemories.map((memory) => {
           // Type guard to check if this is a search result with similarity
           const isSearchResult = 'similarity' in memory;
@@ -269,46 +230,32 @@ export function MemoryList({
           const isHighlighted = highlightMemoryId === memory.id;
 
           return (
-            <li
+            <Box
               key={memory.id}
-              style={{
-                padding: '0.75rem',
-                marginBottom: '0.5rem',
-                backgroundColor: isHighlighted
-                  ? '#d1fae5'
+              as="li"
+              className={`p-3 mb-2 rounded-md border transition-all duration-300 ${
+                isHighlighted
+                  ? 'bg-green-100 border-green-600'
                   : similarity !== undefined && similarity >= 0.9
-                    ? '#ecfdf5'
-                    : '#f9fafb',
-                border: `1px solid ${isHighlighted ? '#10b981' : similarity !== undefined && similarity >= 0.9 ? '#6ee7b7' : '#e5e7eb'}`,
-                borderRadius: '0.375rem',
-                transition: 'all 0.3s ease-out',
-                boxShadow:
-                  similarity !== undefined && similarity >= 0.9
-                    ? '0 1px 3px 0 rgba(16, 185, 129, 0.1)'
-                    : undefined,
-              }}
+                    ? 'bg-green-50 border-green-300 shadow-sm shadow-green-100'
+                    : 'bg-surface border-border'
+              }`}
             >
               {/* Similarity score badge (T035, enhanced in T075/T081) */}
               {similarity !== undefined && (
-                <div
-                  style={{
-                    display: 'inline-block',
-                    marginBottom: '0.5rem',
-                    padding: '0.125rem 0.5rem',
-                    fontSize: '0.6875rem',
-                    fontWeight: '600',
-                    color:
-                      similarity >= 0.9 ? '#059669' : similarity >= 0.7 ? '#3b82f6' : '#6b7280',
-                    backgroundColor:
-                      similarity >= 0.9 ? '#a7f3d0' : similarity >= 0.7 ? '#dbeafe' : '#f3f4f6',
-                    borderRadius: '0.25rem',
-                    border: similarity >= 0.9 ? '1px solid #059669' : undefined,
-                  }}
+                <Box
+                  className={`inline-block mb-2 px-2 py-0.5 text-xs font-semibold rounded ${
+                    similarity >= 0.9
+                      ? 'text-green-700 bg-green-200 border border-green-700'
+                      : similarity >= 0.7
+                        ? 'text-blue-700 bg-blue-100'
+                        : 'text-muted bg-muted'
+                  }`}
                   title={`Similarity: ${similarity.toFixed(3)} (${similarity >= 0.95 ? 'Exact match' : similarity >= 0.9 ? 'Very close match' : similarity >= 0.7 ? 'Related memory' : 'Weak match'})`}
                 >
                   {similarity >= 0.9 ? '✨ ' : ''}
                   {Math.round(similarity * 100)}% match
-                </div>
+                </Box>
               )}
 
               {/* Editing mode */}
@@ -323,104 +270,75 @@ export function MemoryList({
               ) : (
                 <>
                   {/* Memory content */}
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: '0.875rem',
-                      color: '#111827',
-                      lineHeight: '1.5',
-                    }}
-                  >
+                  <Text variant="body" size="sm" className="text-text-primary leading-relaxed mb-2">
                     {memory.content}
-                  </p>
+                  </Text>
 
                   {/* Footer with timestamp and action buttons */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginTop: '0.5rem',
-                    }}
-                  >
+                  <Stack direction="horizontal" gap="2" align="center" className="justify-between">
                     {/* Timestamp */}
-                    <time
+                    <Text
+                      as="time"
                       dateTime={
                         typeof memory.createdAt === 'string'
                           ? memory.createdAt
                           : memory.createdAt.toISOString()
                       }
-                      style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280',
-                      }}
+                      variant="caption"
+                      size="sm"
+                      className="text-muted"
                     >
                       {formatRelativeTime(memory.createdAt)}
-                    </time>
+                    </Text>
 
                     {/* Edit/Delete buttons (US3: T054) */}
                     {(onUpdateMemory || onDeleteMemory) && (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <Stack direction="horizontal" gap="2">
                         {onUpdateMemory && (
-                          <button
+                          <Button
                             onClick={() => setEditingMemoryId(memory.id)}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              fontSize: '0.75rem',
-                              color: '#3b82f6',
-                              backgroundColor: 'transparent',
-                              border: '1px solid #3b82f6',
-                              borderRadius: '0.25rem',
-                              cursor: 'pointer',
-                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50 px-2 py-1 text-xs"
                             aria-label="Edit memory"
                           >
                             ✏️ Edit
-                          </button>
+                          </Button>
                         )}
                         {onDeleteMemory && (
-                          <button
+                          <Button
                             onClick={() => setDeletingMemoryId(memory.id)}
-                            style={{
-                              padding: '0.25rem 0.5rem',
-                              fontSize: '0.75rem',
-                              color: '#ef4444',
-                              backgroundColor: 'transparent',
-                              border: '1px solid #ef4444',
-                              borderRadius: '0.25rem',
-                              cursor: 'pointer',
-                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive border-destructive hover:bg-red-50 px-2 py-1 text-xs"
                             aria-label="Delete memory"
                           >
                             🗑️ Delete
-                          </button>
+                          </Button>
                         )}
-                      </div>
+                      </Stack>
                     )}
-                  </div>
+                  </Stack>
 
                   {/* Optional: Show key if it's meaningful (not a UUID) */}
                   {memory.key &&
                     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
                       memory.key,
                     ) && (
-                      <div
-                        style={{
-                          marginTop: '0.5rem',
-                          fontSize: '0.6875rem',
-                          color: '#9ca3af',
-                          fontFamily: 'monospace',
-                        }}
+                      <Text
+                        variant="caption"
+                        size="sm"
+                        className="text-text-tertiary font-mono mt-2 block"
                       >
                         {memory.key}
-                      </div>
+                      </Text>
                     )}
                 </>
               )}
-            </li>
+            </Box>
           );
         })}
-      </ul>
+      </Box>
 
       {/* Delete confirmation dialog (US3: T053) */}
       <ConfirmDialog

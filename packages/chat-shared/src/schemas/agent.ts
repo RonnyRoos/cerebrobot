@@ -143,12 +143,44 @@ export const AgentAutonomyMemoryContextConfigSchema = z.object({
     .max(100, { message: 'Recent messages count must be between 0 and 100' }),
 });
 
-export const AgentAutonomyConfigSchema = z.object({
-  enabled: z.boolean(),
-  evaluator: AgentAutonomyEvaluatorConfigSchema,
-  limits: AgentAutonomyLimitsConfigSchema,
-  memoryContext: AgentAutonomyMemoryContextConfigSchema,
-});
+export const AgentAutonomyConfigSchema = z
+  .object({
+    enabled: z.boolean(),
+    evaluator: AgentAutonomyEvaluatorConfigSchema.optional(),
+    limits: AgentAutonomyLimitsConfigSchema.optional(),
+    memoryContext: AgentAutonomyMemoryContextConfigSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    // Only validate nested fields if autonomy is enabled
+    if (!data.enabled) {
+      return; // Skip validation when disabled
+    }
+
+    // If enabled, validate that required fields are present
+    if (!data.evaluator) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Evaluator configuration is required when autonomy is enabled',
+        path: ['evaluator'],
+      });
+    }
+
+    if (!data.limits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Limits configuration is required when autonomy is enabled',
+        path: ['limits'],
+      });
+    }
+
+    if (!data.memoryContext) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Memory context configuration is required when autonomy is enabled',
+        path: ['memoryContext'],
+      });
+    }
+  });
 
 export const AgentConfigSchema = z.object({
   name: z

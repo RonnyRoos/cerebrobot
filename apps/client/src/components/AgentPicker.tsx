@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AgentListResponse } from '@cerebrobot/chat-shared';
+import { Stack, Text } from '@workspace/ui';
 
 interface AgentPickerProps {
   selectedAgentId: string | null;
@@ -37,38 +38,52 @@ export function AgentPicker({ selectedAgentId, onSelect }: AgentPickerProps) {
   }, []); // Fetch agents once on mount
 
   if (loading) {
-    return <div style={{ padding: '8px', color: '#666' }}>Loading agents...</div>;
+    return (
+      <Stack className="p-2">
+        <Text variant="caption" className="text-muted">
+          Loading agents...
+        </Text>
+      </Stack>
+    );
   }
 
   if (error) {
-    return <div style={{ padding: '8px', color: '#d32f2f' }}>Error: {error}</div>;
+    return (
+      <Stack className="p-2">
+        <Text variant="caption" className="text-destructive">
+          Error: {error}
+        </Text>
+      </Stack>
+    );
   }
 
   if (agents.length === 0) {
-    return <div style={{ padding: '8px', color: '#666' }}>No agents available</div>;
+    return (
+      <Stack className="p-2">
+        <Text variant="caption" className="text-muted">
+          No agents available
+        </Text>
+      </Stack>
+    );
   }
 
   return (
-    <div style={{ padding: '16px' }}>
-      <h2>Select an Agent</h2>
-      <p style={{ color: '#666', marginBottom: '16px' }}>
+    <Stack direction="vertical" gap="4" className="p-4">
+      <Text as="h2" variant="heading" size="xl">
+        Select an Agent
+      </Text>
+      <Text variant="caption" className="text-muted">
         Choose which agent personality you&apos;d like to chat with.
-      </p>
-      <div>
-        <label htmlFor="agent-picker" style={{ marginRight: '8px', fontWeight: 'bold' }}>
+      </Text>
+      <Stack direction="vertical" gap="2">
+        <Text as="label" htmlFor="agent-picker" className="font-medium">
           Agent:
-        </label>
+        </Text>
         <select
           id="agent-picker"
           value={selectedAgentId ?? ''}
           onChange={(e) => onSelect(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            fontSize: '14px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            minWidth: '250px',
-          }}
+          className="h-10 w-full min-w-[250px] rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors hover:border-accent-primary/50 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:ring-offset-2"
         >
           <option value="">-- Please select an agent --</option>
           {agents.map((agent) => (
@@ -78,7 +93,7 @@ export function AgentPicker({ selectedAgentId, onSelect }: AgentPickerProps) {
             </option>
           ))}
         </select>
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }

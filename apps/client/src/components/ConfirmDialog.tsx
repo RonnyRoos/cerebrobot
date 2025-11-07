@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { Box, Stack, Text, Button } from '@workspace/ui';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -24,7 +25,6 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   onConfirm,
   onCancel,
-  variant = 'danger',
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -56,24 +56,29 @@ export function ConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <dialog ref={dialogRef} className="confirm-dialog" onKeyDown={handleKeyDown}>
-      <div className="confirm-dialog-content">
-        <h2 className="confirm-dialog-title">{title}</h2>
-        <p className="confirm-dialog-message">{message}</p>
-        <div className="confirm-dialog-actions">
-          <button onClick={handleCancel} className="btn btn-secondary">
-            {cancelLabel}
-          </button>
-          <button
-            onClick={handleConfirm}
-            className={`btn ${variant === 'danger' ? 'btn-danger' : 'btn-warning'}`}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
-      <div className="confirm-dialog-backdrop" onClick={handleCancel} />
+    <dialog
+      ref={dialogRef}
+      onKeyDown={handleKeyDown}
+      className="fixed inset-0 bg-transparent backdrop:bg-bg-overlay/80 backdrop:backdrop-blur-sm"
+    >
+      <Box className="bg-bg-surface/95 backdrop-blur-md rounded-xl p-6 max-w-md shadow-modal border border-border-default">
+        <Stack direction="vertical" gap="4">
+          <Text as="h2" variant="heading" size="xl">
+            {title}
+          </Text>
+          <Text as="p" variant="body" size="base" className="text-text-secondary">
+            {message}
+          </Text>
+          <Stack direction="horizontal" gap="3" justify="end" className="mt-2">
+            <Button variant="secondary" onClick={handleCancel}>
+              {cancelLabel}
+            </Button>
+            <Button variant="danger" onClick={handleConfirm}>
+              {confirmLabel}
+            </Button>
+          </Stack>
+        </Stack>
+      </Box>
     </dialog>
   );
 }

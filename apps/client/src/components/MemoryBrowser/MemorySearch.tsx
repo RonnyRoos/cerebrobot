@@ -9,6 +9,7 @@
  */
 
 import { useState, type FormEvent, type ChangeEvent } from 'react';
+import { Box, Stack, Text, Input, Button } from '@workspace/ui';
 
 interface MemorySearchProps {
   /** Callback when search is submitted */
@@ -50,84 +51,43 @@ export function MemorySearch({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        padding: '0.75rem',
-        borderBottom: '1px solid #e5e7eb',
-        backgroundColor: '#f9fafb',
-      }}
-    >
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+    <Box as="form" onSubmit={handleSubmit} className="p-3 border-b border-border bg-surface">
+      <Stack direction="horizontal" gap="2" align="center">
         {/* Search Input */}
-        <input
+        <Input
           type="text"
           value={query}
           onChange={handleChange}
           placeholder="Search memories..."
           disabled={isLoading}
-          style={{
-            flex: 1,
-            padding: '0.5rem',
-            fontSize: '0.875rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            outline: 'none',
-            backgroundColor: isLoading ? '#f3f4f6' : 'white',
-          }}
+          className="flex-1"
           aria-label="Search memories"
         />
 
         {/* Search Button */}
         {!isSearchActive ? (
-          <button
-            type="submit"
-            disabled={!query.trim() || isLoading}
-            style={{
-              padding: '0.5rem 0.75rem',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: 'white',
-              backgroundColor: query.trim() && !isLoading ? '#3b82f6' : '#9ca3af',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: query.trim() && !isLoading ? 'pointer' : 'not-allowed',
-            }}
-          >
+          <Button type="submit" disabled={!query.trim() || isLoading} variant="default" size="sm">
             {isLoading ? 'Searching...' : 'Search'}
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             type="button"
             onClick={handleClear}
-            style={{
-              padding: '0.5rem 0.75rem',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#dc2626',
-              backgroundColor: 'white',
-              border: '1px solid #dc2626',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-            }}
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive hover:bg-destructive/10"
           >
             Clear
-          </button>
+          </Button>
         )}
-      </div>
+      </Stack>
 
       {/* Search hint */}
       {!isSearchActive && (
-        <p
-          style={{
-            margin: '0.5rem 0 0 0',
-            fontSize: '0.6875rem',
-            color: '#6b7280',
-          }}
-        >
+        <Text variant="caption" className="mt-2">
           Search using natural language (e.g., &ldquo;preferences&rdquo;, &ldquo;chocolate&rdquo;)
-        </p>
+        </Text>
       )}
-    </form>
+    </Box>
   );
 }
