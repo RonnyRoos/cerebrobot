@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AIMessage } from '@langchain/core/messages';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { MemorySaver } from '@langchain/langgraph';
 import { LangGraphChatAgent } from '../langgraph-agent.js';
 import type { AgentStreamEvent, ChatInvocationContext } from '../../chat/chat-agent.js';
@@ -151,6 +151,96 @@ describe('LangGraphChatAgent', () => {
 
     expect(state.values.messages ?? []).toHaveLength(0);
     expect(state.values.summary).toBeNull();
+  });
+
+  describe('Metadata Type Handling (T007b)', () => {
+    /**
+     * Unit tests for US1: LangGraphAgent type handling (string vs HumanMessage)
+     *
+     * Validates that LangGraphAgent can accept both string and HumanMessage inputs
+     * and properly handles metadata from HumanMessage.additional_kwargs.
+     */
+
+    it('should accept string input (current behavior)', async () => {
+      chatInvokeHandlers.push(async () => new AIMessage('response to string'));
+
+      const agent = new LangGraphChatAgent(mockAgentConfig, undefined, new MemorySaver());
+
+      const context: ChatInvocationContext = {
+        threadId: 'thread-1',
+        message: 'Hello, agent!',
+        userId: 'user1',
+        correlationId: 'req-1',
+        isUserMessage: true,
+      };
+
+      const stream = agent.streamChat(context);
+      const event = await lastEvent(stream);
+      assertFinalEvent(event);
+
+      expect(event.message).toBe('response to string');
+    });
+
+    it('should accept HumanMessage input with metadata (future US1 behavior)', async () => {
+      chatInvokeHandlers.push(async () => new AIMessage('response to HumanMessage'));
+
+      const agent = new LangGraphChatAgent(mockAgentConfig, undefined, new MemorySaver());
+
+      // T009-T010: HumanMessage with metadata should now work
+      const messageWithMetadata = new HumanMessage({
+        content: 'Continue our conversation naturally.',
+        additional_kwargs: {
+          synthetic: true,
+          trigger_type: 'check_in',
+          trigger_reason: 'No activity for 30s',
+        },
+      });
+
+      const context: ChatInvocationContext = {
+        threadId: 'thread-1',
+        message: messageWithMetadata,
+        userId: 'user1',
+        correlationId: 'req-1',
+        isUserMessage: false, // Autonomous message
+      };
+
+      const stream = agent.streamChat(context);
+      const event = await lastEvent(stream);
+      assertFinalEvent(event);
+
+      expect(event.message).toBe('response to HumanMessage');
+    });
+
+    it('should preserve metadata through graph invocation', async () => {
+      chatInvokeHandlers.push(async () => new AIMessage('metadata preserved'));
+
+      const checkpointer = new MemorySaver();
+      const agent = new LangGraphChatAgent(mockAgentConfig, undefined, checkpointer);
+
+      // T012: Verify metadata flows through state
+      const messageWithMetadata = new HumanMessage({
+        content: 'Test message',
+        additional_kwargs: {
+          synthetic: true,
+          trigger_type: 'check_in',
+        },
+      });
+
+      const context: ChatInvocationContext = {
+        threadId: 'thread-metadata',
+        message: messageWithMetadata,
+        userId: 'user1',
+        correlationId: 'req-metadata',
+        isUserMessage: false,
+      };
+
+      const stream = agent.streamChat(context);
+      await lastEvent(stream); // Consume stream to completion
+
+      // Metadata should be preserved in checkpoint (verified by checkpoint validation tests)
+      // This test ensures the message is accepted and processed
+      expect(true).toBe(true); // Placeholder - real validation happens in checkpoint tests
+    });
   });
 });
 

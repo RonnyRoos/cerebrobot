@@ -169,12 +169,15 @@ export class LangGraphChatAgent implements ChatAgent {
       'invoking langgraph chat agent (stream)',
     );
 
+    // T009-T010: Handle both string and HumanMessage inputs
+    const messageInput = this.convertToHumanMessage(context.message);
+
     const stream = (await this.graphContext.graph.stream(
       {
         threadId: context.threadId,
         userId: context.userId,
         agentId: this.agentId,
-        messages: [new HumanMessage(context.message)],
+        messages: [messageInput],
         // CRITICAL: Clear effects at the start of each new event processing
         // Effects should be ephemeral per invocation, not accumulate across turns
         effects: [],
@@ -229,6 +232,26 @@ export class LangGraphChatAgent implements ChatAgent {
     );
 
     yield { type: 'final' as const, message: accumulated, latencyMs, tokenUsage, effects };
+  }
+
+  /**
+   * Convert message input to HumanMessage, preserving metadata
+   *
+   * Accepts both string and HumanMessage inputs to support:
+   * - User messages: Passed as strings from API endpoints
+   * - Autonomous messages: Created as HumanMessage with metadata by SessionProcessor
+   *
+   * Why preserve metadata: Autonomous messages carry additional_kwargs.synthetic flag
+   * which is needed for downstream detection (memory retrieval, thread filtering).
+   * Simply returning existing HumanMessage preserves this metadata through LangGraph.
+   */
+  private convertToHumanMessage(message: string | HumanMessage): HumanMessage {
+    if (typeof message === 'string') {
+      // User message: Create new HumanMessage from string content
+      return new HumanMessage(message);
+    }
+    // Already a HumanMessage with potential metadata - pass through
+    return message;
   }
 
   public async completeChat(context: ChatInvocationContext) {

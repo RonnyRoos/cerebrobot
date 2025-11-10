@@ -4,19 +4,21 @@
  * LangGraph nodes for memory retrieval and storage operations.
  */
 
-import { SystemMessage } from '@langchain/core/messages';
+import { SystemMessage, isHumanMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
-import type { BaseStore } from '@cerebrobot/chat-shared';
+import type { BaseStore, MessageMetadata } from '@cerebrobot/chat-shared';
 import { buildAgentMemoryNamespace } from '@cerebrobot/chat-shared';
 import type { MemoryConfig } from './config.js';
 import type { Logger } from 'pino';
+import { logMetadataDetection, logEmptyThreadError } from '../../lib/logger.js';
 
 interface MemoryState {
   messages: BaseMessage[];
   userId?: string;
   agentId?: string;
   threadId: string;
+  summary?: string | null;
   retrievedMemories?: Array<{
     id: string;
     content: string;
@@ -58,7 +60,7 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
       }
       const namespace = buildAgentMemoryNamespace(state.agentId, state.userId);
 
-      // Get the latest user message for query
+      // Get the latest message in conversation history to determine query source
       const messages = state.messages;
       const lastMessage = messages[messages.length - 1];
 
@@ -67,8 +69,113 @@ export function createRetrieveMemoriesNode(store: BaseStore, config: MemoryConfi
         return { retrievedMemories: [] };
       }
 
-      const query =
-        typeof lastMessage.content === 'string' ? lastMessage.content : String(lastMessage.content);
+      // Determine query source for memory retrieval
+      // Strategy: Prioritize real user context over autonomous prompts
+      let query: string;
+      let querySource: 'current_message' | 'last_real_user_message' | 'conversation_summary' =
+        'current_message';
+
+      // Detect if last message is autonomous (synthetic) using metadata
+      // Why strict equality: metadata?.synthetic === true (not just truthy check)
+      // - Handles undefined/null metadata gracefully
+      // - Explicit true check avoids false positives from legacy data
+      const metadata = lastMessage.additional_kwargs as MessageMetadata | undefined;
+      const isSynthetic = metadata?.synthetic === true;
+
+      if (isSynthetic) {
+        // DEBUG: Log metadata detection for observability
+        if (logger) {
+          logMetadataDetection(logger, {
+            operation: 'retrieve',
+            threadId: state.threadId,
+            metadata: metadata,
+            context: {
+              detected_synthetic: true,
+              trigger_type: metadata?.trigger_type,
+            },
+          });
+        }
+
+        // Backward iteration: Find last REAL user message (non-synthetic)
+        // Why: Autonomous prompts like "How's it going?" are low-signal for memory queries
+        // Goal: Retrieve memories relevant to user's actual context
+        // Approach: Walk backward through messages until finding non-synthetic HumanMessage
+        let lastRealUserMessage: BaseMessage | null = null;
+        for (let i = messages.length - 2; i >= 0; i--) {
+          const msg = messages[i];
+          if (isHumanMessage(msg)) {
+            const msgMetadata = msg.additional_kwargs as MessageMetadata | undefined;
+            // Strict check: Must be explicitly non-synthetic (not synthetic: false or undefined)
+            if (msgMetadata?.synthetic !== true) {
+              lastRealUserMessage = msg;
+              break;
+            }
+          }
+        }
+
+        // Fallback chain for query source selection:
+        // 1. Last real user message (preferred - highest context relevance)
+        if (lastRealUserMessage) {
+          query =
+            typeof lastRealUserMessage.content === 'string'
+              ? lastRealUserMessage.content
+              : String(lastRealUserMessage.content);
+          querySource = 'last_real_user_message';
+
+          logger.debug(
+            { threadId: state.threadId, querySource, queryPreview: query.substring(0, 50) },
+            'Using last real user message for memory query (synthetic message detected)',
+          );
+          // 2. Conversation summary (fallback - broad context)
+        } else if (state.summary && state.summary.trim().length > 0) {
+          query = state.summary;
+          querySource = 'conversation_summary';
+
+          logger.debug(
+            { threadId: state.threadId, querySource, summaryLength: query.length },
+            'Using conversation summary for memory query (no real user messages found)',
+          );
+          // 3. Error case: Autonomous message on empty thread (should be rare)
+        } else {
+          // ERROR: Autonomous follow-up triggered before any real user interaction
+          // This indicates timer fired prematurely or thread state is corrupted
+          if (logger) {
+            logEmptyThreadError(logger, {
+              operation: 'retrieve',
+              threadId: state.threadId,
+              context: {
+                message: 'Autonomous message on empty thread (no real messages, no summary)',
+                trigger_type: metadata?.trigger_type,
+              },
+            });
+          }
+
+          logger.warn(
+            { threadId: state.threadId, triggerType: metadata?.trigger_type },
+            'Autonomous message on empty thread - no query source available, skipping memory retrieval',
+          );
+          return { retrievedMemories: [] };
+        }
+      } else {
+        // Not synthetic - use current message content
+        query =
+          typeof lastMessage.content === 'string'
+            ? lastMessage.content
+            : String(lastMessage.content);
+        querySource = 'current_message';
+      }
+
+      // T021: DEBUG log for query source selection
+      logger.debug(
+        {
+          threadId: state.threadId,
+          querySource,
+          isSynthetic,
+          queryLength: query.length,
+          triggerType: metadata?.trigger_type,
+        },
+        'Memory query source selected',
+      );
 
       // Check if aborted before expensive operation
       runnableConfig?.signal?.throwIfAborted();

@@ -235,7 +235,7 @@ export function MemoryList({
               as="li"
               className={`p-3 mb-2 rounded-md border transition-all duration-300 ${
                 isHighlighted
-                  ? 'bg-green-100 border-green-600'
+                  ? 'bg-accent-primary/20 border-accent-primary shadow-lg shadow-accent-primary/50'
                   : similarity !== undefined && similarity >= 0.9
                     ? 'bg-green-50 border-green-300 shadow-sm shadow-green-100'
                     : 'bg-surface border-border'

@@ -12,6 +12,10 @@ import { createSendMessageEffect } from '../types/effects.schema.js';
 import type { Logger } from 'pino';
 import type { ConnectionManager } from '../../chat/connection-manager.js';
 import type { TimerStore } from '../../autonomy/timers/TimerStore.js';
+import { HumanMessage } from '@langchain/core/messages';
+import type { AutonomousTriggerType, MessageMetadata } from '@cerebrobot/chat-shared';
+import { TRIGGER_PROMPTS } from '@cerebrobot/chat-shared';
+import { logMetadataCreation, logTriggerPromptSelection } from '../../lib/logger.js';
 
 export class SessionProcessor {
   private readonly getAgent: (agentId: string) => Promise<ChatAgent>;
@@ -48,7 +52,7 @@ export class SessionProcessor {
     const { userId, agentId, threadId } = parseSessionKey(event.session_key);
 
     // Extract message and requestId based on event type
-    let message: string;
+    let message: string | HumanMessage;
     let requestId: string;
 
     if (event.type === 'user_message') {
@@ -77,20 +81,69 @@ export class SessionProcessor {
       }
     } else if (event.type === 'timer') {
       const payload = event.payload as { timer_id: string; payload?: unknown };
-      // For timer events, create a synthetic message to trigger autonomous response
-      // Include timer context so agent can craft appropriate follow-up
+      // US1 + US4: Create HumanMessage with metadata for autonomous triggers
       const timerContext = payload.payload as
         | { followUpType?: string; reason?: string }
         | undefined;
-      message = `[AUTONOMOUS_FOLLOWUP: ${timerContext?.followUpType ?? 'check_in'}]`;
+
+      // Map timer event to autonomous trigger type (default: check_in if not specified)
+      const triggerType = (timerContext?.followUpType ?? 'check_in') as AutonomousTriggerType;
+
+      // Select natural language prompt based on trigger type
+      // Uses TRIGGER_PROMPTS constant for contextual, non-meta prompts
+      // (e.g., "check_in" → "How's the conversation going?")
+      const naturalPrompt = TRIGGER_PROMPTS[triggerType];
+
+      // DEBUG: Log trigger type and selected prompt for observability
+      if (this.logger) {
+        logTriggerPromptSelection(this.logger, {
+          operation: 'create',
+          threadId,
+          context: {
+            trigger_type: triggerType,
+            selected_prompt: naturalPrompt,
+          },
+        });
+      }
+
+      // Create metadata-tagged autonomous message
+      // Why metadata: Type-safe detection (no content pattern matching needed)
+      // - synthetic: true → Marks message as agent-initiated (not from user)
+      // - trigger_type → Context for why follow-up was triggered
+      // - trigger_reason → Optional human-readable explanation
+      // This metadata persists through LangGraph checkpoint storage
+      const metadata: MessageMetadata = {
+        synthetic: true,
+        trigger_type: triggerType,
+        trigger_reason: timerContext?.reason,
+      };
+
+      // HumanMessage (not AIMessage) allows autonomous message to flow through
+      // existing conversation logic without requiring special handling
+      // additional_kwargs stores metadata for later detection/filtering
+      message = new HumanMessage({
+        content: naturalPrompt,
+        additional_kwargs: metadata,
+      });
+
       requestId = payload.timer_id; // Use timer_id as requestId for correlation
+
+      // DEBUG: Log metadata creation for troubleshooting
+      if (this.logger) {
+        logMetadataCreation(this.logger, {
+          operation: 'create',
+          threadId,
+          metadata,
+        });
+      }
 
       this.logger?.info(
         {
           sessionKey: event.session_key,
           timerId: payload.timer_id,
-          followUpType: timerContext?.followUpType,
+          triggerType,
           reason: timerContext?.reason,
+          naturalPrompt,
         },
         'Processing timer event for autonomous follow-up',
       );

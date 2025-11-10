@@ -71,6 +71,13 @@ Cerebrobot uses browser `localStorage` to persist UI state across sessions:
 - localStorage keys prefixed with `cerebrobot:` to avoid conflicts with other apps
 - Clear state on logout/reset via hooks (they handle cleanup)
 
+## Active Technologies
+- TypeScript 5.x (Node.js ≥20) (016-metadata-autonomous-messages)
+- PostgreSQL via Prisma (LangGraph checkpoints persist message metadata) (016-metadata-autonomous-messages)
+
+## Recent Changes
+- 016-metadata-autonomous-messages: Added TypeScript 5.x (Node.js ≥20)
+
 ## Working cadence for agents
 1. Read the roadmap, tech stack, and style guides before coding; keep them open for cross-checks ([Tech Stack Guardrails](docs/tech-stack.md), [Engineering Best Practices](docs/best-practices.md), [TypeScript Code Style](docs/code-style.md)).
 2. Use **SequentialThinking** MCP server to plan multi-step tasks and validate approach before implementation (Constitution Principle VIII).

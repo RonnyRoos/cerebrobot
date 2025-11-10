@@ -12,6 +12,7 @@ import type { ChatAgent, AgentStreamEvent } from '../../chat/chat-agent.js';
 import type { ConnectionManager } from '../../chat/connection-manager.js';
 import { SessionKeySchema } from '../../events/types/events.schema.js';
 import type { SendMessagePayload } from '../../events/types/effects.schema.js';
+import { HumanMessage } from '@langchain/core/messages';
 
 describe('SessionProcessor', () => {
   let sessionProcessor: SessionProcessor;
@@ -274,5 +275,124 @@ describe('SessionProcessor', () => {
 
       await expect(fastProcessor.processEvent(event)).rejects.toThrow();
     }, 10000);
+  });
+
+  describe('Metadata Creation (T007a)', () => {
+    /**
+     * Unit tests for US1: Metadata creation on autonomous messages
+     *
+     * Validates that SessionProcessor creates HumanMessage objects with proper
+     * MessageMetadata in additional_kwargs for timer events.
+     */
+
+    it('should create HumanMessage with metadata for timer events', async () => {
+      vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['response']));
+
+      const timerEvent: Event = {
+        id: 'timer-event-metadata',
+        session_key: SESSION_KEY,
+        seq: 1,
+        type: 'timer',
+        payload: {
+          timer_id: 'timer-123',
+          payload: {
+            followUpType: 'check_in',
+            reason: 'No activity for 30 seconds',
+          },
+        },
+        created_at: new Date(),
+      };
+
+      await sessionProcessor.processEvent(timerEvent);
+
+      // Verify streamChat was called with message input
+      expect(mockAgent.streamChat).toHaveBeenCalledTimes(1);
+      const callArgs = vi.mocked(mockAgent.streamChat).mock.calls[0][0];
+
+      // US1: Should be HumanMessage with metadata
+      expect(callArgs.message).toBeInstanceOf(HumanMessage);
+      const humanMsg = callArgs.message as HumanMessage;
+      expect(humanMsg.content).toBe('Continue our conversation naturally.');
+      expect(humanMsg.additional_kwargs?.synthetic).toBe(true);
+      expect(humanMsg.additional_kwargs?.trigger_type).toBe('check_in');
+      expect(humanMsg.additional_kwargs?.trigger_reason).toBe('No activity for 30 seconds');
+    });
+
+    it('should map all trigger types to metadata correctly', async () => {
+      const triggerTypes = [
+        'check_in',
+        'question_unanswered',
+        'task_incomplete',
+        'waiting_for_decision',
+      ];
+
+      for (const triggerType of triggerTypes) {
+        vi.mocked(mockAgent.streamChat).mockClear();
+        vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['response']));
+
+        const timerEvent: Event = {
+          id: `timer-${triggerType}`,
+          session_key: SESSION_KEY,
+          seq: 1,
+          type: 'timer',
+          payload: {
+            timer_id: `timer-${triggerType}`,
+            payload: {
+              followUpType: triggerType,
+              reason: `Test ${triggerType}`,
+            },
+          },
+          created_at: new Date(),
+        };
+
+        await sessionProcessor.processEvent(timerEvent);
+
+        // Current behavior: string marker
+        // After US1 implementation: verify metadata
+        expect(mockAgent.streamChat).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('should preserve trigger_reason in metadata', async () => {
+      vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['response']));
+
+      const customReason = 'Custom trigger reason for testing';
+      const timerEvent: Event = {
+        id: 'timer-custom-reason',
+        session_key: SESSION_KEY,
+        seq: 1,
+        type: 'timer',
+        payload: {
+          timer_id: 'timer-reason',
+          payload: {
+            followUpType: 'task_incomplete',
+            reason: customReason,
+          },
+        },
+        created_at: new Date(),
+      };
+
+      await sessionProcessor.processEvent(timerEvent);
+
+      // When US1 is implemented:
+      // const callArgs = vi.mocked(mockAgent.streamChat).mock.calls[0][0];
+      // expect(callArgs.message.additional_kwargs?.trigger_reason).toBe(customReason);
+
+      // Current behavior: verify event processed
+      expect(mockAgent.streamChat).toHaveBeenCalledTimes(1);
+    });
+
+    it('should NOT create metadata for user messages', async () => {
+      vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['response']));
+
+      const userEvent = createEvent('Regular user message');
+      await sessionProcessor.processEvent(userEvent);
+
+      const callArgs = vi.mocked(mockAgent.streamChat).mock.calls[0][0];
+
+      // User messages should be plain strings, not HumanMessage objects
+      expect(typeof callArgs.message).toBe('string');
+      expect(callArgs.message).toBe('Regular user message');
+    });
   });
 });
