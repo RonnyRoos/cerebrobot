@@ -1,11 +1,11 @@
 /**
- * AgentList Component
- * Displays a list of agents in a grid layout with "New Agent" button
- * Migrated to design system primitives (T026)
+ * AgentList Component - Compact vertical list matching ThreadListView style
+ * Displays agents in single-line cards with Neon Flux styling
  */
 
 import type { AgentListItem } from '@cerebrobot/chat-shared';
-import { Stack, Text, Button } from '@workspace/ui';
+import { Stack, Text, Button, Box } from '@workspace/ui';
+import { Plus } from 'lucide-react';
 import { AgentCard } from './AgentCard.js';
 import { EmptyState } from './EmptyState.js';
 
@@ -14,54 +14,79 @@ interface AgentListProps {
   onNewAgent: () => void;
   onEditAgent: (agentId: string) => void;
   onDeleteAgent: (agentId: string) => void;
+  onViewThreads?: (agentId: string, agentName: string) => void;
 }
 
-export function AgentList({ agents, onNewAgent, onEditAgent, onDeleteAgent }: AgentListProps) {
+export function AgentList({
+  agents,
+  onNewAgent,
+  onEditAgent,
+  onDeleteAgent,
+  onViewThreads,
+}: AgentListProps) {
   if (agents.length === 0) {
     return (
-      <Stack gap="4" className="p-6 h-screen flex flex-col">
-        <Stack direction="horizontal" align="center" justify="between">
-          <Text as="h2" variant="heading" size="xl">
-            Agents
+      <Box className="flex h-full flex-col bg-bg-base">
+        {/* Minimal header */}
+        <Box className="px-3 py-2 border-b border-border-default/20 flex items-center justify-between flex-shrink-0">
+          <Text as="h2" className="text-sm font-semibold text-text-secondary">
+            {agents.length} agents
           </Text>
-          <Button variant="primary" onClick={onNewAgent}>
+          <Button
+            variant="primary"
+            onClick={onNewAgent}
+            className="h-7 px-3 text-xs bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-glow-purple transition-all duration-200"
+          >
+            <Plus size={14} className="mr-1" />
             New Agent
           </Button>
-        </Stack>
-        <EmptyState
-          icon="🤖"
-          heading="No agents configured"
-          description="Agents are AI assistants with specific capabilities and personalities. Create your first agent to start building intelligent conversations."
-          buttonText="Create Your First Agent"
-          onButtonClick={onNewAgent}
-        />
-      </Stack>
+        </Box>
+
+        {/* Empty state */}
+        <Box className="flex-1 flex items-center justify-center p-6">
+          <EmptyState
+            icon="🤖"
+            heading="No agents configured"
+            description="Agents are AI assistants with specific capabilities and personalities. Create your first agent to start building intelligent conversations."
+            buttonText="Create Your First Agent"
+            onButtonClick={onNewAgent}
+          />
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <Stack gap="4" className="p-6">
-      {/* Header */}
-      <Stack direction="horizontal" align="center" justify="between">
-        <Text as="h2" variant="heading" size="xl">
-          Agents
+    <Box className="flex h-full flex-col bg-bg-base">
+      {/* Minimal header matching thread list style */}
+      <Box className="px-3 py-2 border-b border-border-default/20 flex items-center justify-between flex-shrink-0">
+        <Text as="h2" className="text-sm font-semibold text-text-secondary">
+          {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
         </Text>
-        <Stack direction="horizontal" gap="4" align="center">
-          <Text variant="caption" className="text-muted">
-            {agents.length} {agents.length === 1 ? 'agent' : 'agents'}
-          </Text>
-          <Button variant="primary" onClick={onNewAgent}>
-            New Agent
-          </Button>
-        </Stack>
-      </Stack>
+        <Button
+          variant="primary"
+          onClick={onNewAgent}
+          className="h-7 px-3 text-xs bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-glow-purple transition-all duration-200"
+        >
+          <Plus size={14} className="mr-1" />
+          New Agent
+        </Button>
+      </Box>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} onEdit={onEditAgent} onDelete={onDeleteAgent} />
-        ))}
-      </div>
-    </Stack>
+      {/* Agent list - vertical stack with compact spacing */}
+      <Box className="flex-1 overflow-y-auto p-2">
+        <Stack gap="1">
+          {agents.map((agent) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onEdit={onEditAgent}
+              onDelete={onDeleteAgent}
+              onViewThreads={onViewThreads}
+            />
+          ))}
+        </Stack>
+      </Box>
+    </Box>
   );
 }

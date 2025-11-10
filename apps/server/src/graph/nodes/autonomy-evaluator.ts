@@ -18,6 +18,7 @@ export interface AutonomyEvaluatorConfig {
   systemPrompt?: string;
   apiKey: string;
   apiBase: string;
+  maxFollowUpsPerSession?: number;
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You are an autonomy evaluator for a conversational AI assistant. Your job is to decide whether the assistant should send a proactive follow-up message after the current conversation.
@@ -142,9 +143,33 @@ Should we schedule an autonomous follow-up message? Provide your decision as JSO
         'Autonomy evaluation complete',
       );
 
-      // Return schedule_timer effect if follow-up should be scheduled
+      // CRITICAL: Check maxFollowUpsPerSession limit before scheduling
       if (evaluation.shouldSchedule && evaluation.delaySeconds && evaluation.followUpType) {
+        const maxLimit = this.config.maxFollowUpsPerSession ?? 10; // Default to 10
+        const currentFollowUpCount = state.followUpCount ?? 0;
+
+        if (currentFollowUpCount >= maxLimit) {
+          this.logger?.warn(
+            {
+              currentFollowUpCount,
+              maxLimit,
+              threadId: state.threadId,
+            },
+            'Autonomous follow-up limit reached - not scheduling',
+          );
+          return {}; // Limit reached, don't schedule
+        }
+        this.logger?.info(
+          {
+            currentCount: currentFollowUpCount,
+            newCount: currentFollowUpCount + 1,
+            limit: maxLimit,
+          },
+          'Scheduling autonomous follow-up',
+        );
+
         return {
+          followUpCount: (state.followUpCount ?? 0) + 1, // Increment counter
           effects: [
             {
               type: 'schedule_timer',

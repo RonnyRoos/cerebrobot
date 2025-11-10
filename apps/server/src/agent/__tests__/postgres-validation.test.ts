@@ -8,16 +8,21 @@
  * These tests run by default to catch schema/migration issues early.
  * They use mocked embeddings (no external API calls) for determinism.
  *
- * Prerequisites:
- *   - PostgreSQL with pgvector extension enabled
- *   - DATABASE_URL environment variable set
- *   - LANGGRAPH_PG_URL environment variable set
- *   - All migrations applied (pnpm prisma:migrate)
+ * ⚠️  IMPORTANT: Uses SEPARATE postgres-test container to prevent production contamination!
  *
- * If you see connection errors, ensure:
- *   1. Docker Compose is running: `docker-compose up -d`
- *   2. Migrations are applied: `pnpm prisma:migrate`
- *   3. Environment variables are set (see .env.example)
+ * Prerequisites:
+ *   - Start test database: ./scripts/start-test-db.sh
+ *   - Test database runs on localhost:5434 (separate from production on 5432)
+ *   - DATABASE_URL_TEST and LANGGRAPH_PG_URL_TEST point to postgres-test container
+ *
+ * If you see connection errors:
+ *   1. Ensure postgres-test is running: docker ps | grep postgres-test
+ *   2. Start it if needed: ./scripts/start-test-db.sh
+ *   3. Verify connection: psql postgresql://cerebrobot:cerebrobot@localhost:5434/cerebrobot_test
+ *
+ * 📝 NOTE: docker logs cerebrobot-postgres-test-1 will show duplicate key errors.
+ *    This is EXPECTED and CORRECT - tests deliberately insert duplicates to verify
+ *    unique constraints work. Production logs (cerebrobot-postgres-1) remain clean.
  *
  * See docs/best-practices.md for our 3-tier testing philosophy.
  */
@@ -82,11 +87,13 @@ vi.mock('@langchain/openai', () => ({
 // PostgresMemoryStore Integration Tests (6 tests)
 // ============================================================================
 
-// Skip if database is not available (per constitution: one optional Postgres validation test)
+// Skip if test database is not available (per constitution: one optional Postgres validation test)
 const isDatabaseAvailable = async () => {
-  if (!process.env.DATABASE_URL) return false;
+  if (!process.env.DATABASE_URL_TEST) return false;
   try {
-    const testPrisma = new PrismaClient();
+    const testPrisma = new PrismaClient({
+      datasources: { db: { url: process.env.DATABASE_URL_TEST } },
+    });
     await testPrisma.$queryRaw`SELECT 1`;
     await testPrisma.$disconnect();
     return true;
@@ -105,19 +112,23 @@ describe.skipIf(!(await isDatabaseAvailable()))(
 
     beforeAll(async () => {
       // Verify prerequisites before running tests
-      if (!process.env.DATABASE_URL) {
+      if (!process.env.DATABASE_URL_TEST) {
         throw new Error(
-          '\n❌ DATABASE_URL not set!\n\n' +
-            'These tests require a running PostgreSQL database.\n\n' +
-            'Quick fix:\n' +
-            '  1. Start the database: docker-compose up -d\n' +
-            '  2. Apply migrations: pnpm prisma:migrate\n' +
-            '  3. Ensure .env file exists with DATABASE_URL\n\n' +
+          '\n❌ DATABASE_URL_TEST not set!\n\n' +
+            'These tests require a SEPARATE test database (not production DATABASE_URL).\n\n' +
+            'Quick setup:\n' +
+            '  1. Create test database: createdb cerebrobot_test\n' +
+            '  2. Add to .env:\n' +
+            '       DATABASE_URL_TEST="postgresql://cerebrobot:cerebrobot@localhost:5432/cerebrobot_test"\n' +
+            '       LANGGRAPH_PG_URL_TEST="postgresql://cerebrobot:cerebrobot@localhost:5432/cerebrobot_test"\n' +
+            '  3. Apply migrations: DATABASE_URL=$DATABASE_URL_TEST pnpm prisma:migrate\n\n' +
             'See .env.example for configuration.\n',
         );
       }
 
-      realPrisma = new PrismaClient();
+      realPrisma = new PrismaClient({
+        datasources: { db: { url: process.env.DATABASE_URL_TEST } },
+      });
 
       // Test database connection
       try {
@@ -125,12 +136,13 @@ describe.skipIf(!(await isDatabaseAvailable()))(
       } catch (error) {
         await realPrisma.$disconnect();
         throw new Error(
-          '\n❌ Cannot connect to PostgreSQL!\n\n' +
-            `Database URL: ${process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@')}\n\n` +
+          '\n❌ Cannot connect to test PostgreSQL database!\n\n' +
+            `Database URL: ${process.env.DATABASE_URL_TEST.replace(/:[^:@]+@/, ':****@')}\n\n` +
             'Quick fix:\n' +
-            '  1. Check Docker is running: docker ps\n' +
-            '  2. Start services: docker-compose up -d\n' +
-            '  3. Verify connection: psql <DATABASE_URL>\n\n' +
+            '  1. Ensure test database exists: createdb cerebrobot_test\n' +
+            '  2. Check Docker is running: docker ps\n' +
+            '  3. Verify connection: psql $DATABASE_URL_TEST\n' +
+            '  4. Apply migrations: DATABASE_URL=$DATABASE_URL_TEST pnpm prisma:migrate\n\n' +
             `Original error: ${error instanceof Error ? error.message : String(error)}\n`,
         );
       }
@@ -477,16 +489,17 @@ describe.skipIf(!(await isDatabaseAvailable()))('LangGraph Postgres persistence'
   let pgUrl: string;
 
   beforeAll(async () => {
-    pgUrl = process.env.LANGGRAPH_PG_URL ?? '';
+    pgUrl = process.env.LANGGRAPH_PG_URL_TEST ?? '';
 
-    // Verify LANGGRAPH_PG_URL is set
+    // Verify LANGGRAPH_PG_URL_TEST is set
     if (!pgUrl) {
       throw new Error(
-        '\n❌ LANGGRAPH_PG_URL not set!\n\n' +
-          'These tests require LangGraph Postgres checkpointer.\n\n' +
-          'Quick fix:\n' +
-          '  1. Add to .env: LANGGRAPH_PG_URL=postgresql://...\n' +
-          '  2. Can be same as DATABASE_URL\n' +
+        '\n❌ LANGGRAPH_PG_URL_TEST not set!\n\n' +
+          'These tests require a SEPARATE test database for LangGraph checkpointer.\n\n' +
+          'Quick setup:\n' +
+          '  1. Add to .env:\n' +
+          '       LANGGRAPH_PG_URL_TEST="postgresql://cerebrobot:cerebrobot@localhost:5432/cerebrobot_test"\n' +
+          '  2. Should match DATABASE_URL_TEST\n' +
           '  3. See .env.example for format\n',
       );
     }
@@ -500,12 +513,13 @@ describe.skipIf(!(await isDatabaseAvailable()))('LangGraph Postgres persistence'
     } catch (error) {
       await prisma.$disconnect();
       throw new Error(
-        '\n❌ Cannot connect to LangGraph database!\n\n' +
+        '\n❌ Cannot connect to LangGraph test database!\n\n' +
           `Database URL: ${pgUrl.replace(/:[^:@]+@/, ':****@')}\n\n` +
           'Quick fix:\n' +
-          '  1. Verify LANGGRAPH_PG_URL in .env\n' +
-          '  2. Check Docker is running: docker ps\n' +
-          '  3. Start services: docker-compose up -d\n\n' +
+          '  1. Ensure test database exists: createdb cerebrobot_test\n' +
+          '  2. Verify LANGGRAPH_PG_URL_TEST in .env matches DATABASE_URL_TEST\n' +
+          '  3. Check Docker is running: docker ps\n' +
+          '  4. Apply migrations: DATABASE_URL=$DATABASE_URL_TEST pnpm prisma:migrate\n\n' +
           `Original error: ${error instanceof Error ? error.message : String(error)}\n`,
       );
     }
@@ -658,7 +672,9 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
   let prisma: PrismaClient;
 
   beforeAll(async () => {
-    prisma = new PrismaClient();
+    prisma = new PrismaClient({
+      datasources: { db: { url: process.env.DATABASE_URL_TEST } },
+    });
     await prisma.$connect();
   });
 
@@ -699,7 +715,7 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
     });
 
     it('should enforce unique constraint on (session_key, seq)', async () => {
-      const sessionKey = 'test-validation:agent1:thread1';
+      const sessionKey = `test-validation:agent1:thread1:${Date.now()}`;
 
       // Insert first event
       await prisma.$executeRaw`
@@ -717,8 +733,9 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
     });
 
     it('should allow same seq across different sessions', async () => {
-      const session1 = 'test-validation:agent1:thread1';
-      const session2 = 'test-validation:agent1:thread2';
+      const timestamp = Date.now();
+      const session1 = `test-validation:agent1:thread1:${timestamp}`;
+      const session2 = `test-validation:agent1:thread2:${timestamp}`;
 
       // Insert event with seq=1 in session1
       await prisma.$executeRaw`
@@ -784,8 +801,9 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
     });
 
     it('should enforce unique constraint on dedupe_key', async () => {
-      const sessionKey = 'test-validation:agent1:thread1';
-      const dedupeKey = 'test-dedupe-key-' + Date.now();
+      const timestamp = Date.now();
+      const sessionKey = `test-validation:agent1:thread1:${timestamp}`;
+      const dedupeKey = `test-dedupe-key-${timestamp}`;
 
       // Insert first effect
       await prisma.$executeRaw`
@@ -841,8 +859,9 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
     });
 
     it('should support effect lifecycle state transitions', async () => {
-      const sessionKey = 'test-validation:agent1:thread1';
-      const dedupeKey = 'lifecycle-test-' + Date.now();
+      const timestamp = Date.now();
+      const sessionKey = `test-validation:agent1:thread1:${timestamp}`;
+      const dedupeKey = `lifecycle-test-${timestamp}`;
 
       // Insert pending effect
       const result = await prisma.$queryRaw<Array<{ id: string }>>`
@@ -890,7 +909,7 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
 
   describe('integration', () => {
     it('should support complete event→effect flow', async () => {
-      const sessionKey = 'test-validation:agent1:thread1';
+      const sessionKey = `test-validation:agent1:thread1:${Date.now()}`;
 
       // Create event (user message)
       const eventResult = await prisma.$queryRaw<Array<{ id: string }>>`
@@ -961,8 +980,9 @@ describe.skipIf(!(await isDatabaseAvailable()))('Events & Effects Tables (Real D
     });
 
     it('should enforce unique constraint on (session_key, timer_id)', async () => {
-      const sessionKey = 'test-validation:agent1:thread1';
-      const timerId = 'timer-unique-' + Date.now();
+      const timestamp = Date.now();
+      const sessionKey = `test-validation:agent1:thread1:${timestamp}`;
+      const timerId = `timer-unique-${timestamp}`;
 
       // Insert first timer
       await prisma.$executeRaw`

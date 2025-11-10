@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import plugin from 'tailwindcss/plugin';
 
 const config: Config = {
   darkMode: ['class'],
@@ -171,8 +172,8 @@ const config: Config = {
 
       keyframes: {
         'gradient-shift': {
-          '0%, 100%': { transform: 'translate(0, 0)' },
-          '50%': { transform: 'translate(-10%, 10%)' },
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
         },
         'message-appear': {
           from: { opacity: '0', transform: 'translateY(10px)' },
@@ -182,15 +183,46 @@ const config: Config = {
           '0%, 60%, 100%': { transform: 'translateY(0)', opacity: '0.7' },
           '30%': { transform: 'translateY(-10px)', opacity: '1' },
         },
+        'slide-in': {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'pulse-glow': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        },
       },
       animation: {
         'gradient-shift': 'gradient-shift 15s ease infinite',
         'message-appear': 'message-appear 0.4s ease',
         'typing-glow': 'typing-glow 1.4s infinite',
+        'slide-in': 'slide-in 200ms ease-out',
+        'fade-in': 'fade-in 200ms ease-out',
+        'pulse-glow': 'pulse-glow 1.5s ease-in-out infinite',
+      },
+
+      backgroundImage: {
+        'gradient-purple-pink': 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
+        'gradient-blue-purple': 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2))',
+      },
+
+      backgroundSize: {
+        '200': '200% 200%',
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [
+    require('tailwindcss-animate'),
+    plugin(({ addVariant }) => {
+      // Add custom variant for sidebar-expanded state
+      // Usage: sidebar-expanded:md:block (shows when parent has .sidebar-expanded class)
+      addVariant('sidebar-expanded', '.sidebar-expanded &');
+    }),
+  ],
 };
 
 export default config;

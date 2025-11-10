@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerebrobot - Collapsed Sidebar + Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 48px;
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(24px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            gap: 8px;
+            transition: width 200ms ease-out;
+            position: relative;
+            z-index: 50;
+        }
+
+        .sidebar:hover {
+            width: 280px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 150ms ease-in-out;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .nav-item:hover {
+            background: rgba(168, 85, 247, 0.1);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+        }
+
+        .nav-item.active {
+            background: rgba(168, 85, 247, 0.1);
+            border-left: 2px solid #a855f7;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .nav-label {
+            opacity: 0;
+            transition: opacity 200ms ease-out;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar:hover .nav-label {
+            opacity: 1;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Chat Header */
+        .chat-header {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 150ms;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        .agent-name {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .memory-btn {
+            background: transparent;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #a855f7;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 150ms;
+        }
+
+        .memory-btn:hover {
+            background: rgba(168, 85, 247, 0.1);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        /* Messages Area */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 16px;
+            border-radius: 12px;
+            backdrop-filter: blur(24px);
+            border: 1px solid;
+            position: relative;
+        }
+
+        .message.user {
+            margin-left: auto;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2));
+            border-color: rgba(168, 85, 247, 0.3);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+        }
+
+        .message.agent {
+            margin-right: auto;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2));
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .message-header {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-bottom: 8px;
+        }
+
+        .message-content {
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .memory-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #a855f7;
+            margin-top: 8px;
+        }
+
+        /* Input Area */
+        .input-container {
+            padding: 16px 24px;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #e0e0e0;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            min-height: 80px;
+            max-height: 200px;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #a855f7;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 150ms;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .send-btn:hover {
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+            transform: translateY(-1px);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Collapsed Sidebar -->
+        <nav class="sidebar">
+            <button class="nav-item">
+                <span class="nav-icon">☰</span>
+                <span class="nav-label">Menu</span>
+            </button>
+            <button class="nav-item active">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Threads</span>
+            </button>
+            <button class="nav-item">
+                <span class="nav-icon">🤖</span>
+                <span class="nav-label">Agents</span>
+            </button>
+            <button class="nav-item">
+                <span class="nav-icon">🧠</span>
+                <span class="nav-label">Memory</span>
+            </button>
+            <button class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Settings</span>
+            </button>
+        </nav>
+
+        <!-- Main Chat Content -->
+        <main class="main-content">
+            <!-- Chat Header -->
+            <header class="chat-header">
+                <div class="header-left">
+                    <button class="back-btn">←</button>
+                    <h1 class="agent-name">
+                        <span>🤖</span>
+                        <span>Helpful Assistant</span>
+                    </h1>
+                </div>
+                <button class="memory-btn">
+                    <span>🧠</span>
+                    <span>Memory</span>
+                </button>
+            </header>
+
+            <!-- Messages -->
+            <div class="messages-container">
+                <div class="message agent">
+                    <div class="message-header">Helpful Assistant</div>
+                    <div class="message-content">
+                        Hello! I'm your AI assistant. I can help you with various tasks, answer questions, and maintain context about our conversation through my memory graph.
+                    </div>
+                </div>
+
+                <div class="message user">
+                    <div class="message-content">
+                        What's the best way to organize a TypeScript monorepo?
+                    </div>
+                </div>
+
+                <div class="message agent">
+                    <div class="message-header">Helpful Assistant</div>
+                    <div class="message-content">
+                        Great question! For TypeScript monorepos, I recommend using a workspace-based approach with tools like pnpm or Yarn. Here's a solid structure:
+                        <br><br>
+                        1. <strong>Root package.json</strong> - defines workspaces<br>
+                        2. <strong>packages/</strong> - shared libraries<br>
+                        3. <strong>apps/</strong> - deployable applications<br>
+                        4. <strong>Shared tsconfig.base.json</strong> - consistent compiler settings
+                        <br><br>
+                        Benefits: code sharing, type safety across packages, and efficient dependency management.
+                    </div>
+                    <div class="memory-badge">
+                        <span>🧠</span>
+                        <span>Memory Updated</span>
+                    </div>
+                </div>
+
+                <div class="message user">
+                    <div class="message-content">
+                        Can you remember that I'm working on a LangGraph chatbot project?
+                    </div>
+                </div>
+
+                <div class="message agent">
+                    <div class="message-header">Helpful Assistant</div>
+                    <div class="message-content">
+                        Absolutely! I've stored that you're working on a LangGraph chatbot project. This context will help me provide more relevant assistance in our future conversations. Is there anything specific about LangGraph or chatbot development you'd like to discuss?
+                    </div>
+                    <div class="memory-badge">
+                        <span>🧠</span>
+                        <span>Memory Updated</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="message-input" 
+                        placeholder="Type your message..."
+                    ></textarea>
+                    <button class="send-btn">Send</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Simple auto-resize for textarea
+        const textarea = document.querySelector('.message-input');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+
+        // Send on Enter (Shift+Enter for newline)
+        textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                console.log('Send message:', this.value);
+                this.value = '';
+                this.style.height = '80px';
+            }
+        });
+    </script>
+</body>
+</html>

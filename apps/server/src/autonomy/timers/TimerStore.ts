@@ -71,6 +71,22 @@ export class TimerStore {
   }
 
   /**
+   * Mark a timer as cancelled by ID
+   * Used for invalid timers that cannot be processed
+   */
+  async markCancelled(timerId: string): Promise<Timer> {
+    const updated = await this.prisma.timer.update({
+      where: { id: timerId },
+      data: {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+      },
+    });
+
+    return this.mapFromPrisma(updated);
+  }
+
+  /**
    * Cancel all pending timers for a session
    */
   async cancelBySession(sessionKey: SessionKey): Promise<number> {

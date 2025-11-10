@@ -195,6 +195,40 @@ describe('SessionProcessor', () => {
         }),
       );
     });
+
+    it('should pass isUserMessage flag for user_message events', async () => {
+      vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['response']));
+
+      const userEvent = createEvent('User message');
+      await sessionProcessor.processEvent(userEvent);
+
+      expect(mockAgent.streamChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isUserMessage: true,
+        }),
+      );
+    });
+
+    it('should pass isUserMessage=false for timer events', async () => {
+      vi.mocked(mockAgent.streamChat).mockReturnValue(mockStreamResponse(['autonomous']));
+
+      const timerEvent: Event = {
+        id: 'timer-event-1',
+        session_key: SESSION_KEY,
+        seq: 1,
+        type: 'timer',
+        payload: { timerId: 'timer-123' },
+        created_at: new Date(),
+      };
+
+      await sessionProcessor.processEvent(timerEvent);
+
+      expect(mockAgent.streamChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isUserMessage: false,
+        }),
+      );
+    });
   });
 
   describe('timeout handling', () => {

@@ -48,6 +48,17 @@ module.exports = {
             message: 'Inline styles are not allowed. Use design system props or CSS variables instead.',
           },
         ],
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['**/components/ui', '**/components/ui/*', './ui', './ui/*', '../ui', '../ui/*'],
+                message: 'Do not create UI components in apps/client/src/components/ui/. All design system components must live in packages/ui/ and be imported from @workspace/ui. See Constitution Principle IX (Design Library First).',
+              },
+            ],
+          },
+        ],
       },
     },
     {

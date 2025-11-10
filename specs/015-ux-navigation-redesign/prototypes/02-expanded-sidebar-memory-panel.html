@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerebrobot - Expanded Sidebar + Memory Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Expanded Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(24px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            gap: 8px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 150ms ease-in-out;
+            text-align: left;
+        }
+
+        .nav-item:hover {
+            background: rgba(168, 85, 247, 0.1);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+        }
+
+        .nav-item.active {
+            background: rgba(168, 85, 247, 0.1);
+            border-left: 2px solid #a855f7;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .nav-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Chat Header */
+        .chat-header {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 150ms;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        .agent-name {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .memory-btn {
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #a855f7;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 150ms;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .memory-btn:hover {
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.5);
+        }
+
+        /* Messages Area */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 16px;
+            border-radius: 12px;
+            backdrop-filter: blur(24px);
+            border: 1px solid;
+        }
+
+        .message.user {
+            margin-left: auto;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2));
+            border-color: rgba(168, 85, 247, 0.3);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+        }
+
+        .message.agent {
+            margin-right: auto;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2));
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .message-header {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-bottom: 8px;
+        }
+
+        .message-content {
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        /* Input Area */
+        .input-container {
+            padding: 16px 24px;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #e0e0e0;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #a855f7;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 150ms;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .send-btn:hover {
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+            transform: translateY(-1px);
+        }
+
+        /* Memory Panel Overlay */
+        .memory-panel-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 40;
+        }
+
+        .memory-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 400px;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(24px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: -10px 0 50px rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 16px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 150ms;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        .search-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #a855f7;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #a855f7;
+        }
+
+        .memory-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .memory-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 150ms;
+        }
+
+        .memory-card:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        .memory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .memory-badge {
+            display: inline-flex;
+            padding: 2px 8px;
+            background: rgba(168, 85, 247, 0.2);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            border-radius: 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #a855f7;
+        }
+
+        .memory-content {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #c0c0c0;
+        }
+
+        .add-memory-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 150ms;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+
+        .add-memory-btn:hover {
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+            transform: translateY(-1px);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Expanded Sidebar -->
+        <nav class="sidebar">
+            <button class="nav-item">
+                <span class="nav-icon">☰</span>
+                <span class="nav-label">Menu</span>
+            </button>
+            <button class="nav-item active">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Threads</span>
+            </button>
+            <button class="nav-item">
+                <span class="nav-icon">🤖</span>
+                <span class="nav-label">Agents</span>
+            </button>
+            <button class="nav-item">
+                <span class="nav-icon">🧠</span>
+                <span class="nav-label">Memory</span>
+            </button>
+            <button class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Settings</span>
+            </button>
+        </nav>
+
+        <!-- Main Chat Content -->
+        <main class="main-content">
+            <header class="chat-header">
+                <div class="header-left">
+                    <button class="back-btn">←</button>
+                    <h1 class="agent-name">
+                        <span>🤖</span>
+                        <span>Helpful Assistant</span>
+                    </h1>
+                </div>
+                <button class="memory-btn">
+                    <span>🧠</span>
+                    <span>Memory</span>
+                </button>
+            </header>
+
+            <div class="messages-container">
+                <div class="message agent">
+                    <div class="message-header">Helpful Assistant</div>
+                    <div class="message-content">
+                        I can see you're interested in exploring my memory. The panel on the right shows all the entities, relationships, and observations I've stored about our conversation.
+                    </div>
+                </div>
+
+                <div class="message user">
+                    <div class="message-content">
+                        Show me what you remember about me
+                    </div>
+                </div>
+
+                <div class="message agent">
+                    <div class="message-header">Helpful Assistant</div>
+                    <div class="message-content">
+                        Based on our conversations, I remember:<br><br>
+                        • You're working on a LangGraph chatbot project<br>
+                        • You're interested in TypeScript monorepo organization<br>
+                        • You prefer using pnpm for package management<br><br>
+                        All of this is stored in my memory graph, which you can explore in the panel!
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea class="message-input" placeholder="Type your message..."></textarea>
+                    <button class="send-btn">Send</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Memory Panel Overlay -->
+        <div class="memory-panel-backdrop"></div>
+        <aside class="memory-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <span>🧠</span>
+                    <span>Memory</span>
+                </h2>
+                <button class="close-btn">✕</button>
+            </div>
+
+            <input 
+                type="search" 
+                class="search-input" 
+                placeholder="Search memories..."
+            />
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Nodes</div>
+                    <div class="stat-value">12</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Relations</div>
+                    <div class="stat-value">8</div>
+                </div>
+            </div>
+
+            <div class="memory-list">
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <span class="memory-badge">Entity</span>
+                    </div>
+                    <div class="memory-content">
+                        <strong>User</strong>: Working on LangGraph chatbot project called Cerebrobot
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <span class="memory-badge">Entity</span>
+                    </div>
+                    <div class="memory-content">
+                        <strong>Technology Stack</strong>: TypeScript, pnpm, monorepo architecture
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <span class="memory-badge">Relation</span>
+                    </div>
+                    <div class="memory-content">
+                        User → prefers → pnpm for package management
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <span class="memory-badge">Observation</span>
+                    </div>
+                    <div class="memory-content">
+                        User asked about TypeScript monorepo best practices on 2025-11-07
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <span class="memory-badge">Entity</span>
+                    </div>
+                    <div class="memory-content">
+                        <strong>Design System</strong>: Neon Flux with glassmorphism aesthetic
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <span class="memory-badge">Relation</span>
+                    </div>
+                    <div class="memory-content">
+                        Cerebrobot → uses → Neon Flux design system
+                    </div>
+                </div>
+            </div>
+
+            <button class="add-memory-btn">+ Add Memory Node</button>
+        </aside>
+    </div>
+</body>
+</html>

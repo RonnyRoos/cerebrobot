@@ -246,6 +246,7 @@ function buildConversationGraph(
       systemPrompt: options.autonomyConfig.evaluator.systemPrompt,
       apiKey: options.llmApiKey,
       apiBase: options.llmApiBase,
+      maxFollowUpsPerSession: options.autonomyConfig.limits.maxFollowUpsPerSession,
     };
     const autonomyEvaluator = new AutonomyEvaluatorNode(evaluatorConfig, logger);
     workflow.addNode('evaluateAutonomy', async (state: ConversationState) => {

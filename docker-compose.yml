@@ -22,6 +22,23 @@ services:
       retries: 5
       start_period: 5s
 
+  postgres-test:
+    image: pgvector/pgvector:pg16
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: cerebrobot
+      POSTGRES_PASSWORD: cerebrobot
+      POSTGRES_DB: cerebrobot_test
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cerebrobot -d cerebrobot_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   migrate:
     image: node:20
     depends_on:
@@ -34,7 +51,7 @@ services:
       - pnpm-server:/workspace/apps/server/node_modules
       - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
     command: >-
-      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm db:generate && pnpm db:migrate"
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts && pnpm db:generate && pnpm db:migrate"
     environment:
       DATABASE_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
 
@@ -50,7 +67,7 @@ services:
       - pnpm-server:/workspace/apps/server/node_modules
       - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
     command: >-
-      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @cerebrobot/server dev"
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter @cerebrobot/server dev"
     environment:
       DATABASE_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
       LANGGRAPH_PG_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
@@ -87,7 +104,7 @@ services:
       - pnpm-client:/workspace/apps/client/node_modules
       - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
     command: >-
-      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @cerebrobot/client run dev"
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter @cerebrobot/client run dev"
     environment:
       VITE_API_BASE: http://backend:3030
       VITE_WS_URL: "ws://localhost:${FASTIFY_PORT:-3030}/api/chat/ws"

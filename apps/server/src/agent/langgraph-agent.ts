@@ -178,6 +178,9 @@ export class LangGraphChatAgent implements ChatAgent {
         // CRITICAL: Clear effects at the start of each new event processing
         // Effects should be ephemeral per invocation, not accumulate across turns
         effects: [],
+        // CRITICAL: Reset followUpCount on user messages to allow new autonomous follow-ups
+        // Autonomous messages (timer-triggered) should NOT reset the counter
+        ...(context.isUserMessage ? { followUpCount: 0 } : {}),
       },
       this.createConfig(context.threadId, 'stream', context.userId, context.signal),
     )) as MessageStream;
@@ -256,6 +259,12 @@ export class LangGraphChatAgent implements ChatAgent {
         userId: context.userId,
         agentId: this.agentId,
         messages: [new HumanMessage(context.message)],
+        // CRITICAL: Clear effects at the start of each new event processing
+        // Effects should be ephemeral per invocation, not accumulate across turns
+        effects: [],
+        // CRITICAL: Reset followUpCount on user messages to allow new autonomous follow-ups
+        // Autonomous messages (timer-triggered) should NOT reset the counter
+        ...(context.isUserMessage ? { followUpCount: 0 } : {}),
       },
       this.createConfig(context.threadId, 'invoke', context.userId, context.signal),
     )) as ConversationState;

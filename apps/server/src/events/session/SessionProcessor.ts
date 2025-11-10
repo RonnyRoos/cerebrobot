@@ -132,6 +132,7 @@ export class SessionProcessor {
         message,
         correlationId: event.id,
         signal: abortController.signal,
+        isUserMessage: event.type === 'user_message', // Reset followUpCount on user messages
       });
 
       // Get active WebSocket connection for direct streaming
@@ -296,8 +297,14 @@ export class SessionProcessor {
     } catch (error) {
       clearTimeout(timeoutId);
 
-      // Check if error was due to abort
-      if (error instanceof Error && error.name === 'AbortError') {
+      // Check if error was due to abort (LangGraph throws Error with message "Abort")
+      const isAbortError =
+        error instanceof Error &&
+        (error.name === 'AbortError' ||
+          error.message === 'Abort' ||
+          abortController.signal.aborted);
+
+      if (isAbortError) {
         // Timer events are best-effort - warn but don't throw
         if (event.type === 'timer') {
           this.logger?.warn(
