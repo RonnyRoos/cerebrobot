@@ -3,6 +3,26 @@ export { cn } from './utils/cn';
 // Design System - Primitives (T049)
 export { Box, Stack, Text, Button } from './components/primitives';
 
+// Design System - Navigation Components
+export { Sidebar, SidebarItem, SidebarToggle } from './components/sidebar';
+export type { SidebarProps, SidebarItemProps, SidebarToggleProps } from './components/sidebar';
+
+// Design System - Panel Components
+export { Panel, PanelHeader, PanelBackdrop } from './components/panel';
+export type { PanelProps, PanelHeaderProps, PanelBackdropProps } from './components/panel';
+
+// Design System - Wizard Components
+export { Wizard, WizardStep, WizardProgress, WizardNavigation } from './components/wizard';
+export type {
+  WizardProps,
+  WizardStepProps,
+  WizardProgressProps,
+  WizardNavigationProps,
+} from './components/wizard';
+
+// Design System - Badge Component
+export { Badge, type BadgeProps } from './components/primitives/badge';
+
 // Design System - Form Components (T021)
 export { Input, type InputProps } from './components/input';
 export { Textarea, type TextareaProps } from './components/textarea';

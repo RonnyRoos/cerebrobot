@@ -17,6 +17,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:a11y": "vitest run __tests__/a11y __tests__/components/*.a11y.test.tsx",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -28,6 +29,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "react-focus-lock": "^2.9.4",
     "react-markdown": "^9.0.1",
     "react-syntax-highlighter": "^15.5.0",
     "remark-gfm": "^4.0.0",

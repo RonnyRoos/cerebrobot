@@ -26,9 +26,50 @@
 
 ## Project snapshot
 - Cerebrobot is a LangGraph-powered chatbot with an inspectable memory graph aimed at single-operator, Docker Compose deployments ([Mission Statement](docs/mission.md)).
-- Phase 1 scope: scaffold the conversational core, expose operator-managed memory read/write, and prove the loop with focused tests ([Mission Statement](docs/mission.md)).
+- Phase 1 scope: scaffold the conversational core, expose operator-managed memory read/write, and prove the loop with focused tests ([Mission Statement](docs/mission.md)).
 - Future phases add persistence, public APIs, frontend, and multi-agent extensions—design seams with that roadmap in mind without building them prematurely ([Mission Statement](docs/mission.md)).
 - Chat transport has migrated to WebSockets (`GET /api/chat/ws`); SSE endpoints were removed, and tests rely on `vitest-websocket-mock`/`mock-socket` for client flows.
+
+## Client-side state persistence
+
+Cerebrobot uses browser `localStorage` to persist UI state across sessions:
+
+### Navigation State
+**Key**: `cerebrobot:navigation-state`
+**Structure**:
+```typescript
+{
+  isSidebarExpanded: boolean;  // Sidebar expansion state (mobile: false, desktop: true default)
+  activeRoute: string;          // Current navigation route (e.g., '/chat', '/agents', '/memory')
+}
+```
+**Behavior**:
+- Sidebar expansion persists between page reloads
+- Mobile (<768px): Sidebar always in bottom nav mode, `isSidebarExpanded` has no visual effect
+- Tablet+ (≥768px): Controls sidebar width (48px collapsed ↔ 200px/280px expanded)
+- Active route restored on app load for navigation highlighting
+
+### Agent Thread Filter
+**Key**: `cerebrobot:agent-filter`
+**Structure**:
+```typescript
+{
+  agentId: string;   // UUID of selected agent (from Prisma Agent model)
+  agentName: string; // Display name of agent (for UI consistency)
+} | null
+```
+**Behavior**:
+- Set when user clicks "Show Threads" from agent card
+- Filters thread list to show only threads for selected agent
+- Auto-clears if agent is deleted (verified via agent list query)
+- Cleared when user clicks "Clear Filter" button in thread list header
+- Null state shows all threads across all agents
+
+**Development Notes**:
+- Use `useNavigationState()` and `useAgentFilter()` hooks from `apps/client/src/hooks/` for type-safe access
+- Don't access localStorage directly; hooks handle serialization and validation
+- localStorage keys prefixed with `cerebrobot:` to avoid conflicts with other apps
+- Clear state on logout/reset via hooks (they handle cleanup)
 
 ## Working cadence for agents
 1. Read the roadmap, tech stack, and style guides before coding; keep them open for cross-checks ([Tech Stack Guardrails](docs/tech-stack.md), [Engineering Best Practices](docs/best-practices.md), [TypeScript Code Style](docs/code-style.md)).

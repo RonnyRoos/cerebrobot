@@ -17,6 +17,8 @@ const ConversationAnnotation = Annotation.Root({
   userId: Annotation<string | undefined>(),
   retrievedMemories: Annotation<MemorySearchResult[] | undefined>(),
   memoryOperations: Annotation<UpsertMemoryInput[] | undefined>(),
+  // Autonomy follow-up counter (per session/thread)
+  followUpCount: Annotation<number | undefined>(),
   // Autonomy effects (spec 009)
   // Effects emitted by nodes (e.g., schedule_timer, send_message)
   // Reducer appends effects from nodes within a SINGLE graph invocation

@@ -13,12 +13,17 @@ import { useUpdateAgent } from '../hooks/useUpdateAgent.js';
 import { useDeleteAgent } from '../hooks/useDeleteAgent.js';
 import { AgentList } from '../components/AgentList.js';
 import { AgentForm } from '../components/AgentForm.js';
+import { AgentWizardModal } from '../components/agent-wizard/AgentWizardModal.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 
-export function AgentsPage() {
+interface AgentsPageProps {
+  onViewThreads?: (agentId: string, agentName: string) => void;
+}
+
+export function AgentsPage({ onViewThreads }: AgentsPageProps) {
   const { agents, loading, error, refetch } = useAgents();
   const { createAgent, error: createError } = useCreateAgent();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -33,14 +38,14 @@ export function AgentsPage() {
   const { deleteAgent, error: deleteError, isLoading: isDeleting } = useDeleteAgent();
 
   const handleNewAgent = () => {
-    setShowCreateForm(true);
+    setShowCreateWizard(true);
     setEditingAgentId(null); // Clear edit state
     setSuccessMessage(null);
   };
 
   const handleEditAgent = (agentId: string) => {
     setEditingAgentId(agentId);
-    setShowCreateForm(false); // Clear create state
+    setShowCreateWizard(false); // Clear create state
     setSuccessMessage(null);
   };
 
@@ -69,7 +74,7 @@ export function AgentsPage() {
   };
 
   const handleCancelCreate = () => {
-    setShowCreateForm(false);
+    setShowCreateWizard(false);
   };
 
   const handleCancelEdit = () => {
@@ -79,9 +84,9 @@ export function AgentsPage() {
   const handleSubmitCreate = async (config: AgentConfig) => {
     await createAgent(config);
 
-    // If successful (no error), close form and refresh list
+    // If successful (no error), close wizard and refresh list
     if (!createError) {
-      setShowCreateForm(false);
+      setShowCreateWizard(false);
       setSuccessMessage('Agent created successfully');
       await refetch();
 
@@ -109,36 +114,12 @@ export function AgentsPage() {
   // Get agent name for deletion confirmation
   const deletingAgent = agents.find((a) => a.id === deletingAgentId);
 
-  // Show create form
-  if (showCreateForm) {
-    return (
-      <Box className="min-h-screen">
-        <Box className="p-4 border-b border-border flex items-center gap-4">
-          <Button variant="ghost" onClick={handleCancelCreate}>
-            ← Back to Agents
-          </Button>
-          <Text as="h1" variant="heading" size="2xl">
-            Create New Agent
-          </Text>
-        </Box>
-        {createError && (
-          <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
-            <Text variant="body" className="text-error">
-              {createError}
-            </Text>
-          </Box>
-        )}
-        <AgentForm mode="create" onSubmit={handleSubmitCreate} onCancel={handleCancelCreate} />
-      </Box>
-    );
-  }
-
   // Show edit form
   if (editingAgentId) {
     // Loading agent data
     if (loadingAgent) {
       return (
-        <Box className="min-h-screen">
+        <Box>
           <Box className="p-4 border-b border-border flex items-center gap-4">
             <Button variant="ghost" onClick={handleCancelEdit}>
               ← Back to Agents
@@ -159,7 +140,7 @@ export function AgentsPage() {
     // Error loading agent
     if (loadAgentError) {
       return (
-        <Box className="min-h-screen">
+        <Box>
           <Box className="p-4 border-b border-border flex items-center gap-4">
             <Button variant="ghost" onClick={handleCancelEdit}>
               ← Back to Agents
@@ -180,7 +161,7 @@ export function AgentsPage() {
     // Agent not found
     if (!editingAgent) {
       return (
-        <Box className="min-h-screen">
+        <Box>
           <Box className="p-4 border-b border-border flex items-center gap-4">
             <Button variant="ghost" onClick={handleCancelEdit}>
               ← Back to Agents
@@ -200,28 +181,30 @@ export function AgentsPage() {
 
     // Show edit form with loaded agent data
     return (
-      <Box className="min-h-screen">
-        <Box className="p-4 border-b border-border flex items-center gap-4">
+      <Box className="h-full flex flex-col overflow-hidden">
+        <Box className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
           <Button variant="ghost" onClick={handleCancelEdit}>
             ← Back to Agents
           </Button>
-          <Text as="h1" variant="heading" size="2xl">
+          <Text as="h1" variant="heading" size="xl" className="md:text-2xl">
             Edit Agent
           </Text>
         </Box>
         {updateError && (
-          <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
+          <Box className="p-4 bg-error/10 border-l-4 border-error flex-shrink-0" role="alert">
             <Text variant="body" className="text-error">
               {updateError}
             </Text>
           </Box>
         )}
-        <AgentForm
-          mode="edit"
-          initialData={editingAgent}
-          onSubmit={handleSubmitEdit}
-          onCancel={handleCancelEdit}
-        />
+        <Box className="flex-1 overflow-y-auto">
+          <AgentForm
+            mode="edit"
+            initialData={editingAgent}
+            onSubmit={handleSubmitEdit}
+            onCancel={handleCancelEdit}
+          />
+        </Box>
       </Box>
     );
   }
@@ -229,7 +212,7 @@ export function AgentsPage() {
   // Show agent list
   if (loading) {
     return (
-      <Box className="min-h-screen p-8 flex items-center justify-center">
+      <Box className="flex h-full items-center justify-center">
         <Text variant="body" size="lg" className="text-text-tertiary">
           Loading agents...
         </Text>
@@ -239,7 +222,7 @@ export function AgentsPage() {
 
   if (error) {
     return (
-      <Box className="min-h-screen p-4">
+      <Box className="flex h-full flex-col">
         <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
           <Text variant="body" className="text-error">
             Error loading agents: {error}
@@ -250,27 +233,43 @@ export function AgentsPage() {
   }
 
   return (
-    <Box className="min-h-screen">
+    <Box className="flex h-full flex-col overflow-hidden">
+      {/* Toast messages */}
       {successMessage && (
-        <Box className="p-4 bg-success/10 border-l-4 border-success" role="status">
-          <Text variant="body" className="text-success">
-            {successMessage}
-          </Text>
+        <Box className="p-3 bg-success/10 border-b border-success/20" role="status">
+          <Text className="text-sm text-success">{successMessage}</Text>
         </Box>
       )}
       {deleteError && (
-        <Box className="p-4 bg-error/10 border-l-4 border-error" role="alert">
-          <Text variant="body" className="text-error">
-            {deleteError}
-          </Text>
+        <Box className="p-3 bg-error/10 border-b border-error/20" role="alert">
+          <Text className="text-sm text-error">{deleteError}</Text>
         </Box>
       )}
-      <AgentList
-        agents={agents}
-        onNewAgent={handleNewAgent}
-        onEditAgent={handleEditAgent}
-        onDeleteAgent={handleDeleteAgent}
+      {createError && (
+        <Box className="p-3 bg-error/10 border-b border-error/20" role="alert">
+          <Text className="text-sm text-error">{createError}</Text>
+        </Box>
+      )}
+
+      {/* Agent list - takes full height */}
+      <Box className="flex-1 overflow-hidden">
+        <AgentList
+          agents={agents}
+          onNewAgent={handleNewAgent}
+          onEditAgent={handleEditAgent}
+          onDeleteAgent={handleDeleteAgent}
+          onViewThreads={onViewThreads}
+        />
+      </Box>
+
+      {/* Agent Creation Wizard */}
+      <AgentWizardModal
+        isOpen={showCreateWizard}
+        onClose={handleCancelCreate}
+        onSubmit={handleSubmitCreate}
       />
+
+      {/* Agent Deletion Confirmation */}
       <ConfirmDialog
         isOpen={!!deletingAgentId && !isDeleting}
         title="Delete Agent"

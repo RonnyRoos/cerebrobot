@@ -9,7 +9,8 @@ import type { Logger } from 'pino';
 import { TimerStore } from './TimerStore.js';
 import { EventStore } from '../../events/events/EventStore.js';
 import type { EventQueue } from '../../events/events/EventQueue.js';
-import type { SessionKey } from '../../events/types/events.schema.js';
+import { SessionKeySchema, type SessionKey } from '../../events/types/events.schema.js';
+import { ZodError } from 'zod';
 
 export interface TimerWorkerConfig {
   pollIntervalMs: number;
@@ -86,8 +87,29 @@ export class TimerWorker {
       // Process each due timer
       for (const timer of dueTimers) {
         try {
+          // Validate session_key format before processing
+          // This prevents invalid test data or corrupted entries from causing log spam
+          let sessionKey: SessionKey;
+          try {
+            sessionKey = SessionKeySchema.parse(timer.session_key);
+          } catch (validationError) {
+            if (validationError instanceof ZodError) {
+              this.logger.warn(
+                {
+                  timerId: timer.timer_id,
+                  sessionKey: timer.session_key,
+                  validationError: validationError.errors,
+                },
+                'Invalid session_key format - marking timer as cancelled',
+              );
+              // Mark invalid timer as cancelled to prevent infinite retries
+              await this.timerStore.markCancelled(timer.id);
+              continue; // Skip to next timer
+            }
+            throw validationError; // Re-throw unexpected errors
+          }
+
           // Get next sequence for this session
-          const sessionKey = timer.session_key as SessionKey;
           const nextSeq = await this.eventStore.getNextSeq(sessionKey);
 
           // Create timer event

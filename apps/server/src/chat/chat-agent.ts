@@ -5,6 +5,7 @@ export interface ChatInvocationContext {
   readonly correlationId: string;
   readonly requestId?: string; // WebSocket request correlation ID for multiplexing
   readonly signal?: AbortSignal; // Cancellation signal for aborting streaming
+  readonly isUserMessage?: boolean; // True for user messages, false/undefined for autonomous follow-ups
 }
 
 export interface TokenUsageEvent {

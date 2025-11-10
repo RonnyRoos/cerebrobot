@@ -11,7 +11,22 @@ This guide speaks directly to Cerebrobot's LLM teammates. Follow these rules to 
 
 ## Testing Expectations
 - **Unit tests first**: Focus coverage on deterministic unit tests for LangGraph nodes, memory mutations, and configuration parsers.
-- **One Postgres validation test**: Create a single test that validates DB schema, migrations, and pgvector using real Postgres with mocked embeddings (deterministic).
+- **One Postgres validation test**: Create a single test file that validates DB schema, migrations, and pgvector using **a separate test PostgreSQL container** (not production) with mocked embeddings (deterministic, no API costs).
+  - **CRITICAL**: Test database MUST run in separate Docker container to prevent production contamination
+  - **Architecture**: 
+    - Production: `postgres` service → localhost:5432 → `cerebrobot` database
+    - Test: `postgres-test` service → localhost:5434 → `cerebrobot_test` database
+  - **Setup workflow**:
+    1. Start test database: `./scripts/start-test-db.sh`
+    2. Run tests: `pnpm test`
+    3. Stop test database: `./scripts/stop-test-db.sh`
+  - **Why separate containers?**
+    - Clean logs: test errors don't appear in production postgres logs
+    - Resource isolation: independent connection pools, memory, and process space
+    - Independent lifecycle: restart/debug test DB without affecting production
+  - Use `DATABASE_URL_TEST` and `LANGGRAPH_PG_URL_TEST` environment variables (port 5434)
+  - Tests automatically skip if test database URLs are not configured
+  - Expected: `docker logs cerebrobot-postgres-test-1` will show ~3 duplicate key errors from constraint validation tests (this is correct)
 - **Manual smoke tests**: Validate real LLM behavior, real embeddings, and real semantic search accuracy manually before deployment (checklist in tasks).
 - **Avoid pseudo-integration tests**: Don't create "integration" tests that mock the LLM or embeddings—they can't validate the behavior they claim to test.
 - **Mock philosophy**: Prefer real implementations over heavy mocks; use lightweight fakes when isolating external services (e.g., fixed embeddings for vector tests).

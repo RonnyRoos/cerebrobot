@@ -162,4 +162,27 @@
       opacity: 0.3;
     }
   }
+
+  /* Custom scrollbar for chat messages (Neon Flux) */
+  .chat-messages {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(277, 92%, 62%, 0.5) transparent;
+  }
+
+  .chat-messages::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-messages::-webkit-scrollbar-thumb {
+    background: hsl(277, 92%, 62%, 0.5); /* Purple 50% opacity */
+    border-radius: 4px;
+  }
+
+  .chat-messages::-webkit-scrollbar-thumb:hover {
+    background: hsl(277, 92%, 62%, 0.7); /* Purple 70% opacity on hover */
+  }
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useThreads } from '../hooks/useThreads.js';
-import { ThreadListItem } from './ThreadListItem.js';
+import { ThreadCard } from './thread-list/ThreadCard.js';
 import { EmptyState } from './EmptyState.js';
-import { Box, Stack, Text, Button } from '@workspace/ui';
+import { Box, Stack, Button, Text } from '@workspace/ui';
 import type { AgentListResponse } from '@cerebrobot/chat-shared';
 
 interface ThreadListViewProps {
@@ -12,27 +12,30 @@ interface ThreadListViewProps {
   onNewThread: () => void;
   onExitAgentContext: () => void; // Handler to exit Agent Context Mode
   onRefreshReady: (refresh: () => Promise<void>) => void;
-  onNavigateToAgents?: () => void; // Handler to navigate to agents management page
+  // Removed: onNavigateToAgents, onAgentFilterChange, onClearAgentFilter (redundant with sidebar)
 }
 
 /**
  * Main thread list view component
  * Migrated to design system primitives (T028)
+ * Visual redesign with ThreadCard component (T072-T077)
+ * Streamlined header - removed redundant controls (sidebar handles all navigation)
  *
  * Displays:
- * - List of conversation threads sorted by most recent first
- * - "New Conversation" button in header
+ * - Compact list of conversation threads with ThreadCard components
+ * - Minimal header (only "Back to All Threads" button in agent context mode)
  * - Empty state when no threads exist
  * - Error state when thread loading fails
  *
- * Agent Context Mode:
- * - When agentContextMode is set: shows "🤖 {AgentName} Conversations" header
- * - Includes "← Back to All Threads" button to exit context mode
- * - Thread list filtered to that agent only
+ * All navigation controls moved to sidebar:
+ * - New Conversation (handled by sidebar or floating action button)
+ * - Manage Agents (sidebar Agents nav item)
+ * - Agent filtering (removed - use sidebar to navigate to specific agent)
  *
  * KISS Principle: No loading indicators - content appears when ready
  *
  * Phase 5 (T027b): Exposes refresh function to parent for thread list updates
+ * Phase 8 (T077): Uses ThreadCard component with Neon Flux visual design
  */
 export function ThreadListView({
   userId,
@@ -41,10 +44,16 @@ export function ThreadListView({
   onNewThread,
   onExitAgentContext,
   onRefreshReady,
-  onNavigateToAgents,
 }: ThreadListViewProps): JSX.Element {
   const { threads, error, refresh } = useThreads(userId, agentContextMode);
   const [agents, setAgents] = useState<AgentListResponse['agents']>([]);
+
+  // Get current thread ID from URL for active state detection
+  const currentThreadId = (() => {
+    const path = window.location.pathname;
+    const match = path.match(/^\/chat\/([^/]+)\/([^/]+)$/);
+    return match ? match[1] : null;
+  })();
 
   // Fetch agent list to map agentIds to names
   useEffect(() => {
@@ -94,43 +103,28 @@ export function ThreadListView({
   }
 
   return (
-    <Box as="section" className="flex h-screen flex-col">
-      {/* Header with New Conversation button */}
-      <Box as="header" className="border-b-2 border-border p-4">
-        {/* Back to All Threads button (only in Agent Context Mode) */}
+    <Box as="section" className="flex h-full flex-col bg-bg-base overflow-hidden">
+      {/* Compact header with thread count */}
+      <Box className="px-3 py-2 border-b border-border-default/20 flex items-center justify-between gap-2 flex-shrink-0">
+        <Text className="text-sm font-semibold text-text-secondary">
+          {threads.length === 1 ? '1 conversation' : `${threads.length} conversations`}
+        </Text>
         {agentContextMode && (
-          <Button variant="ghost" onClick={onExitAgentContext} className="mb-3">
-            ← Back to All Threads
+          <Button
+            variant="ghost"
+            onClick={onExitAgentContext}
+            className="text-xs text-accent-primary hover:text-accent-primary hover:bg-accent-primary/10 transition-all duration-200 h-6 px-2"
+          >
+            ← All Threads
           </Button>
         )}
-
-        {/* Header title and New Conversation button */}
-        <Stack direction="horizontal" align="center" justify="between">
-          <Text as="h2" variant="heading" size="xl">
-            {agentContextMode
-              ? `🤖 ${agentNameMap.get(agentContextMode) || 'Agent'} Conversations`
-              : 'Conversations'}
-          </Text>
-          <Stack direction="horizontal" gap="2">
-            {/* Manage Agents button (only in All Threads mode) */}
-            {!agentContextMode && onNavigateToAgents && (
-              <Button variant="ghost" onClick={onNavigateToAgents}>
-                ⚙️ Manage Agents
-              </Button>
-            )}
-            <Button variant="primary" onClick={onNewThread}>
-              + New Conversation
-            </Button>
-          </Stack>
-        </Stack>
       </Box>
 
       {/* Thread list or empty state */}
       {threads.length === 0 ? (
-        // Empty state (FR-008) - Enhanced with EmptyState component (T087)
+        // Empty state with Brain icon and fade-in animation (T080)
         <Box className="flex-1">
           <EmptyState
-            icon="💬"
             heading="No conversations yet"
             description="Start chatting with your AI agents by creating your first conversation. Your conversation history will appear here."
             buttonText="Start Your First Conversation"
@@ -138,16 +132,19 @@ export function ThreadListView({
           />
         </Box>
       ) : (
-        // Thread list (FR-001, FR-003)
+        // Thread list (FR-001, FR-003) - Updated to use ThreadCard (T077)
         <Box className="flex-1 overflow-y-auto">
-          {threads.map((thread) => (
-            <ThreadListItem
-              key={thread.threadId}
-              thread={thread}
-              agentName={agentNameMap.get(thread.agentId)}
-              onSelect={() => onSelectThread(thread.threadId, thread.agentId)}
-            />
-          ))}
+          <Stack gap="1" className="p-2">
+            {threads.map((thread) => (
+              <ThreadCard
+                key={thread.threadId}
+                thread={thread}
+                agentName={agentNameMap.get(thread.agentId)}
+                isActive={thread.threadId === currentThreadId}
+                onClick={() => onSelectThread(thread.threadId, thread.agentId)}
+              />
+            ))}
+          </Stack>
         </Box>
       )}
     </Box>

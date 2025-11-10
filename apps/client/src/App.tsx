@@ -1,11 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ChatView } from './components/ChatView';
 import { UserSetup } from './components/UserSetup';
 import { ThreadListView } from './components/ThreadListView';
 import { AgentPicker } from './components/AgentPicker';
 import { AgentsPage } from './pages/AgentsPage';
+import { MemoryPage } from './pages/MemoryPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { useUserId } from './hooks/useUserId';
-import { Box, Button } from '@workspace/ui';
+import { useAgentFilter } from './hooks/useAgentFilter';
+import { AppLayout } from './layouts/AppLayout';
+import type { AgentListResponse } from '@cerebrobot/chat-shared';
 
 /**
  * Main application component
@@ -32,43 +37,96 @@ import { Box, Button } from '@workspace/ui';
  * Phase 5 (T027b): Refresh thread list when navigating back from chat
  */
 export function App(): JSX.Element {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { userId, showUserSetup, handleUserIdReady } = useUserId();
 
+  // Fetch agent list for filter validation
+  const [agents, setAgents] = useState<AgentListResponse['agents']>([]);
+  useEffect(() => {
+    async function fetchAgents() {
+      try {
+        const response = await fetch('/api/agents');
+        if (response.ok) {
+          const data: AgentListResponse = await response.json();
+          setAgents(data.agents);
+        }
+      } catch {
+        // Silently fail
+      }
+    }
+    void fetchAgents();
+  }, []);
+
+  // Agent filter hook with localStorage persistence
+  const { filter: agentFilter, setFilter, clearFilter } = useAgentFilter(agents.map((a) => a.id));
+
   // Initialize showAgentsPage from URL path
-  const [showAgentsPage, setShowAgentsPage] = useState(window.location.pathname === '/agents');
-  const [agentContextMode, setAgentContextMode] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<
+    'threads' | 'agents' | 'memory' | 'settings' | 'chat'
+  >(() => {
+    const path = location.pathname;
+    if (path === '/agents') return 'agents';
+    if (path === '/memory') return 'memory';
+    if (path === '/settings') return 'settings';
+    if (path.startsWith('/chat/')) return 'chat';
+    return 'threads';
+  });
+  const [showAgentsPage, setShowAgentsPage] = useState(location.pathname === '/agents');
+  const [agentContextMode, setAgentContextMode] = useState<string | null>(
+    agentFilter?.agentId ?? null,
+  );
   const [activeThread, setActiveThread] = useState<{ threadId: string; agentId: string } | null>(
-    null,
+    () => {
+      // Initialize from URL if on /chat/:threadId/:agentId
+      const path = location.pathname;
+      const match = path.match(/^\/chat\/([^/]+)\/([^/]+)$/);
+      if (match) {
+        return { threadId: match[1], agentId: match[2] };
+      }
+      return null;
+    },
   );
   const [showAgentPickerForNew, setShowAgentPickerForNew] = useState(false);
   const refreshThreadsRef = useRef<(() => Promise<void>) | null>(null);
 
-  // Listen to URL changes for browser back/forward navigation
+  // Sync agentContextMode with persisted filter
   useEffect(() => {
-    const handlePopState = () => {
-      setShowAgentsPage(window.location.pathname === '/agents');
-    };
+    setAgentContextMode(agentFilter?.agentId ?? null);
+  }, [agentFilter]);
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  // Sync state with URL changes (browser back/forward navigation)
+  useEffect(() => {
+    const path = location.pathname;
+    setShowAgentsPage(path === '/agents');
+    if (path === '/agents') setCurrentPage('agents');
+    else if (path === '/memory') setCurrentPage('memory');
+    else if (path === '/settings') setCurrentPage('settings');
+    else if (path.startsWith('/chat/')) {
+      setCurrentPage('chat');
+      const match = path.match(/^\/chat\/([^/]+)\/([^/]+)$/);
+      if (match) {
+        setActiveThread({ threadId: match[1], agentId: match[2] });
+      }
+    } else {
+      setCurrentPage('threads');
+      setActiveThread(null);
+    }
+  }, [location.pathname]);
 
   // Navigation helpers
-  const navigateToAgents = useCallback(() => {
-    window.history.pushState({}, '', '/agents');
-    setShowAgentsPage(true);
-  }, []);
-
   const navigateToThreads = useCallback(() => {
-    window.history.pushState({}, '', '/');
-    setShowAgentsPage(false);
-  }, []);
+    navigate('/threads');
+  }, [navigate]);
 
   // Handler for selecting a thread (receives both threadId and agentId)
   // Does NOT change agentContextMode - user returns to same view they came from
-  const handleSelectThread = useCallback((threadId: string, agentId: string) => {
-    setActiveThread({ threadId, agentId });
-  }, []);
+  const handleSelectThread = useCallback(
+    (threadId: string, agentId: string) => {
+      navigate(`/chat/${threadId}/${agentId}`);
+    },
+    [navigate],
+  );
 
   // Handler for starting a new conversation
   // If in Agent Context Mode: reuse that agent (skip picker)
@@ -76,33 +134,48 @@ export function App(): JSX.Element {
   const handleNewThread = useCallback(() => {
     if (agentContextMode) {
       // In Agent Context Mode: create new thread with context agent
-      setActiveThread({ threadId: 'new', agentId: agentContextMode });
+      navigate(`/chat/new/${agentContextMode}`);
     } else {
       // In All Threads mode: show agent picker
       setShowAgentPickerForNew(true);
     }
-  }, [agentContextMode]);
+  }, [agentContextMode, navigate]);
 
   // Handler when agent is selected for new conversation
-  // ENTERS Agent Context Mode for this agent
-  const handleAgentSelectedForNew = useCallback((agentId: string) => {
-    setAgentContextMode(agentId); // Enter Agent Context Mode
-    setShowAgentPickerForNew(false);
-    setActiveThread({ threadId: 'new', agentId });
-  }, []);
+  // Sets filter and enters Agent Context Mode
+  const handleAgentSelectedForNew = useCallback(
+    (agentId: string) => {
+      const agent = agents.find((a) => a.id === agentId);
+      if (agent) {
+        setFilter(agentId, agent.name); // Persist filter to localStorage
+      }
+      setShowAgentPickerForNew(false);
+      navigate(`/chat/new/${agentId}`);
+    },
+    [agents, setFilter, navigate],
+  );
 
   // Handler for returning to thread list (T027b: Trigger refresh)
   // Does NOT clear agentContextMode - user returns to same view
   const handleBackToList = useCallback(() => {
-    setActiveThread(null);
+    navigate('/threads');
     // Refresh thread list to show any new threads or updated metadata
     void refreshThreadsRef.current?.();
-  }, []);
+  }, [navigate]);
 
   // Handler for exiting Agent Context Mode back to All Threads
   const handleExitAgentContext = useCallback(() => {
-    setAgentContextMode(null);
-  }, []);
+    clearFilter(); // Clear persisted filter
+  }, [clearFilter]);
+
+  // Handler for viewing threads from AgentsPage (T089)
+  const handleViewThreadsFromAgents = useCallback(
+    (agentId: string, agentName: string) => {
+      setFilter(agentId, agentName); // Set filter and persist
+      navigateToThreads(); // Navigate to thread list
+    },
+    [setFilter, navigateToThreads],
+  );
 
   // Store refresh function from useThreads hook
   const handleRefreshReady = useCallback((refresh: () => Promise<void>) => {
@@ -114,17 +187,30 @@ export function App(): JSX.Element {
     return <UserSetup onUserIdReady={handleUserIdReady} />;
   }
 
+  // Show memory page
+  if (currentPage === 'memory' && userId) {
+    return (
+      <AppLayout>
+        <MemoryPage />
+      </AppLayout>
+    );
+  }
+
+  // Show settings page
+  if (currentPage === 'settings' && userId) {
+    return (
+      <AppLayout>
+        <SettingsPage />
+      </AppLayout>
+    );
+  }
+
   // Show agents management page
   if (showAgentsPage && userId) {
     return (
-      <Box className="min-h-screen">
-        <Box className="p-4">
-          <Button variant="ghost" onClick={navigateToThreads}>
-            ← Back to Threads
-          </Button>
-        </Box>
-        <AgentsPage />
-      </Box>
+      <AppLayout>
+        <AgentsPage onViewThreads={handleViewThreadsFromAgents} />
+      </AppLayout>
     );
   }
 
@@ -136,27 +222,30 @@ export function App(): JSX.Element {
   // Show thread list if userId and no active thread
   if (!activeThread && userId) {
     return (
-      <ThreadListView
-        userId={userId}
-        agentContextMode={agentContextMode}
-        onSelectThread={handleSelectThread}
-        onNewThread={handleNewThread}
-        onExitAgentContext={handleExitAgentContext}
-        onRefreshReady={handleRefreshReady}
-        onNavigateToAgents={navigateToAgents}
-      />
+      <AppLayout>
+        <ThreadListView
+          userId={userId}
+          agentContextMode={agentContextMode}
+          onSelectThread={handleSelectThread}
+          onNewThread={handleNewThread}
+          onExitAgentContext={handleExitAgentContext}
+          onRefreshReady={handleRefreshReady}
+        />
+      </AppLayout>
     );
   }
 
   // Show chat view with active thread
   if (activeThread && userId) {
     return (
-      <ChatView
-        userId={userId}
-        agentId={activeThread.agentId}
-        threadId={activeThread.threadId}
-        onBack={handleBackToList}
-      />
+      <AppLayout>
+        <ChatView
+          userId={userId}
+          agentId={activeThread.agentId}
+          threadId={activeThread.threadId}
+          onBack={handleBackToList}
+        />
+      </AppLayout>
     );
   }
 

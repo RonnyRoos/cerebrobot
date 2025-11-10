@@ -27,6 +27,7 @@ interface DisplayMessage {
   latencyMs?: number;
   error?: string;
   tokenUsage?: TokenUsage;
+  timestamp?: Date | string;
 }
 
 interface ErrorState {
@@ -131,6 +132,7 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
         content: message,
         status: 'complete',
         latencyMs,
+        timestamp: new Date(),
       };
       setMessages((prev) => [...prev, autonomousMessage]);
       console.log('[useChatMessages] Autonomous message added (no streaming)', { requestId });
@@ -326,12 +328,14 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
         role: 'user',
         content: messageToSend,
         status: 'complete',
+        timestamp: new Date(),
       },
       {
         id: assistantMessageId,
         role: 'assistant',
         content: '',
         status: 'streaming',
+        timestamp: new Date(),
       },
     ]);
 

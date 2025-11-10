@@ -13,6 +13,39 @@
    ```
 3. Copy `.env.example` to `.env` (adjust LangGraph agent settings as desired).
 
+## Test Database Setup
+
+Cerebrobot uses **separate PostgreSQL containers** for production and testing to ensure clean logs and complete isolation:
+
+- **Production**: `postgres` service → `localhost:5432` → `cerebrobot` database
+- **Test**: `postgres-test` service → `localhost:5434` → `cerebrobot_test` database
+
+### Running Tests
+
+1. **Start the test database** (first time or after stopping):
+   ```bash
+   ./scripts/start-test-db.sh
+   ```
+   This starts the `postgres-test` container, waits for it to be healthy, and applies all migrations.
+
+2. **Run the test suite**:
+   ```bash
+   pnpm test
+   ```
+
+3. **Stop the test database** (optional, to free resources):
+   ```bash
+   ./scripts/stop-test-db.sh
+   ```
+
+### Why Separate Containers?
+
+- **Clean logs**: Test errors (e.g., duplicate key violations from constraint tests) don't appear in production postgres logs
+- **Resource isolation**: Independent connection pools, memory, and process space
+- **Independent lifecycle**: Restart or debug test database without affecting production
+
+> **Note**: The `postgres-test` container uses Docker Compose profile `["test"]`, so it won't start automatically with `docker compose up`. You must use the helper scripts to manage it.
+
 ## Workspace Commands
 - Run lint/format/tests (hygiene loop):
   ```bash
@@ -252,6 +285,51 @@ Create a new conversation thread with specified agent.
 - Thread remembers its agent via metadata
 - Each message uses thread's original agent
 - Different agents can have completely different personalities, models, and memory settings
+
+## User Interface Features
+
+Cerebrobot provides a responsive, accessible UI built with the Neon Flux design system:
+
+### Navigation
+- **Collapsible Sidebar**: 48px collapsed → 280px expanded (desktop), hover or click to expand
+- **Mobile Bottom Nav**: On screens <768px, sidebar transforms to bottom navigation bar (icon-only)
+- **Tablet Optimized**: On screens 768-1024px, sidebar expands to 200px to preserve chat space
+- **Routes**: Threads, Agents, Memory, Settings with visual indicators for active route
+- **Persistent State**: Sidebar expansion and active route saved in `localStorage`
+
+### Memory Panel
+- **Slide-in Panel**: Access memory graph during chat via 🧠 Memory button in header
+- **Lazy Loading**: Memory data fetched only when panel first opened (performance optimization)
+- **Focus Trap**: Keyboard navigation contained within panel (WCAG 2.1 AA compliant)
+- **Mobile Full-Screen**: On screens <768px, panel becomes full-screen overlay for better usability
+- **Tablet+ Slide-in**: 400px slide-in panel from right with backdrop on larger screens
+
+### Agent Management
+- **4-Step Wizard**: Guided agent creation with progress indicator
+  - Step 1: Basic Info (name, system prompt, persona tag)
+  - Step 2: LLM Configuration (model, temperature, API settings)
+  - Step 3: Memory Settings (hot path, embeddings, retrieval)
+  - Step 4: Review & Create with validation
+- **Agent Cards**: Visual grid of configured agents with quick actions
+- **Thread Filtering**: Filter threads by agent with dropdown or "Threads" button on agent cards
+
+### Visual Enhancements
+- **Message Bubbles**: Asymmetric layout with gradient backgrounds
+  - User: Purple-pink gradient (right-aligned)
+  - Agent: Blue-purple gradient (left-aligned)
+  - Hover glows and fade-in animations
+- **Thread Cards**: Glassmorphic design with hover effects, agent badges, message previews
+- **Responsive Design**: Full mobile, tablet, and desktop support with appropriate breakpoints
+
+### Accessibility
+- **Keyboard Navigation**: Full Tab/Enter/Escape support across all interactive elements
+- **Focus Indicators**: Visible 2px purple glow on keyboard focus (WCAG 2.1 AA)
+- **ARIA Labels**: Screen reader support with proper roles and labels
+- **121 A11y Tests**: Automated accessibility testing with vitest-axe
+
+### LocalStorage Keys
+- `cerebrobot:navigation-state`: Sidebar expansion and active route
+- `cerebrobot:agent-filter`: Thread filtering by agent (auto-clears if agent deleted)
 
 ## Agent Context Mode
 

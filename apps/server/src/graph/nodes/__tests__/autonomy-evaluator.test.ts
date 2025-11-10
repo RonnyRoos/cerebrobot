@@ -5,10 +5,156 @@
  * Part of TDD for User Story 1 (T018a).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { AutonomyEvaluationResponse } from '@cerebrobot/chat-shared';
+import { AutonomyEvaluatorNode } from '../autonomy-evaluator.js';
+import type { ConversationState } from '../../../agent/graph/types.js';
+import type { ChatOpenAI } from '@langchain/openai';
 
 describe('AutonomyEvaluatorNode', () => {
+  let mockLLM: ChatOpenAI;
+
+  beforeEach(() => {
+    // Mock LLM that returns "should schedule"
+    mockLLM = {
+      invoke: vi.fn().mockResolvedValue({
+        content: JSON.stringify({
+          shouldSchedule: true,
+          delaySeconds: 60,
+          followUpType: 'check_in',
+          reason: 'Test follow-up',
+        }),
+      }),
+    } as unknown as ChatOpenAI;
+  });
+
+  describe('maxFollowUpsPerSession limit enforcement (CRITICAL)', () => {
+    it('should NOT create schedule_timer effect when limit reached', async () => {
+      const evaluator = new AutonomyEvaluatorNode({
+        model: 'gpt-4',
+        apiKey: 'test-key',
+        apiBase: 'https://test.com',
+        systemPrompt: 'Test prompt',
+        maxFollowUpsPerSession: 3,
+      });
+
+      // Inject mock LLM to prevent real API calls
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (evaluator as any).llm = mockLLM;
+
+      const state: Partial<ConversationState> = {
+        followUpCount: 3, // Already at limit
+        messages: [],
+      };
+
+      const result = await evaluator.evaluate(state as ConversationState);
+
+      // CRITICAL: Should NOT schedule when at limit
+      expect(result.effects).toBeUndefined();
+      expect(result.followUpCount).toBeUndefined();
+    });
+
+    it('should NOT create schedule_timer effect when limit exceeded', async () => {
+      const evaluator = new AutonomyEvaluatorNode({
+        model: 'gpt-4',
+        apiKey: 'test-key',
+        apiBase: 'https://test.com',
+        systemPrompt: 'Test prompt',
+        maxFollowUpsPerSession: 5,
+      });
+
+      // Inject mock LLM to prevent real API calls
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (evaluator as any).llm = mockLLM;
+
+      const state: Partial<ConversationState> = {
+        followUpCount: 6, // Over limit
+        messages: [],
+      };
+
+      const result = await evaluator.evaluate(state as ConversationState);
+
+      expect(result.effects).toBeUndefined();
+      expect(result.followUpCount).toBeUndefined();
+    });
+
+    it('should create schedule_timer effect when under limit', async () => {
+      const evaluator = new AutonomyEvaluatorNode({
+        model: 'gpt-4',
+        apiKey: 'test-key',
+        apiBase: 'https://test.com',
+        systemPrompt: 'Test prompt',
+        maxFollowUpsPerSession: 10,
+      });
+
+      // Mock the LLM on the evaluator instance
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (evaluator as any).llm = mockLLM;
+
+      const state: Partial<ConversationState> = {
+        followUpCount: 3, // Under limit
+        messages: [],
+      };
+
+      const result = await evaluator.evaluate(state as ConversationState);
+
+      // Should create effect and increment count
+      expect(result.effects).toBeDefined();
+      expect(result.effects).toHaveLength(1);
+      expect(result.effects![0].type).toBe('schedule_timer');
+      expect(result.followUpCount).toBe(4); // Incremented
+    });
+
+    it('should use default limit of 10 when not configured', async () => {
+      const evaluator = new AutonomyEvaluatorNode({
+        model: 'gpt-4',
+        apiKey: 'test-key',
+        apiBase: 'https://test.com',
+        systemPrompt: 'Test prompt',
+        // maxFollowUpsPerSession not set
+      });
+
+      // Inject mock LLM to prevent real API calls
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (evaluator as any).llm = mockLLM;
+
+      const state: Partial<ConversationState> = {
+        followUpCount: 10, // At default limit
+        messages: [],
+      };
+
+      const result = await evaluator.evaluate(state as ConversationState);
+
+      expect(result.effects).toBeUndefined();
+      expect(result.followUpCount).toBeUndefined();
+    });
+
+    it('should handle undefined followUpCount as 0', async () => {
+      const evaluator = new AutonomyEvaluatorNode({
+        model: 'gpt-4',
+        apiKey: 'test-key',
+        apiBase: 'https://test.com',
+        systemPrompt: 'Test prompt',
+        maxFollowUpsPerSession: 3,
+      });
+
+      // Mock the LLM
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (evaluator as any).llm = mockLLM;
+
+      const state: Partial<ConversationState> = {
+        followUpCount: undefined, // First autonomous message
+        messages: [],
+      };
+
+      const result = await evaluator.evaluate(state as ConversationState);
+
+      expect(result.effects).toBeDefined();
+      expect(result.effects).toHaveLength(1);
+      expect(result.followUpCount).toBe(1); // Started at 0, now 1
+    });
+  });
+
   describe('evaluation logic', () => {
     it('should return no follow-up when shouldSchedule is false', () => {
       const response: AutonomyEvaluationResponse = {
@@ -85,16 +231,6 @@ describe('AutonomyEvaluatorNode', () => {
 
       expect(context.conversationHistory).toHaveLength(2);
       expect(context.priorFollowUpCount).toBe(0);
-    });
-
-    it('should respect hard cap on follow-ups', () => {
-      const maxFollowUps = 3;
-      const currentCount = 3;
-
-      // PolicyGates would block if currentCount >= maxFollowUps
-      const shouldBlock = currentCount >= maxFollowUps;
-
-      expect(shouldBlock).toBe(true);
     });
 
     it('should respect cooldown period', () => {

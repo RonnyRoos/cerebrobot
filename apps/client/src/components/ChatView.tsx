@@ -3,10 +3,13 @@ import { useChatMessages } from '../hooks/useChatMessages.js';
 import { useThreadHistory } from '../hooks/useThreadHistory.js';
 import { useMemories } from '../hooks/useMemories.js';
 import { useAgents } from '../hooks/useAgents.js';
-import { useMemo, useEffect, useCallback, useState } from 'react';
+import { useMemoryPanel } from '../hooks/useMemoryPanel.js';
+import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
+import { MessageBubble } from './chat/MessageBubble.js';
 import { Toast } from './Toast.js';
 import { Box, Stack, Text, Button, Textarea } from '@workspace/ui';
+import { Brain } from 'lucide-react';
 import type { MemoryCreatedEvent, MemoryDeletedEvent } from '@cerebrobot/chat-shared';
 
 interface ChatViewProps {
@@ -33,6 +36,13 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   const currentAgent = agents.find((agent) => agent.id === agentId);
   const agentName = currentAgent?.name || 'Agent';
 
+  // Ref for auto-scrolling to bottom of messages
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Memory panel state with lazy loading
+  const { state: memoryPanelState, openPanel, closePanel, markAsLoaded } = useMemoryPanel();
+
   // Load thread history if resuming an existing thread (not 'new' sentinel)
   const effectiveThreadId = threadId && threadId !== 'new' ? threadId : null;
   const { messages: historyMessages, error: historyError } = useThreadHistory(
@@ -48,6 +58,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         role: msg.role,
         content: msg.content,
         status: 'complete' as const,
+        timestamp: msg.timestamp,
       })),
     [historyMessages],
   );
@@ -99,7 +110,6 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   } = useMemories();
   const [isLoadingMemories, setIsLoadingMemories] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [autoOpenMemory, setAutoOpenMemory] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [highlightMemoryId, setHighlightMemoryId] = useState<string | null>(null);
 
@@ -130,15 +140,26 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
       return;
     }
 
-    const loadMemories = async () => {
-      setIsLoadingMemories(true);
-      await fetchMemories(activeThreadId);
-      await fetchStats(activeThreadId); // US5: T077 - Fetch capacity stats
-      setIsLoadingMemories(false);
-    };
+    // Lazy load: Only fetch when panel opens for first time
+    if (memoryPanelState.isOpen && !memoryPanelState.hasLoaded) {
+      const loadMemories = async () => {
+        setIsLoadingMemories(true);
+        await fetchMemories(activeThreadId);
+        await fetchStats(activeThreadId); // US5: T077 - Fetch capacity stats
+        setIsLoadingMemories(false);
+        markAsLoaded(); // Mark as loaded to prevent re-fetching
+      };
 
-    void loadMemories();
-  }, [activeThreadId, fetchMemories, fetchStats]);
+      void loadMemories();
+    }
+  }, [
+    activeThreadId,
+    memoryPanelState.isOpen,
+    memoryPanelState.hasLoaded,
+    fetchMemories,
+    fetchStats,
+    markAsLoaded,
+  ]);
 
   // Handle memory.created events from WebSocket
   const handleMemoryCreatedEvent = useCallback(
@@ -151,17 +172,18 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
         void fetchStats(activeThreadId);
       }
 
-      // Signal to auto-open the memory sidebar
-      setAutoOpenMemory(true);
+      // Auto-open the memory panel when new memory is created
+      if (activeThreadId && !memoryPanelState.isOpen) {
+        openPanel(activeThreadId);
+      }
 
       // Highlight the new memory (T068)
       setHighlightMemoryId(event.memory.id);
 
-      // Reset auto-open and highlight after short delays
-      setTimeout(() => setAutoOpenMemory(false), 100);
-      setTimeout(() => setHighlightMemoryId(null), 2000); // Clear highlight after 2s
+      // Clear highlight after 2s
+      setTimeout(() => setHighlightMemoryId(null), 2000);
     },
-    [handleMemoryCreated, fetchStats, activeThreadId],
+    [handleMemoryCreated, fetchStats, activeThreadId, memoryPanelState.isOpen, openPanel],
   );
 
   // Handle memory.deleted events and refresh stats (US5: T077)
@@ -185,7 +207,6 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     handleSend,
     setPendingMessage,
     onRetry,
-    clearChat,
     handleCancel,
     canCancel,
   } = useChatMessages({
@@ -197,126 +218,148 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     onMemoryDeleted: handleMemoryDeletedEvent,
   });
 
-  const startNewThread = useCallback(
-    async (previousThreadId?: string) => {
-      clearChat();
-
-      try {
-        await createThread(agentId, previousThreadId, undefined, userId);
-      } catch (err) {
-        // Error will be set by the thread hook
-      }
-    },
-    [clearChat, createThread, agentId, userId],
-  );
-
-  const handleNewThread = useCallback(() => {
-    if (activeThreadId) {
-      void startNewThread(activeThreadId);
-    }
-  }, [activeThreadId, startNewThread]);
-
   const disableSend = !pendingMessage.trim() || isStreaming || !isConnected;
 
+  // Auto-scroll to bottom when messages change or during streaming
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [messages, isStreaming]);
+
+  // Also scroll to bottom on initial load
+  useEffect(() => {
+    if (messages.length > 0 && messagesEndRef.current) {
+      // Use setTimeout to ensure DOM has rendered
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }, 100);
+    }
+    // Only run when thread changes, not when messages update (handled by other effect)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
   return (
-    <Box as="section" aria-label="Chat panel" className="flex flex-col h-full">
-      {/* Header with Back button, Agent name, and connection status */}
-      <Box className="p-2 px-4 border-b border-border flex items-center justify-between">
-        {/* Back button (left) */}
-        <Button variant="ghost" onClick={onBack} className="text-sm">
-          ← Back to Threads
-        </Button>
+    <Box as="section" aria-label="Chat panel" className="flex h-full">
+      {/* Main chat area */}
+      <Box className="flex flex-col flex-1 min-w-0">
+        {/* Header with Back button, Agent name, and connection status */}
+        <Box className="p-2 px-3 md:px-4 border-b border-border flex items-center justify-between flex-shrink-0 gap-2">
+          {/* Back button (left) - icon only on mobile */}
+          <Button variant="ghost" onClick={onBack} className="text-sm md:text-base shrink-0">
+            <span className="md:hidden">←</span>
+            <span className="hidden md:inline">← Back to Threads</span>
+          </Button>
 
-        {/* Centered agent name with connection status (center) */}
-        <Box className="flex items-center gap-3">
-          <Text
-            as="h1"
-            className="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent"
-          >
-            {agentName}
-          </Text>
-          {/* Connection status indicator */}
-          <Box className="flex items-center gap-1.5">
-            <Box
-              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-error'}`}
-              aria-label={isConnected ? 'Connected' : 'Disconnected'}
-            />
-            <Text as="span" className="text-xs text-text-tertiary">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </Text>
-          </Box>
-        </Box>
-
-        {/* Empty space to balance flexbox (right) - ensures center alignment */}
-        <Box className="w-[120px]" />
-      </Box>
-
-      <Box className="flex-1 overflow-y-auto p-4" aria-live="polite">
-        <Stack gap="4">
-          {messages.map((message) => (
-            <Box
-              key={message.id}
-              className={`p-4 rounded-2xl border backdrop-blur-md ${
-                message.role === 'user'
-                  ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-accent-primary/30 ml-12 shadow-glow-purple'
-                  : 'bg-gradient-to-br from-blue-500/15 to-purple-500/15 border-accent-secondary/20 mr-12 shadow-glow-blue'
-              }`}
+          {/* Agent name with connection status (center) */}
+          <Box className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+            <Text
+              as="h1"
+              className="text-sm md:text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent truncate"
             >
-              <Text as="div" className="font-semibold mb-2 text-sm opacity-80">
-                {message.role === 'user' ? 'You' : agentName}
+              {agentName}
+            </Text>
+            {/* Connection status indicator */}
+            <Box className="flex items-center gap-1 md:gap-1.5 shrink-0">
+              <Box
+                className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-error'}`}
+                aria-label={isConnected ? 'Connected' : 'Disconnected'}
+              />
+              <Text as="span" className="text-xs text-text-tertiary hidden md:inline">
+                {isConnected ? 'Connected' : 'Disconnected'}
               </Text>
-              <Text as="p" className="text-base leading-relaxed">
-                {message.content}
-              </Text>
-              {message.latencyMs != null && (
-                <Text as="small" className="text-text-tertiary mt-2 block" aria-label="latency">
-                  Latency: {message.latencyMs} ms
-                </Text>
-              )}
-              {message.tokenUsage && (
-                <Text as="small" className="text-text-tertiary mt-1 block" aria-label="token usage">
-                  Context usage: {message.tokenUsage.utilisationPct}% (
-                  {message.tokenUsage.recentTokens}/{message.tokenUsage.budget} tokens)
-                </Text>
-              )}
-              {message.status === 'streaming' && (
-                <Text as="small" className="text-accent-primary mt-1 block" aria-label="streaming">
-                  Streaming…
-                </Text>
-              )}
             </Box>
-          ))}
-        </Stack>
-      </Box>
+          </Box>
 
-      {/* Show history loading error if thread not found */}
-      {historyError && (
-        <Box role="alert" className="p-4 bg-destructive/10 m-4">
-          <Text as="strong" className="text-destructive">
-            Failed to load conversation history
-          </Text>
-          <Text as="p" className="text-destructive/90 mt-2">
-            {historyError.message}
-          </Text>
-          <Button variant="primary" onClick={onBack} className="mt-2">
-            Back to Thread List
+          {/* Memory button (right) - icon only on mobile */}
+          <Button
+            variant="ghost"
+            onClick={() => activeThreadId && openPanel(activeThreadId)}
+            disabled={!activeThreadId}
+            className="flex items-center gap-2 shrink-0"
+            aria-label="Open memory panel"
+          >
+            <Brain size={18} className="md:w-5 md:h-5" />
+            <span className="text-sm hidden md:inline">Memory</span>
           </Button>
         </Box>
-      )}
 
-      {/* Show message streaming or thread error */}
-      {error && (
         <Box
-          role="alert"
-          className="m-4 p-4 bg-destructive/10 border border-destructive/50 rounded-lg"
+          className="flex-1 overflow-y-auto p-4 chat-messages"
+          aria-live="polite"
+          ref={messagesContainerRef}
         >
-          <Text as="strong" className="text-destructive">
-            {error.message}
-          </Text>
-          {error.retryable ? (
-            <Stack direction="horizontal" gap="3" className="mt-3">
-              <Text as="span" className="text-destructive/80">
-                You can try again.
+          <Stack gap="4">
+            {messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                messageType={message.role === 'user' ? 'user' : 'agent'}
+                senderName={message.role === 'user' ? 'You' : agentName}
+                timestamp={message.timestamp}
+                latencyMs={message.latencyMs}
+                tokenUsage={message.tokenUsage}
+                status={message.status}
+                glowIntensity="medium"
+              >
+                {message.content}
+              </MessageBubble>
+            ))}
+            {/* Invisible div for auto-scroll target */}
+            <div ref={messagesEndRef} />
+          </Stack>
+        </Box>
+
+        {/* Show history loading error if thread not found */}
+        {historyError && (
+          <Box role="alert" className="p-4 bg-destructive/10 m-4">
+            <Text as="strong" className="text-destructive">
+              Failed to load conversation history
+            </Text>
+            <Text as="p" className="text-destructive/90 mt-2">
+              {historyError.message}
+            </Text>
+            <Button variant="primary" onClick={onBack} className="mt-2">
+              Back to Thread List
+            </Button>
+          </Box>
+        )}
+
+        {/* Show message streaming or thread error */}
+        {error && (
+          <Box
+            role="alert"
+            className="m-4 p-4 bg-destructive/10 border border-destructive/50 rounded-lg"
+          >
+            <Text as="strong" className="text-destructive">
+              {error.message}
+            </Text>
+            {error.retryable ? (
+              <Stack direction="horizontal" gap="3" className="mt-3">
+                <Text as="span" className="text-destructive/80">
+                  You can try again.
+                </Text>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => onRetry()}
+                  disabled={isStreaming}
+                >
+                  Retry
+                </Button>
+              </Stack>
+            ) : null}
+          </Box>
+        )}
+
+        {/* Show cancelled message retry option */}
+        {cancelledMessage && !error && (
+          <Box role="status" className="m-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <Text as="strong" className="text-yellow-900">
+              Message cancelled
+            </Text>
+            <Stack direction="horizontal" gap="3" align="center" className="mt-3">
+              <Text as="span" className="text-yellow-800">
+                Your message is ready to edit and resend in the input field above.
               </Text>
               <Button
                 type="button"
@@ -324,107 +367,117 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
                 onClick={() => onRetry()}
                 disabled={isStreaming}
               >
-                Retry
+                Dismiss
               </Button>
             </Stack>
-          ) : null}
-        </Box>
-      )}
-
-      {/* Show cancelled message retry option */}
-      {cancelledMessage && !error && (
-        <Box role="status" className="m-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <Text as="strong" className="text-yellow-900">
-            Message cancelled
-          </Text>
-          <Stack direction="horizontal" gap="3" align="center" className="mt-3">
-            <Text as="span" className="text-yellow-800">
-              Your message is ready to edit and resend in the input field above.
-            </Text>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => onRetry()}
-              disabled={isStreaming}
-            >
-              Dismiss
-            </Button>
-          </Stack>
-        </Box>
-      )}
-
-      <Box
-        as="form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void handleSend();
-        }}
-        className="p-4 border-t border-border"
-      >
-        <Stack gap="3">
-          <Box>
-            <Text as="label" htmlFor="chat-message" className="text-sm font-medium mb-2 block">
-              Message
-            </Text>
-            <Textarea
-              id="chat-message"
-              name="message"
-              rows={3}
-              value={pendingMessage}
-              onChange={(event) => setPendingMessage(event.target.value)}
-              onKeyDown={(event) => {
-                if (
-                  event.key === 'Enter' &&
-                  !event.shiftKey &&
-                  !event.altKey &&
-                  !event.ctrlKey &&
-                  !event.metaKey
-                ) {
-                  event.preventDefault();
-                  void handleSend();
-                }
-              }}
-              disabled={isStreaming}
-              placeholder="Type your message here..."
-            />
           </Box>
-          <Stack direction="horizontal" gap="2" justify="start">
-            <Button type="submit" variant="primary" disabled={disableSend}>
-              Send
-            </Button>
+        )}
+
+        <Box
+          as="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSend();
+          }}
+          className="p-4 border-t border-border"
+        >
+          <Stack gap="3">
+            {/* Textarea + Send button inline */}
+            <Box className="flex gap-2 items-end">
+              <Textarea
+                id="chat-message"
+                name="message"
+                rows={3}
+                value={pendingMessage}
+                onChange={(event) => setPendingMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.altKey &&
+                    !event.ctrlKey &&
+                    !event.metaKey
+                  ) {
+                    event.preventDefault();
+                    void handleSend();
+                  }
+                }}
+                disabled={isStreaming}
+                placeholder="Message..."
+                className="flex-1"
+                aria-label="Type your message"
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={disableSend}
+                className="h-[88px] px-6"
+              >
+                Send
+              </Button>
+            </Box>
+            {/* Cancel button only when streaming */}
             {canCancel && (
-              <Button type="button" variant="danger" onClick={handleCancel}>
+              <Button type="button" variant="danger" onClick={handleCancel} className="w-full">
                 Cancel
               </Button>
             )}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleNewThread}
-              disabled={!activeThreadId}
-            >
-              New Thread
-            </Button>
           </Stack>
-        </Stack>
+        </Box>
       </Box>
 
-      {/* Memory Browser Sidebar */}
-      <MemoryBrowser
-        memories={memories}
-        searchResults={searchResults}
-        stats={stats}
-        isLoading={isLoadingMemories}
-        isSearching={isSearching}
-        error={memoryError?.message || null}
-        autoOpen={autoOpenMemory}
-        highlightMemoryId={highlightMemoryId}
-        onSearch={handleSearchMemories}
-        onClearSearch={handleClearSearch}
-        onCreateMemory={handleCreateMemory}
-        onUpdateMemory={updateMemory}
-        onDeleteMemory={deleteMemory}
-      />
+      {/* Memory Panel - side-by-side on desktop, no backdrop */}
+      {(memoryPanelState.isOpen ||
+        memoryPanelState.animationState === 'closing' ||
+        memoryPanelState.animationState === 'opening') && (
+        <Box
+          className={`border-l border-border bg-surface flex flex-col transition-all duration-300 ease-out ${
+            memoryPanelState.animationState === 'open' ||
+            memoryPanelState.animationState === 'closing'
+              ? 'w-[400px]'
+              : 'w-0'
+          } ${
+            memoryPanelState.animationState === 'closed' ||
+            memoryPanelState.animationState === 'opening'
+              ? 'opacity-0'
+              : 'opacity-100'
+          }`}
+        >
+          {/* Panel Header */}
+          <Box className="p-4 border-b border-border flex items-center justify-between flex-shrink-0">
+            <Text as="h2" variant="heading" size="lg">
+              Memory Graph
+            </Text>
+            <Button
+              variant="ghost"
+              onClick={closePanel}
+              className="text-sm"
+              aria-label="Close memory panel"
+            >
+              ✕
+            </Button>
+          </Box>
+
+          {/* Panel Content */}
+          <Box className="flex-1 overflow-hidden">
+            <MemoryBrowser
+              memories={memories}
+              searchResults={searchResults}
+              stats={stats}
+              isLoading={isLoadingMemories}
+              isSearching={isSearching}
+              error={memoryError?.message || null}
+              autoOpen={false}
+              highlightMemoryId={highlightMemoryId}
+              onSearch={handleSearchMemories}
+              onClearSearch={handleClearSearch}
+              onCreateMemory={handleCreateMemory}
+              onUpdateMemory={updateMemory}
+              onDeleteMemory={deleteMemory}
+            />
+          </Box>
+        </Box>
+      )}
 
       {/* Success Toast (US4: T067) */}
       {toastMessage && (

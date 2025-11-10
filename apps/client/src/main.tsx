@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ThemeProvider } from '@workspace/ui';
 import '@workspace/ui/theme';
@@ -11,7 +12,9 @@ if (!container) {
 
 const root = createRoot(container);
 root.render(
-  <ThemeProvider>
-    <App />
-  </ThemeProvider>,
+  <BrowserRouter>
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  </BrowserRouter>,
 );
