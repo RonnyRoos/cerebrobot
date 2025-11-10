@@ -177,6 +177,14 @@ export function App(): JSX.Element {
     [setFilter, navigateToThreads],
   );
 
+  // Handler for creating new thread from AgentsPage
+  const handleNewThreadFromAgent = useCallback(
+    (agentId: string) => {
+      navigate(`/chat/new/${agentId}`);
+    },
+    [navigate],
+  );
+
   // Store refresh function from useThreads hook
   const handleRefreshReady = useCallback((refresh: () => Promise<void>) => {
     refreshThreadsRef.current = refresh;
@@ -209,7 +217,10 @@ export function App(): JSX.Element {
   if (showAgentsPage && userId) {
     return (
       <AppLayout>
-        <AgentsPage onViewThreads={handleViewThreadsFromAgents} />
+        <AgentsPage
+          onViewThreads={handleViewThreadsFromAgents}
+          onNewThread={handleNewThreadFromAgent}
+        />
       </AppLayout>
     );
   }

@@ -9,6 +9,7 @@ import { createAgentFactory } from './agent/agent-factory.js';
 import { createThreadManager } from './thread-manager/thread-manager.js';
 import { createCheckpointSaver } from './agent/checkpointer.js';
 import { ConnectionManager } from './chat/connection-manager.js';
+import { validateCheckpointMetadataPersistence } from './agent/checkpoint-metadata-validator.js';
 
 export async function bootstrap(): Promise<void> {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -40,6 +41,19 @@ export async function bootstrap(): Promise<void> {
 
   const infrastructureConfig = loadInfrastructureConfig();
   const logger = pino({ level: process.env.LOG_LEVEL ?? 'info' });
+
+  // Validate checkpoint metadata persistence (fail fast if broken)
+  logger.info('validating checkpoint metadata persistence...');
+  try {
+    await validateCheckpointMetadataPersistence();
+    logger.info('✓ checkpoint metadata persistence validated');
+  } catch (error) {
+    logger.fatal(
+      { error: error instanceof Error ? error.message : String(error) },
+      'Checkpoint metadata persistence validation failed - server startup aborted',
+    );
+    process.exit(1);
+  }
 
   // Create shared Prisma client
   const prisma = new PrismaClient();

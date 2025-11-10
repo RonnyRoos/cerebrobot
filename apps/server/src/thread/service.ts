@@ -13,10 +13,12 @@ import type {
 import type { PrismaClient } from '@prisma/client';
 import type { Logger } from 'pino';
 import type { BaseMessage } from '@langchain/core/messages';
+import { isHumanMessage } from '@langchain/core/messages';
 import {
   type ThreadMetadata,
   type MessageHistoryResponse,
   type Message,
+  type MessageMetadata,
 } from '@cerebrobot/chat-shared';
 import type { ConversationState } from '../agent/graph/types.js';
 
@@ -321,7 +323,8 @@ class DefaultThreadService implements ThreadService {
   }
 
   /**
-   * Extract messages from checkpoint state
+   * Extract user-visible messages from checkpoint state
+   * Filters out internal system messages and autonomous follow-ups
    * @private
    */
   private extractMessages(state: Checkpoint): Message[] {
@@ -329,25 +332,61 @@ class DefaultThreadService implements ThreadService {
     const channelValues = state.channel_values as Record<string, unknown> | undefined;
     const rawMessages: BaseMessage[] = (channelValues?.messages as BaseMessage[]) ?? [];
 
-    return rawMessages
-      .filter((msg: BaseMessage) => {
-        // Filter out system messages (memory injection, etc.) - these are internal only
-        const messageType = msg._getType();
-        if (messageType !== 'human' && messageType !== 'ai') return false;
+    const totalMessages = rawMessages.length;
+    let filteredCount = 0;
 
-        // Filter out autonomous follow-up prompts (internal triggers for timer events)
-        // These are synthetic HumanMessages like "[AUTONOMOUS_FOLLOWUP: check_in]"
-        const content = typeof msg.content === 'string' ? msg.content : '';
-        if (content.startsWith('[AUTONOMOUS_FOLLOWUP:')) return false;
+    const filtered = rawMessages.filter((msg: BaseMessage) => {
+      // Filter out system messages (memory injection, etc.) - these are internal only
+      const messageType = msg._getType();
+      if (messageType !== 'human' && messageType !== 'ai') {
+        filteredCount++;
+        return false;
+      }
 
-        return true;
-      })
-      .map((msg: BaseMessage, index: number) => ({
-        id: msg.id ?? `msg-${index}`,
-        role: this.mapMessageRole(msg._getType()),
-        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-        timestamp: new Date(),
-      }));
+      // Filter synthetic messages (autonomous follow-ups) from thread history
+      // Why metadata-based: Type-safe detection, no content pattern matching needed
+      // Strict check: metadata?.synthetic === true (not just truthy)
+      // - Handles undefined/null metadata gracefully
+      // - Only filters explicitly marked synthetic messages
+      // - Backward compatible: Legacy messages without metadata pass through
+      if (isHumanMessage(msg)) {
+        const metadata = msg.additional_kwargs as MessageMetadata | undefined;
+        if (metadata?.synthetic === true) {
+          // DEBUG: Log each filtered message for observability
+          // Useful for debugging if autonomous messages unexpectedly appear in UI
+          this.options.logger?.debug(
+            {
+              messageId: msg.id,
+              triggerType: metadata.trigger_type,
+              triggerReason: metadata.trigger_reason,
+            },
+            'Filtered synthetic message from thread history',
+          );
+          filteredCount++;
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // INFO: Log statistics for monitoring synthetic message prevalence
+    // Helps identify if autonomous follow-ups are too frequent/infrequent
+    this.options.logger?.info(
+      {
+        totalMessages,
+        filteredCount,
+        visibleMessages: filtered.length,
+      },
+      'Extracted messages from thread checkpoint',
+    );
+
+    return filtered.map((msg: BaseMessage, index: number) => ({
+      id: msg.id ?? `msg-${index}`,
+      role: this.mapMessageRole(msg._getType()),
+      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      timestamp: new Date(),
+    }));
   }
 
   /**

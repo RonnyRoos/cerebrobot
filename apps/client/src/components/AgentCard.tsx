@@ -6,13 +6,14 @@
 import type { AgentListItem } from '@cerebrobot/chat-shared';
 import { memo, useCallback, useState } from 'react';
 import { Text, cn } from '@workspace/ui';
-import { MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { MessageSquare, List, Pencil, Trash2 } from 'lucide-react';
 
 interface AgentCardProps {
   agent: AgentListItem;
   onEdit?: (agentId: string) => void;
   onDelete?: (agentId: string) => void;
   onViewThreads?: (agentId: string, agentName: string) => void;
+  onNewThread?: (agentId: string) => void;
 }
 
 /**
@@ -36,6 +37,7 @@ const AgentCardComponent = ({
   onEdit,
   onDelete,
   onViewThreads,
+  onNewThread,
 }: AgentCardProps): JSX.Element => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -110,16 +112,29 @@ const AgentCardComponent = ({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
+            onClick={() => onNewThread?.(agent.id)}
+            className={cn(
+              'p-1.5 rounded-md transition-all duration-200',
+              'hover:bg-accent-primary/10 hover:text-accent-primary',
+              'focus:outline-none focus:ring-2 focus:ring-accent-primary',
+            )}
+            aria-label="New conversation"
+            title="New conversation with this agent"
+          >
+            <MessageSquare size={16} />
+          </button>
+          <button
+            type="button"
             onClick={() => onViewThreads?.(agent.id, agent.name)}
             className={cn(
               'p-1.5 rounded-md transition-all duration-200',
               'hover:bg-accent-secondary/10 hover:text-accent-secondary',
               'focus:outline-none focus:ring-2 focus:ring-accent-secondary',
             )}
-            aria-label="View threads"
-            title="View threads"
+            aria-label="Show conversations"
+            title="Show conversations with this agent"
           >
-            <MessageSquare size={16} />
+            <List size={16} />
           </button>
           <button
             type="button"

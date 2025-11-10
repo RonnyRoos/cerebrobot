@@ -144,3 +144,7 @@ export {
   WS_CLOSE_CODE_DESCRIPTIONS,
   CONNECTION_LIMITS,
 } from './constants/websocket.js';
+
+// Metadata types for autonomous messages
+export type { MessageMetadata, AutonomousTriggerType } from './types/metadata.js';
+export { TRIGGER_PROMPTS } from './types/metadata.js';

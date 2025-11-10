@@ -1,7 +1,7 @@
 export interface ChatInvocationContext {
   readonly threadId: string;
   readonly userId: string; // REQUIRED: All chats must be tied to a user
-  readonly message: string;
+  readonly message: string | import('@langchain/core/messages').HumanMessage;
   readonly correlationId: string;
   readonly requestId?: string; // WebSocket request correlation ID for multiplexing
   readonly signal?: AbortSignal; // Cancellation signal for aborting streaming

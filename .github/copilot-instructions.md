@@ -15,3 +15,10 @@ The `AGENTS.md` file contains:
 - Knowledge base references
 
 All agent-facing documentation is maintained in `AGENTS.md` to ensure a single source of truth.
+
+## Active Technologies
+- TypeScript 5.x (Node.js ≥20) (016-metadata-autonomous-messages)
+- PostgreSQL via Prisma (LangGraph checkpoints persist message metadata) (016-metadata-autonomous-messages)
+
+## Recent Changes
+- 016-metadata-autonomous-messages: Added TypeScript 5.x (Node.js ≥20)

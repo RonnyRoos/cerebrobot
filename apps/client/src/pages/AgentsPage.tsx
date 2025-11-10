@@ -18,9 +18,10 @@ import { ConfirmDialog } from '../components/ConfirmDialog.js';
 
 interface AgentsPageProps {
   onViewThreads?: (agentId: string, agentName: string) => void;
+  onNewThread?: (agentId: string) => void;
 }
 
-export function AgentsPage({ onViewThreads }: AgentsPageProps) {
+export function AgentsPage({ onViewThreads, onNewThread }: AgentsPageProps) {
   const { agents, loading, error, refetch } = useAgents();
   const { createAgent, error: createError } = useCreateAgent();
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -259,6 +260,7 @@ export function AgentsPage({ onViewThreads }: AgentsPageProps) {
           onEditAgent={handleEditAgent}
           onDeleteAgent={handleDeleteAgent}
           onViewThreads={onViewThreads}
+          onNewThread={onNewThread}
         />
       </Box>
 
