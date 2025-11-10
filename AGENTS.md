@@ -30,21 +30,6 @@
 - Future phases add persistence, public APIs, frontend, and multi-agent extensions—design seams with that roadmap in mind without building them prematurely ([Mission Statement](docs/mission.md)).
 - Chat transport has migrated to WebSockets (`GET /api/chat/ws`); SSE endpoints were removed, and tests rely on `vitest-websocket-mock`/`mock-socket` for client flows.
 
-## Active Technologies
-- **TypeScript 5.x** (Node.js ≥20): Full workspace (server, client, shared packages)
-- **PostgreSQL via Prisma**: LangGraph checkpoints persist message metadata via `HumanMessage.additional_kwargs` (spec 016-metadata-autonomous-messages)
-- **LangChain Core 0.3.77**: `HumanMessage`, `isHumanMessage`, `BaseMessage`, `additional_kwargs` for metadata storage
-- **LangGraph 0.4.9**: `Annotation.Root`, `messagesStateReducer`, PostgreSQL checkpoint persistence
-- **Metadata-Based Autonomous Messages** (spec 016): 
-  - Autonomous timer infrastructure (spec 009) triggers follow-ups via `HumanMessage` with `additional_kwargs.synthetic === true`
-  - Natural language prompts replace meta-commentary (TRIGGER_PROMPTS constant maps trigger types to contextual prompts)
-  - Memory retrieval uses real user context (backward iteration to find last non-synthetic message, conversation summary fallback)
-  - Thread history APIs filter synthetic messages using metadata checks (no content pattern matching)
-  - See ADR 010 for architecture rationale and implementation patterns
-
-## Recent Changes
-- **016-metadata-autonomous-messages**: Metadata-first architecture for autonomous messages (HumanMessage.additional_kwargs storage, LangGraph checkpoint persistence, type-safe metadata, clean thread history, relevant memory retrieval)
-
 ## Client-side state persistence
 
 Cerebrobot uses browser `localStorage` to persist UI state across sessions:
@@ -85,6 +70,13 @@ Cerebrobot uses browser `localStorage` to persist UI state across sessions:
 - Don't access localStorage directly; hooks handle serialization and validation
 - localStorage keys prefixed with `cerebrobot:` to avoid conflicts with other apps
 - Clear state on logout/reset via hooks (they handle cleanup)
+
+## Active Technologies
+- TypeScript 5.x (Node.js ≥20) (016-metadata-autonomous-messages)
+- PostgreSQL via Prisma (LangGraph checkpoints persist message metadata) (016-metadata-autonomous-messages)
+
+## Recent Changes
+- 016-metadata-autonomous-messages: Added TypeScript 5.x (Node.js ≥20)
 
 ## Working cadence for agents
 1. Read the roadmap, tech stack, and style guides before coding; keep them open for cross-checks ([Tech Stack Guardrails](docs/tech-stack.md), [Engineering Best Practices](docs/best-practices.md), [TypeScript Code Style](docs/code-style.md)).

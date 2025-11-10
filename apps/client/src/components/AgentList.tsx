@@ -15,7 +15,6 @@ interface AgentListProps {
   onEditAgent: (agentId: string) => void;
   onDeleteAgent: (agentId: string) => void;
   onViewThreads?: (agentId: string, agentName: string) => void;
-  onNewThread?: (agentId: string) => void;
 }
 
 export function AgentList({
@@ -24,7 +23,6 @@ export function AgentList({
   onEditAgent,
   onDeleteAgent,
   onViewThreads,
-  onNewThread,
 }: AgentListProps) {
   if (agents.length === 0) {
     return (
@@ -85,7 +83,6 @@ export function AgentList({
               onEdit={onEditAgent}
               onDelete={onDeleteAgent}
               onViewThreads={onViewThreads}
-              onNewThread={onNewThread}
             />
           ))}
         </Stack>
