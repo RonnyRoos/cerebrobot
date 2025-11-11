@@ -9,15 +9,21 @@
 
 ### User Story 1 - Observe Agent Tool Calls (Priority: P1)
 
-As an operator, I want to see when the agent uses tools (web search, calculator, external APIs) in real-time so I can understand what information sources the agent is consulting during conversation.
+As an operator, I want to see when the agent uses tools registered in the LangGraph implementation in real-time so I can understand what memory operations the agent is performing during conversation.
 
-**Why this priority**: Tool calls represent the agent's most visible decision-making process and provide immediate transparency into information gathering behavior. This is the foundation for brain activity visibility.
+**Why this priority**: Tool calls represent the agent's most visible decision-making process and provide immediate transparency into memory operations. This is the foundation for brain activity visibility.
 
-**Independent Test**: Can be fully tested by sending a message that triggers a tool call (e.g., "search the web for current weather"), observing the Activity tab show the tool invocation with timestamp, tool name, and arguments, and delivers immediate value by revealing the agent's information-seeking behavior.
+**Independent Test**: Can be fully tested by sending a message that triggers the `upsertMemory` tool (e.g., "Remember that I prefer dark mode"), observing the Activity tab show the tool invocation with timestamp, tool name, and arguments, and delivers immediate value by revealing the agent's memory-writing behavior.
+
+**Currently Registered Tools** (as of this spec):
+- `upsertMemory` - Store or update memories about the user (only LangChain tool currently bound to the model)
+
+**Future Tools** (not yet implemented):
+- Additional tools will be tracked automatically when added to `memoryTools` array and bound via `chatModel.bindTools()`
 
 **Acceptance Scenarios**:
 
-1. **Given** an active thread with an agent, **When** I send a message that triggers a tool call, **Then** the Activity tab shows the tool_call event with timestamp, tool name, arguments, and result
+1. **Given** an active thread with an agent, **When** I send a message that triggers `upsertMemory`, **Then** the Activity tab shows the tool_call event with timestamp, tool name='upsertMemory', arguments (content, metadata, key), and result
 2. **Given** the Activity tab is open, **When** the agent makes multiple tool calls in sequence, **Then** I see each tool call appear in chronological order with distinguishable visual indicators
 3. **Given** a tool call completes, **When** I hover over the event, **Then** I see full details including execution duration and return value
 
@@ -84,7 +90,7 @@ As an operator, I want to see when the agent prunes conversation context and wha
 
 ### Functional Requirements
 
-- **FR-001**: System MUST capture tool_call events when the agent invokes tools via the ToolNode in the conversation graph
+- **FR-001**: System MUST capture tool_call events ONLY for tools registered via `chatModel.bindTools()` in conversation-graph.ts (currently: `upsertMemory`)
 - **FR-002**: System MUST capture memory_search events when the agent calls the retrieveMemories node
 - **FR-003**: System MUST capture schedule_timer effects when the agent's evaluateAutonomy node creates autonomy follow-ups
 - **FR-004**: System MUST capture context_pruned events when the agent's summarize node compresses conversation history
@@ -100,6 +106,7 @@ As an operator, I want to see when the agent prunes conversation context and wha
 - **FR-014**: Users MUST be able to expand/collapse event details (full payloads, execution timing) in the Activity tab
 - **FR-015**: System MUST apply the same agent-scoped access control to brain activity as to memories (agents can only view their own activity)
 - **FR-016**: Database schema MUST add a 'source' column (ENUM: 'user', 'agent', 'system') to the Event table via Prisma migration
+- **FR-017**: Tool call tracking MUST NOT include hypothetical or unregistered tools; ONLY tools from the `memoryTools` array bound to the model
 
 ### Key Entities
 
@@ -109,7 +116,7 @@ As an operator, I want to see when the agent prunes conversation context and wha
   - Relationships: Belongs to Thread, belongs to Agent
   
 - **BrainActivityPayload**: Type-specific data for each event type
-  - ToolCallPayload: { toolName: string, arguments: Record<string, any>, result?: any, duration?: number }
+  - ToolCallPayload: { toolName: 'upsertMemory' (only registered tool currently), arguments: Record<string, any>, result?: any, duration?: number }
   - MemorySearchPayload: { query: string, retrievedCount: number, memoryIds: string[] }
   - ContextPrunedPayload: { messagesRemoved: number, summaryGenerated: string, compressionRatio: number }
   - ScheduleTimerPayload: { followUpTime: string, reasoning: string, autonomyDecision: boolean }
@@ -147,6 +154,12 @@ As an operator, I want to see when the agent prunes conversation context and wha
 4. **Reuse Memory Infrastructure**: Brain activity API mirrors memory routes, WebSocket pattern, pagination
    - Rationale: Proven patterns reduce implementation complexity, consistent operator experience
    - Implementation: `/api/agents/:agentId/threads/:threadId/activity` follows same structure as `/api/agents/:agentId/memories`
+
+5. **Tool Tracking Scope**: ONLY track tools registered via `chatModel.bindTools(memoryTools)` in conversation-graph.ts
+   - Rationale: Prevents "random shit" showing up in Activity tab; ensures all tracked tools are real, registered, and executable
+   - Current registered tools: `upsertMemory` (from apps/server/src/agent/memory/tools.ts)
+   - Future tools: Will be automatically tracked when added to `memoryTools` array
+   - Implementation: ToolNode wrapper extracts tool calls from LangGraph's message history (only contains calls to registered tools)
 
 ### Database Changes
 
@@ -247,16 +260,19 @@ enum EventSource {
 **ToolNode Decorator** (new):
 ```typescript
 // Wrap LangGraph's ToolNode to emit brain_activity effects
+// IMPORTANT: Only tracks tools registered via chatModel.bindTools(memoryTools)
 class InstrumentedToolNode extends ToolNode {
   async invoke(state: ConversationState) {
     const result = await super.invoke(state);
     const toolCalls = state.messages.filter(m => m.tool_calls);
     
+    // Only emit events for registered tools (currently: upsertMemory)
+    // Do NOT emit for hypothetical or unregistered tools
     const effects = toolCalls.map(call => ({
       type: 'brain_activity',
       payload: {
         eventType: 'tool_call',
-        toolName: call.name,
+        toolName: call.name, // e.g., 'upsertMemory'
         arguments: call.args,
         result: call.result,
         timestamp: new Date().toISOString()
@@ -392,3 +408,4 @@ async summarize(state: ConversationState) {
 - LangGraph Documentation: StateGraph, MessagesAnnotation, ToolNode
 - Existing Memory System: `apps/server/src/agent/memory/store.ts`, `apps/client/src/components/MemoryBrowser/`
 - Conversation Graph: `apps/server/src/agent/graph/conversation-graph.ts`
+- Memory Tools (registered tools): `apps/server/src/agent/memory/tools.ts` (currently: `upsertMemory`)
