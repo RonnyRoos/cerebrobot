@@ -19,6 +19,8 @@ All agent-facing documentation is maintained in `AGENTS.md` to ensure a single s
 ## Active Technologies
 - TypeScript 5.x (Node.js ≥20) (016-metadata-autonomous-messages)
 - PostgreSQL via Prisma (LangGraph checkpoints persist message metadata) (016-metadata-autonomous-messages)
+- TypeScript 5.x, Node.js ≥20 + Fastify 5.6.1, @langchain/langgraph 0.4.9, Prisma (latest), React, Zod 4.1.11 (017-agent-brain)
+- PostgreSQL (existing Events/Effects tables + migration for 'source' column) (017-agent-brain)
 
 ## Recent Changes
 - 016-metadata-autonomous-messages: Added TypeScript 5.x (Node.js ≥20)

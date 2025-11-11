@@ -79,12 +79,12 @@ As an operator, I want to see when the agent prunes conversation context and wha
 
 ### Edge Cases
 
-- What happens when a tool call fails or times out? → Activity tab should show the error state with failure reason
-- How does the system handle rapid-fire brain events (e.g., 10 tool calls in 2 seconds)? → Events are batched and displayed with microsecond precision timestamps; UI implements virtual scrolling
+- What happens when a tool call fails or times out? → Activity tab should show the error state with failure reason (captured in ToolCallPayload.result as error object)
+- How does the system handle rapid-fire brain events (e.g., 10 tool calls in 2 seconds)? → Virtual scrolling (via react-window library) handles rendering performance; events displayed with microsecond precision timestamps; no explicit batching needed
 - What if the Activity tab is not open when events occur? → Events are persisted in the database and loaded when the tab is opened; no data loss
 - How are brain events displayed for threads with multiple agents? → Events include agentId; UI filters by selected agent automatically
-- What happens if the database query for brain activity fails? → UI shows error state with retry button; does not block conversation flow
-- How do we handle very large payloads (e.g., tool call with 100KB response)? → Payloads are truncated in list view; full data available on click/expand
+- What happens if the database query for brain activity fails? → UI shows error state with retry button; does not block conversation flow; error logged via Pino with structured fields (error, query, agentId, threadId)
+- How do we handle very large payloads (e.g., tool call with 100KB response)? → Payloads are truncated in list view to 10KB; full data available on click/expand
 
 ## Requirements *(mandatory)*
 
@@ -95,8 +95,8 @@ As an operator, I want to see when the agent prunes conversation context and wha
 - **FR-003**: System MUST capture schedule_timer effects when the agent's evaluateAutonomy node creates autonomy follow-ups
 - **FR-004**: System MUST capture context_pruned events when the agent's summarize node compresses conversation history
 - **FR-005**: Brain activity events MUST include timestamp, event type, agentId, threadId, and type-specific payload (tool name/args, memory query/results, timer delay, pruning stats)
-- **FR-006**: System MUST store brain activity via the Effects pattern (nodes return effects, SessionProcessor persists to OutboxStore)
-- **FR-007**: System MUST distinguish event source (user|agent|system) via a 'source' column on the Event table
+- **FR-006**: System MUST store brain activity via the Effects pattern (nodes return effects, SessionProcessor reuses existing persistence logic to OutboxStore without modification)
+- **FR-007**: System MUST distinguish event source via EventSource enum (USER|AGENT|SYSTEM) stored in 'source' column on the Event table
 - **FR-008**: API MUST provide a GET endpoint (e.g., `/api/agents/:agentId/threads/:threadId/activity`) to retrieve brain activity
 - **FR-009**: API MUST support pagination and filtering for brain activity (by event type, date range)
 - **FR-010**: API MUST perform parallel queries (events table + effects table) and merge results in-memory using a decorator pattern
@@ -107,12 +107,19 @@ As an operator, I want to see when the agent prunes conversation context and wha
 - **FR-015**: System MUST apply the same agent-scoped access control to brain activity as to memories (agents can only view their own activity)
 - **FR-016**: Database schema MUST add a 'source' column (ENUM: 'user', 'agent', 'system') to the Event table via Prisma migration
 - **FR-017**: Tool call tracking MUST NOT include hypothetical or unregistered tools; ONLY tools from the `memoryTools` array bound to the model
+- **FR-018**: Brain activity events MUST be retained indefinitely (matches conversation message retention policy)
+- **FR-019**: Brain activity event payloads MUST NOT have size limits (unlimited payload storage)
+- **FR-020**: Activity tab MUST NOT implement polling fallback when WebSocket fails (WebSocket-only, manual refresh required)
+- **FR-021**: Brain activity events MUST be immutable audit logs; individual event deletion is prohibited (deletion requires deleting entire thread)
+- **FR-022**: Brain activity operations (capture, emit, query) MUST use existing application logging infrastructure (Pino logger with structured fields: eventType, error, duration, agentId, threadId; no dedicated observability required)
+- **FR-023**: Activity tab MUST display an informative empty state when no brain events exist: "No brain activity yet. Agent decisions will appear here as the conversation progresses." with appropriate icon
+- **FR-024**: Activity tab MUST implement WebSocket reconnection with 3 retry attempts at fixed 5-second intervals (delays: 5s, 5s, 5s); after exhausting retries, display "Disconnected" status with manual reconnect button (reuses existing WebSocket connection status infrastructure)
 
 ### Key Entities
 
 - **BrainActivityEvent**: Represents a discrete decision or action taken by the agent
-  - Attributes: id, threadId, agentId, timestamp, eventType (tool_call | memory_search | context_pruned | schedule_timer), source (user|agent|system), payload (JSON)
-  - Sourced from: Event table (for agent-generated events like memory_search, context_pruned) OR Effect table (for tool_call, schedule_timer effects)
+  - Attributes: id, threadId, agentId, timestamp, eventType (tool_call | memory_search | context_pruned | schedule_timer), source (EventSource: USER|AGENT|SYSTEM), payload (JSON)
+  - Sourced from: Event table (for agent-generated events with source=EventSource.AGENT like memory_search, context_pruned) OR Effect table (for tool_call, schedule_timer effects)
   - Relationships: Belongs to Thread, belongs to Agent
   
 - **BrainActivityPayload**: Type-specific data for each event type
@@ -132,6 +139,8 @@ As an operator, I want to see when the agent prunes conversation context and wha
 - **SC-005**: UI clearly distinguishes between the 4 event types (tool_call, memory_search, context_pruned, schedule_timer) with visual indicators
 - **SC-006**: Operators can successfully filter and search brain activity by event type and date range
 - **SC-007**: Database migration to add 'source' column completes without downtime for existing deployments
+- **SC-008**: Brain activity events are retained indefinitely without data loss (no automatic pruning)
+- **SC-009**: Activity tab handles WebSocket disconnection gracefully (3 auto-reconnect attempts, then displays "Disconnected" status with manual reconnect option)
 
 ---
 
@@ -163,7 +172,7 @@ As an operator, I want to see when the agent prunes conversation context and wha
 
 ### Database Changes
 
-**Migration**: Add 'source' column to Event table
+**Migration**: Add EventSource enum and 'source' column to Event table
 
 ```prisma
 model Event {
@@ -179,16 +188,17 @@ model Event {
   @@index([sessionKey])
   @@index([createdAt])
   @@index([source]) // NEW
+  @@index([sessionKey, source, createdAt]) // NEW composite index for brain activity queries
 }
 
 enum EventSource {
-  USER
-  AGENT
-  SYSTEM
+  USER     // User-initiated events (user_message)
+  AGENT    // Agent-generated observations (memory_search, context_pruned)
+  SYSTEM   // System-generated events (timer, lifecycle)
 }
 ```
 
-**Why**: Distinguishes user-initiated events (user_message) from agent-generated observations (memory_search, context_pruned). Required for accurate brain activity filtering.
+**Why**: Distinguishes user-initiated events (EventSource.USER for user_message) from agent-generated observations (EventSource.AGENT for memory_search, context_pruned). Required for accurate brain activity filtering. Composite index optimizes parallel query performance.
 
 ### API Endpoints
 
@@ -212,10 +222,10 @@ enum EventSource {
 ```
 
 **Implementation**:
-1. Parallel queries: `EventStore.findByThread(threadId, { source: 'agent' })` + `OutboxStore.findByThread(threadId, { type: ['tool_call', 'schedule_timer'] })`
-2. Merge arrays in-memory, sort by timestamp
-3. Apply filters (type, date range)
-4. Paginate
+1. Parallel queries: `EventStore.findByThread(threadId, { source: EventSource.AGENT })` + `OutboxStore.findByThread(threadId, { type: ['brain_activity', 'schedule_timer'] })`
+2. Merge arrays in-memory, sort by timestamp descending
+3. Apply filters (eventType, date range)
+4. Paginate (limit, offset)
 5. Transform via BrainActivityDecorator
 
 **WebSocket Events**:
@@ -248,6 +258,8 @@ enum EventSource {
 - Real-time updates: WebSocket listener for `brain_activity.created`
 - Virtual scrolling: Handle 1000+ events without DOM bloat
 - Filter controls: Dropdown for event type, date range picker
+- Empty state: When no events exist, display informative message: "No brain activity yet. Agent decisions will appear here as the conversation progresses." with icon
+- Connection status: Reuse existing WebSocket connection status indicator; auto-reconnect (3 attempts, 5s delay), then show "Disconnected" with manual reconnect button
 
 **Reuse Patterns**:
 - Pagination logic from MemoryList
@@ -371,9 +383,10 @@ async summarize(state: ConversationState) {
 |------|--------|------------|
 | Dual-table queries slow for large threads | High | Implement database indexes on threadId, createdAt; use pagination aggressively |
 | Graph nodes performance degraded by effect emission | Medium | Effects are lightweight (JSON serialization only); no external I/O in nodes |
-| UI bloat from large brain event payloads | Medium | Truncate payloads in list view, full data on expand; virtual scrolling |
+| UI bloat from large brain event payloads | Medium | Virtual scrolling handles large lists; payload expansion is lazy-loaded |
+| Unlimited payload storage causes database bloat | High | Monitor database growth; implement archival strategy in future spec if needed |
 | Migration breaks existing Event inserts | High | Default 'source' to USER; update existing code to explicitly set source='agent' |
-| WebSocket events dropped under load | Medium | Persist events before emitting; UI can poll as fallback |
+| WebSocket disconnection without automatic recovery | Medium | Implement 3 auto-reconnect attempts (5s delay); display clear connection status; reuse existing WebSocket infrastructure |
 
 ### Out of Scope (Deferred)
 
@@ -387,17 +400,26 @@ async summarize(state: ConversationState) {
 
 ## Open Questions
 
-1. **Event Retention**: How long should brain_activity events be retained? Should they follow the same retention policy as conversation messages?
-   - **Proposed Answer**: Match conversation retention (currently unlimited); add configurable pruning in future spec
+**All questions resolved in Session 2025-11-11. Final decisions:**
+
+1. **Event Retention**: Brain activity events retained indefinitely (matches conversation message retention policy)
    
-2. **Payload Size Limits**: Should we enforce max payload size for brain_activity events to prevent database bloat?
-   - **Proposed Answer**: Implement soft limit (warn at 10KB, truncate at 50KB) with full payload stored in separate blob storage if needed
+2. **Payload Size Limits**: No size limits enforced; unlimited payload storage (monitor database growth, implement archival if needed in future)
    
-3. **Real-time vs Polling**: Should Activity tab poll for new events as fallback when WebSocket fails, or rely solely on WebSocket with manual refresh?
-   - **Proposed Answer**: Implement WebSocket-first with automatic fallback to polling (30s interval) on connection failure
+3. **Real-time vs Polling**: WebSocket-only (no polling fallback); Activity tab displays connection status and provides manual refresh button
    
-4. **Event Deletion**: Should operators be able to delete individual brain events, or are they immutable audit logs?
-   - **Proposed Answer**: Immutable for audit integrity; deletion requires deleting entire thread
+4. **Event Deletion**: Immutable audit logs; individual event deletion prohibited (deletion requires deleting entire thread)
+
+---
+
+## Clarifications
+
+### Session 2025-11-11
+
+- Q: Should the 4 open questions (event retention, payload limits, WebSocket fallback, event deletion) be finalized as requirements? → A: Retention = unlimited, payload limits = unlimited, fallback = none, deletion = immutable
+- Q: What level of observability is required for brain activity operations (logging, metrics, alerting)? → A: C yagni (rely on existing application logging infrastructure)
+- Q: What should the Activity tab display when no brain events exist yet (empty state UX)? → A: Option A (informative empty state with guidance)
+- Q: What WebSocket reconnection behavior should the Activity tab implement when connection drops? → A: B (3 retry attempts with 5s delay, then show "Disconnected" status with manual reconnect button)
 
 ---
 

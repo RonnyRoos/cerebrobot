@@ -1,0 +1,588 @@
+openapi: 3.0.3
+info:
+  title: Brain Activity Transparency API
+  description: |
+    RESTful API and WebSocket events for accessing agent decision-making transparency.
+    
+    **Key Features**:
+    - Query brain activity events (tool calls, memory searches, context pruning, autonomy decisions)
+    - Real-time updates via WebSocket
+    - Agent-scoped access control
+    - Parallel hybrid storage queries (Event + Effect tables)
+    
+    **Authentication**: Inherited from parent application (not specified in spec)
+    **Authorization**: Agent-scoped (only events for specified agentId)
+  version: 1.0.0
+  contact:
+    name: Cerebrobot Team
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://cerebrobot.example.com
+    description: Production server (example)
+
+tags:
+  - name: brain-activity
+    description: Agent brain activity transparency operations
+
+paths:
+  /api/agents/{agentId}/threads/{threadId}/activity:
+    get:
+      summary: List brain activity events
+      description: |
+        Retrieves agent decision-making events for a specific thread.
+        
+        **Implementation**:
+        - Queries Event table (source='agent', type IN ('memory_search', 'context_pruned'))
+        - Queries Effect table (type='brain_activity' OR type='schedule_timer')
+        - Merges results via BrainActivityDecorator
+        - Sorts by timestamp descending
+        - Returns paginated results
+        
+        **Performance**: 90% of queries <200ms (SC-003)
+      operationId: getBrainActivity
+      tags:
+        - brain-activity
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          description: UUID of the agent
+          schema:
+            type: string
+            format: uuid
+          example: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        
+        - name: threadId
+          in: path
+          required: true
+          description: UUID of the thread
+          schema:
+            type: string
+            format: uuid
+          example: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        
+        - name: type
+          in: query
+          required: false
+          description: Filter by event type (multiple values supported via comma-separated list)
+          schema:
+            type: string
+            enum:
+              - tool_call
+              - memory_search
+              - context_pruned
+              - schedule_timer
+          example: "tool_call,memory_search"
+        
+        - name: startDate
+          in: query
+          required: false
+          description: Filter events after this timestamp (ISO8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2025-01-01T00:00:00Z"
+        
+        - name: endDate
+          in: query
+          required: false
+          description: Filter events before this timestamp (ISO8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2025-12-31T23:59:59Z"
+        
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of events to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          example: 50
+        
+        - name: offset
+          in: query
+          required: false
+          description: Number of events to skip (for pagination)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+      
+      responses:
+        '200':
+          description: Successfully retrieved brain activity events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrainActivityResponse'
+              examples:
+                withToolCalls:
+                  summary: Brain activity with tool calls and memory searches
+                  value:
+                    activity:
+                      - id: "e1v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5b"
+                        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+                        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+                        timestamp: "2025-11-11T14:32:15.123Z"
+                        eventType: "tool_call"
+                        source: "agent"
+                        payload:
+                          eventType: "tool_call"
+                          toolName: "upsertMemory"
+                          arguments:
+                            content: "User prefers dark mode UI"
+                            metadata:
+                              category: "preferences"
+                            key: "ui-theme"
+                          result:
+                            success: true
+                            memoryId: "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+                            message: "Memory upserted"
+                          duration: 45
+                      - id: "e2v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5c"
+                        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+                        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+                        timestamp: "2025-11-11T14:31:42.789Z"
+                        eventType: "memory_search"
+                        source: "agent"
+                        payload:
+                          eventType: "memory_search"
+                          query: "user theme preferences"
+                          retrievedCount: 2
+                          memoryIds:
+                            - "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+                            - "m2e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4c"
+                    total: 2
+                    limit: 50
+                    offset: 0
+                    
+                empty:
+                  summary: No brain activity yet
+                  value:
+                    activity: []
+                    total: 0
+                    limit: 50
+                    offset: 0
+        
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidType:
+                  summary: Invalid event type filter
+                  value:
+                    error: "Bad Request"
+                    message: "Invalid event type: 'invalid_type'. Must be one of: tool_call, memory_search, context_pruned, schedule_timer"
+                    statusCode: 400
+                
+                invalidDateRange:
+                  summary: Invalid date range
+                  value:
+                    error: "Bad Request"
+                    message: "startDate must be before endDate"
+                    statusCode: 400
+        
+        '403':
+          description: Forbidden - User lacks access to this agent or thread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Forbidden"
+                message: "Access denied to agent a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+                statusCode: 403
+        
+        '404':
+          description: Agent or thread not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Not Found"
+                message: "Thread t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b not found"
+                statusCode: 404
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal Server Error"
+                message: "Failed to query brain activity events"
+                statusCode: 500
+
+components:
+  schemas:
+    BrainActivityResponse:
+      type: object
+      required:
+        - activity
+        - total
+        - limit
+        - offset
+      properties:
+        activity:
+          type: array
+          description: Array of brain activity events
+          items:
+            $ref: '#/components/schemas/BrainActivityEvent'
+        total:
+          type: integer
+          description: Total count of events matching filters (for pagination)
+          minimum: 0
+          example: 127
+        limit:
+          type: integer
+          description: Maximum events per page
+          minimum: 1
+          maximum: 200
+          example: 50
+        offset:
+          type: integer
+          description: Number of events skipped
+          minimum: 0
+          example: 0
+    
+    BrainActivityEvent:
+      type: object
+      required:
+        - id
+        - threadId
+        - agentId
+        - timestamp
+        - eventType
+        - source
+        - payload
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique event identifier (from Event.id or Effect.id)
+          example: "e1v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5b"
+        threadId:
+          type: string
+          format: uuid
+          description: Thread context
+          example: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        agentId:
+          type: string
+          format: uuid
+          description: Agent that generated the event
+          example: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the event occurred
+          example: "2025-11-11T14:32:15.123Z"
+        eventType:
+          type: string
+          enum:
+            - tool_call
+            - memory_search
+            - context_pruned
+            - schedule_timer
+          description: Discriminated union tag (determines payload shape)
+          example: "tool_call"
+        source:
+          type: string
+          enum:
+            - user
+            - agent
+            - system
+          description: Event originator (from Event.source or inferred as 'agent' for Effects)
+          example: "agent"
+        payload:
+          oneOf:
+            - $ref: '#/components/schemas/ToolCallPayload'
+            - $ref: '#/components/schemas/MemorySearchPayload'
+            - $ref: '#/components/schemas/ContextPrunedPayload'
+            - $ref: '#/components/schemas/ScheduleTimerPayload'
+          discriminator:
+            propertyName: eventType
+            mapping:
+              tool_call: '#/components/schemas/ToolCallPayload'
+              memory_search: '#/components/schemas/MemorySearchPayload'
+              context_pruned: '#/components/schemas/ContextPrunedPayload'
+              schedule_timer: '#/components/schemas/ScheduleTimerPayload'
+    
+    ToolCallPayload:
+      type: object
+      required:
+        - eventType
+        - toolName
+        - arguments
+      properties:
+        eventType:
+          type: string
+          enum:
+            - tool_call
+          example: "tool_call"
+        toolName:
+          type: string
+          description: Name of the tool invoked (currently only 'upsertMemory')
+          example: "upsertMemory"
+        arguments:
+          type: object
+          description: Tool-specific arguments (schema varies by tool)
+          additionalProperties: true
+          example:
+            content: "User prefers dark mode UI"
+            metadata:
+              category: "preferences"
+            key: "ui-theme"
+        result:
+          description: Tool return value (optional, may not be available if tool call in progress)
+          additionalProperties: true
+          example:
+            success: true
+            memoryId: "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+            message: "Memory upserted"
+        duration:
+          type: number
+          description: Execution time in milliseconds (optional)
+          minimum: 0
+          example: 45
+    
+    MemorySearchPayload:
+      type: object
+      required:
+        - eventType
+        - query
+        - retrievedCount
+        - memoryIds
+      properties:
+        eventType:
+          type: string
+          enum:
+            - memory_search
+          example: "memory_search"
+        query:
+          type: string
+          description: Search query text
+          minLength: 1
+          example: "user theme preferences"
+        retrievedCount:
+          type: integer
+          description: Number of memories retrieved
+          minimum: 0
+          example: 2
+        memoryIds:
+          type: array
+          description: UUIDs of retrieved memories
+          items:
+            type: string
+            format: uuid
+          example:
+            - "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+            - "m2e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4c"
+    
+    ContextPrunedPayload:
+      type: object
+      required:
+        - eventType
+        - messagesRemoved
+        - summaryGenerated
+        - compressionRatio
+      properties:
+        eventType:
+          type: string
+          enum:
+            - context_pruned
+          example: "context_pruned"
+        messagesRemoved:
+          type: integer
+          description: Count of messages pruned from conversation history
+          minimum: 1
+          example: 8
+        summaryGenerated:
+          type: string
+          description: Summary text replacing removed messages
+          minLength: 1
+          example: "User asked about project setup, preferences for dark mode, and timeline constraints."
+        compressionRatio:
+          type: number
+          description: messagesRemoved / summaryTokenCount (efficiency metric)
+          minimum: 0
+          example: 2.5
+    
+    ScheduleTimerPayload:
+      type: object
+      required:
+        - eventType
+        - followUpTime
+        - reasoning
+        - autonomyDecision
+      properties:
+        eventType:
+          type: string
+          enum:
+            - schedule_timer
+          example: "schedule_timer"
+        followUpTime:
+          type: string
+          format: date-time
+          description: ISO8601 timestamp when agent will follow up
+          example: "2025-11-12T09:00:00Z"
+        reasoning:
+          type: string
+          description: LLM's explanation for scheduling follow-up
+          minLength: 1
+          example: "User mentioned deadline tomorrow morning, need to check in before start of workday"
+        autonomyDecision:
+          type: boolean
+          description: True if agent decided to follow up (false for 'no_followup_needed' events)
+          example: true
+    
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+      properties:
+        error:
+          type: string
+          description: Error type (HTTP status name)
+          example: "Bad Request"
+        message:
+          type: string
+          description: Human-readable error description
+          example: "Invalid event type filter"
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 400
+
+  examples:
+    ToolCallEvent:
+      summary: Tool call (upsertMemory)
+      value:
+        id: "e1v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5b"
+        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        timestamp: "2025-11-11T14:32:15.123Z"
+        eventType: "tool_call"
+        source: "agent"
+        payload:
+          eventType: "tool_call"
+          toolName: "upsertMemory"
+          arguments:
+            content: "User prefers dark mode UI"
+            metadata:
+              category: "preferences"
+            key: "ui-theme"
+          result:
+            success: true
+            memoryId: "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+            message: "Memory upserted"
+          duration: 45
+    
+    MemorySearchEvent:
+      summary: Memory search
+      value:
+        id: "e2v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5c"
+        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        timestamp: "2025-11-11T14:31:42.789Z"
+        eventType: "memory_search"
+        source: "agent"
+        payload:
+          eventType: "memory_search"
+          query: "user theme preferences"
+          retrievedCount: 2
+          memoryIds:
+            - "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+            - "m2e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+    
+    ContextPrunedEvent:
+      summary: Context pruned
+      value:
+        id: "e3v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5d"
+        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        timestamp: "2025-11-11T14:30:18.456Z"
+        eventType: "context_pruned"
+        source: "agent"
+        payload:
+          eventType: "context_pruned"
+          messagesRemoved: 8
+          summaryGenerated: "User asked about project setup, preferences for dark mode, and timeline constraints."
+          compressionRatio: 2.5
+    
+    ScheduleTimerEvent:
+      summary: Autonomy decision (schedule timer)
+      value:
+        id: "e4v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5e"
+        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        timestamp: "2025-11-11T14:35:00.000Z"
+        eventType: "schedule_timer"
+        source: "agent"
+        payload:
+          eventType: "schedule_timer"
+          followUpTime: "2025-11-12T09:00:00Z"
+          reasoning: "User mentioned deadline tomorrow morning, need to check in before start of workday"
+          autonomyDecision: true
+
+# WebSocket Events (not OpenAPI-compliant, documented here for reference)
+# Connection: ws://localhost:3000/api/chat/ws
+# Event format: JSON messages with discriminated `type` field
+
+x-websocket-events:
+  brain_activity.created:
+    summary: New brain activity event created
+    description: |
+      Emitted when a new brain activity event is created during conversation.
+      
+      **Trigger**: SessionProcessor persists brain_activity effect OR agent-sourced Event
+      **Delivery**: To all WebSocket clients subscribed to the thread
+      **Frequency**: Real-time (1-5 events per user message)
+    payload:
+      type: object
+      required:
+        - type
+        - data
+      properties:
+        type:
+          type: string
+          enum:
+            - brain_activity.created
+          example: "brain_activity.created"
+        data:
+          $ref: '#/components/schemas/BrainActivityEvent'
+    example:
+      type: "brain_activity.created"
+      data:
+        id: "e1v2e3n4-t5i6-d7-8a9b0c1d2e3f4a5b"
+        threadId: "t1h2r3e4-a5d6-4i7d-8-9c0d1e2f3a4b"
+        agentId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        timestamp: "2025-11-11T14:32:15.123Z"
+        eventType: "tool_call"
+        source: "agent"
+        payload:
+          eventType: "tool_call"
+          toolName: "upsertMemory"
+          arguments:
+            content: "User prefers dark mode UI"
+            metadata:
+              category: "preferences"
+            key: "ui-theme"
+          result:
+            success: true
+            memoryId: "m1e2m3o4-r5y6-4i7d-8-9c0d1e2f3a4b"
+            message: "Memory upserted"
+          duration: 45
