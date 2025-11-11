@@ -1,14 +1,11 @@
 {
 	"servers": {
-		"sequentialthinking": {
-			"command": "docker",
+		"sequential-thinking": {
+			"command": "npx",
 			"args": [
-				"run",
-				"--rm",
-				"-i",
-				"mcp/sequentialthinking"
-			],
-			"type": "stdio"
+				"-y",
+				"@modelcontextprotocol/server-sequential-thinking"
+			]
 		},
 		"serena": {
 			"command": "uvx",
