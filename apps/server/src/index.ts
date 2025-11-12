@@ -86,6 +86,7 @@ export async function bootstrap(): Promise<void> {
     checkpointer,
     infrastructureConfig,
     connectionManager,
+    agentFactory, // Pass factory for cache invalidation
     logger: logger.child({ component: 'fastify' }),
   });
 

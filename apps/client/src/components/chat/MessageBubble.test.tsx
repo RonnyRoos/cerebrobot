@@ -166,7 +166,7 @@ describe('MessageBubble', () => {
       );
 
       const tokenUsage = screen.getByLabelText('token usage');
-      expect(tokenUsage).toHaveTextContent('75% ctx');
+      expect(tokenUsage).toHaveTextContent('1,500tok (75%)');
     });
 
     it('should not render token usage when not provided', () => {

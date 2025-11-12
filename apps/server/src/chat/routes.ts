@@ -198,7 +198,34 @@ export function registerChatRoutes(app: FastifyInstance, options: RegisterChatRo
         // Enqueue event for processing (non-blocking)
         // SessionProcessor will handle it asynchronously
         // EffectRunner will deliver the response via WebSocket
-        void options.eventQueue.enqueue(createdEvent);
+        options.eventQueue.enqueue(createdEvent).catch((enqueueError) => {
+          // Log enqueue failures but don't crash server
+          // User will see error via WebSocket error handler if connection still active
+          options.logger?.error(
+            {
+              error: enqueueError,
+              connectionId,
+              requestId,
+              sessionKey,
+              eventId: createdEvent.id,
+            },
+            'Failed to enqueue event after retries',
+          );
+
+          // Send error to client if WebSocket still connected
+          try {
+            socket.send(
+              JSON.stringify({
+                type: 'error',
+                requestId,
+                message: 'Message processing failed. Please try again.',
+                retryable: false,
+              }),
+            );
+          } catch {
+            // Socket already closed, error already logged
+          }
+        });
 
         options.logger?.info(
           { connectionId, requestId, sessionKey, eventId: createdEvent.id },

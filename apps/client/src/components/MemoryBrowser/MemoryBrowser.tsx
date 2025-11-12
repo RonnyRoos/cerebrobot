@@ -101,7 +101,7 @@ export function MemoryBrowser({
           className="p-4 border-b border-border-default bg-bg-elevated/50 backdrop-blur-sm"
         >
           <Text as="h2" variant="heading" size="lg" className="mb-1">
-            🧠 Agent Memory
+            Memory
           </Text>
           <Text variant="caption" size="sm" className="text-text-secondary">
             {stats

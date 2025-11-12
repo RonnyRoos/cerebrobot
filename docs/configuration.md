@@ -170,6 +170,87 @@ Individual agents are configured via JSON files in the `config/agents/` director
 - **Default**: `3`
 - **Description**: Per-agent limit on consecutive autonomous messages. Must be ≤ `AUTONOMY_MAX_CONSECUTIVE`.
 
+#### `summarizer` (Optional)
+- **Type**: Object
+- **Default**: Falls back to main LLM configuration
+- **Description**: Separate model configuration for conversation summarization. Allows cost optimization by using cheaper/specialized models for summarization.
+
+**Summarizer Sub-fields**:
+
+##### `summarizer.model`
+- **Type**: String (model identifier)
+- **Default**: Uses `model` field value
+- **Description**: Model for conversation summarization (e.g., `deepseek-ai/DeepSeek-R1-Distill-Llama-70B` for cost-efficient summarization)
+
+##### `summarizer.temperature`
+- **Type**: Number (0.0 to 2.0)
+- **Default**: `0.0`
+- **Description**: Temperature for summarization (typically 0 for deterministic summaries)
+
+##### `summarizer.tokenBudget`
+- **Type**: Number (integer)
+- **Default**: `8000`
+- **Description**: Maximum overflow tokens sent to summarizer. Prevents timeouts on large conversations.
+
+##### `summarizer.apiKey` (Optional)
+- **Type**: String
+- **Default**: Uses global `OPENAI_API_KEY`
+- **Description**: Override API key for summarizer model (if different provider)
+
+##### `summarizer.apiBase` (Optional)
+- **Type**: String (URL)
+- **Default**: Uses global `OPENAI_BASE_URL`
+- **Description**: Override API base URL for summarizer model
+
+**Example with Summarizer**:
+```json
+{
+  "id": "cost-optimized-agent",
+  "name": "Cost-Optimized Agent",
+  "model": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+  "temperature": 0.7,
+  "summarizer": {
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+    "temperature": 0,
+    "tokenBudget": 8000
+  }
+}
+```
+
+## Global Agent Configuration
+
+System-wide settings that apply to all agents are managed through the `/api/config` REST API and accessible via the Settings page (`/settings`) in the UI.
+
+### Global Configuration Fields
+
+#### `enableMarkdownResponses`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Instructs all agents to respond using markdown formatting for better readability (headers, lists, code blocks, bold, italic). When enabled, a markdown formatting instruction is added to each agent's system prompt.
+
+#### `includeToolReferences`
+- **Type**: Boolean
+- **Default**: `false`
+- **Description**: Automatically includes a list of available LangChain tools in all agent system prompts. Useful for tool-aware agents that need context about available capabilities.
+
+### Accessing Global Configuration
+
+**Via REST API**:
+```bash
+# Get current configuration
+curl http://localhost:3000/api/config
+
+# Update configuration
+curl -X PUT http://localhost:3000/api/config \
+  -H "Content-Type: application/json" \
+  -d '{"enableMarkdownResponses": true, "includeToolReferences": false}'
+```
+
+**Via UI**:
+Navigate to `/settings` in the Cerebrobot web interface to toggle these settings via checkboxes.
+
+**Implementation Note**: Global configuration is stored in the database as a singleton record and injected into agent system prompts at agent load time via `AgentFactory.getOrCreateAgent()`.
+
 ## Production Recommendations
 
 ### Performance Tuning

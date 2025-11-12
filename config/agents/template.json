@@ -22,6 +22,11 @@
     "injectionBudget": 1000,
     "retrievalTimeoutMs": 5000
   },
+  "summarizer": {
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+    "temperature": 0,
+    "tokenBudget": 8000
+  },
   "autonomy": {
     "enabled": false,
     "evaluator": {

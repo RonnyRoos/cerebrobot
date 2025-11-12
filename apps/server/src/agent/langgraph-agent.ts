@@ -58,12 +58,13 @@ export class LangGraphChatAgent implements ChatAgent {
       },
     });
 
+    // Use agent.summarizer config with fallback to main LLM (T017)
     const summarizerModel = new ChatOpenAI({
-      model,
-      temperature: 0,
-      apiKey,
+      model: agent.summarizer?.model ?? model,
+      temperature: agent.summarizer?.temperature ?? 0,
+      apiKey: agent.summarizer?.apiKey ?? apiKey,
       configuration: {
-        baseURL: apiBase,
+        baseURL: agent.summarizer?.apiBase ?? apiBase,
       },
     });
 
@@ -139,6 +140,8 @@ export class LangGraphChatAgent implements ChatAgent {
         autonomyConfig: agent.autonomy,
         llmApiKey: agent.llm.apiKey,
         llmApiBase: agent.llm.apiBase,
+        summarizerModel: agent.summarizer?.model,
+        summarizerTokenBudget: agent.summarizer?.tokenBudget,
       },
       chatModel,
       summarizerModel,
@@ -172,37 +175,142 @@ export class LangGraphChatAgent implements ChatAgent {
     // T009-T010: Handle both string and HumanMessage inputs
     const messageInput = this.convertToHumanMessage(context.message);
 
-    const stream = (await this.graphContext.graph.stream(
-      {
-        threadId: context.threadId,
-        userId: context.userId,
-        agentId: this.agentId,
-        messages: [messageInput],
-        // CRITICAL: Clear effects at the start of each new event processing
-        // Effects should be ephemeral per invocation, not accumulate across turns
-        effects: [],
-        // CRITICAL: Reset followUpCount on user messages to allow new autonomous follow-ups
-        // Autonomous messages (timer-triggered) should NOT reset the counter
-        ...(context.isUserMessage ? { followUpCount: 0 } : {}),
-      },
-      this.createConfig(context.threadId, 'stream', context.userId, context.signal),
-    )) as MessageStream;
+    // CRITICAL: Check if message already exists in state (retry scenario)
+    // On retry, EventQueue re-processes same event, but checkpoint already has the message
+    // Adding it again creates duplicates in conversation history
+    let shouldAddMessage = true;
+    try {
+      const currentState = await this.graphContext.graph.getState(
+        this.createConfig(context.threadId, 'stream', context.userId, context.signal),
+      );
 
-    for await (const [message] of stream) {
-      const chunkCandidate = message as AIMessageChunk;
-      if (isAIMessageChunk(chunkCandidate)) {
-        const token = toStringContent(chunkCandidate.content);
-        if (token.length === 0) {
-          continue;
-        }
-        accumulated += token;
-        yield { type: 'token' as const, value: token };
-      } else {
-        const messageCandidate = message as BaseMessage;
-        if (isAIMessage(messageCandidate)) {
-          accumulated = toStringContent(messageCandidate.content).trim();
+      if (currentState?.values?.messages) {
+        const messages = currentState.values.messages as BaseMessage[];
+        const messageContent =
+          typeof context.message === 'string' ? context.message : context.message.content;
+
+        // Check if this exact message content already exists in recent messages
+        // Compare last 3 messages to detect retry duplicates
+        const recentMessages = messages.slice(-3);
+        const isDuplicate = recentMessages.some(
+          (msg) => msg.content === messageContent && msg._getType() === 'human',
+        );
+
+        if (isDuplicate) {
+          shouldAddMessage = false;
+          this.logger?.info(
+            {
+              threadId: context.threadId,
+              messagePreview:
+                typeof messageContent === 'string'
+                  ? messageContent.substring(0, 50)
+                  : '[non-string content]',
+            },
+            '🔄 Message already in state (retry detected) - resuming from checkpoint',
+          );
         }
       }
+    } catch (error) {
+      // If getState fails, proceed with adding message (safer than skipping)
+      this.logger?.warn(
+        { threadId: context.threadId, error },
+        'Failed to check state for duplicate message, proceeding with add',
+      );
+    }
+
+    let stream: MessageStream;
+    try {
+      stream = (await this.graphContext.graph.stream(
+        shouldAddMessage
+          ? {
+              threadId: context.threadId,
+              userId: context.userId,
+              agentId: this.agentId,
+              messages: [messageInput],
+              // CRITICAL: Clear effects at the start of each new event processing
+              // Effects should be ephemeral per invocation, not accumulate across turns
+              effects: [],
+              // CRITICAL: Reset followUpCount on user messages to allow new autonomous follow-ups
+              // Autonomous messages (timer-triggered) should NOT reset the counter
+              ...(context.isUserMessage ? { followUpCount: 0 } : {}),
+            }
+          : {
+              // Retry: Don't add message again, just resume from checkpoint
+              threadId: context.threadId,
+              userId: context.userId,
+              agentId: this.agentId,
+              messages: [], // Empty - don't add duplicate
+              effects: [],
+              ...(context.isUserMessage ? { followUpCount: 0 } : {}),
+            },
+        this.createConfig(context.threadId, 'stream', context.userId, context.signal),
+      )) as MessageStream;
+    } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      this.logger?.error(
+        {
+          error,
+          threadId: context.threadId,
+          correlationId: context.correlationId,
+          agentId: this.agentId,
+          durationMs,
+          model: this.graphContext.graph.name ?? 'unknown',
+        },
+        '🚨 LLM API call failed to initialize stream',
+      );
+      throw error;
+    }
+
+    try {
+      for await (const [message] of stream) {
+        const chunkCandidate = message as AIMessageChunk;
+        if (isAIMessageChunk(chunkCandidate)) {
+          const token = toStringContent(chunkCandidate.content);
+          if (token.length === 0) {
+            continue;
+          }
+          accumulated += token;
+          yield { type: 'token' as const, value: token };
+        } else {
+          const messageCandidate = message as BaseMessage;
+          if (isAIMessage(messageCandidate)) {
+            accumulated = toStringContent(messageCandidate.content).trim();
+          }
+        }
+      }
+    } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      const isAbortError =
+        error instanceof Error &&
+        (error.name === 'AbortError' ||
+          error.message === 'Abort' ||
+          context.signal?.aborted === true);
+
+      if (isAbortError) {
+        this.logger?.error(
+          {
+            threadId: context.threadId,
+            correlationId: context.correlationId,
+            agentId: this.agentId,
+            durationMs,
+            accumulatedTokens: accumulated.length,
+          },
+          '🚨 LLM API stream timed out or was aborted (likely API hang)',
+        );
+      } else {
+        this.logger?.error(
+          {
+            error,
+            threadId: context.threadId,
+            correlationId: context.correlationId,
+            agentId: this.agentId,
+            durationMs,
+            accumulatedTokens: accumulated.length,
+          },
+          '🚨 LLM API stream failed with error',
+        );
+      }
+      throw error;
     }
 
     const latencyMs = Date.now() - startedAt;

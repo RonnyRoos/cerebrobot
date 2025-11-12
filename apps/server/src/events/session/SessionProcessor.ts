@@ -83,16 +83,18 @@ export class SessionProcessor {
       const payload = event.payload as { timer_id: string; payload?: unknown };
       // US1 + US4: Create HumanMessage with metadata for autonomous triggers
       const timerContext = payload.payload as
-        | { followUpType?: string; reason?: string }
+        | { followUpType?: string; reason?: string; suggestedMessage?: string }
         | undefined;
 
       // Map timer event to autonomous trigger type (default: check_in if not specified)
       const triggerType = (timerContext?.followUpType ?? 'check_in') as AutonomousTriggerType;
 
       // Select natural language prompt based on trigger type
-      // Uses TRIGGER_PROMPTS constant for contextual, non-meta prompts
-      // (e.g., "check_in" → "How's the conversation going?")
-      const naturalPrompt = TRIGGER_PROMPTS[triggerType];
+      // Priority: suggestedMessage (evaluator-generated) > reason (context) > TRIGGER_PROMPTS (generic fallback)
+      const naturalPrompt =
+        (timerContext?.suggestedMessage as string | undefined) ??
+        (timerContext?.reason as string | undefined) ??
+        TRIGGER_PROMPTS[triggerType];
 
       // DEBUG: Log trigger type and selected prompt for observability
       if (this.logger) {
@@ -358,6 +360,9 @@ export class SessionProcessor {
           abortController.signal.aborted);
 
       if (isAbortError) {
+        // Calculate how long the request ran before timeout
+        const processingTime = Date.now() - startTime;
+
         // Timer events are best-effort - warn but don't throw
         if (event.type === 'timer') {
           this.logger?.warn(
@@ -366,33 +371,48 @@ export class SessionProcessor {
               eventId: event.id,
               eventType: event.type,
               timeoutMs,
+              processingTimeMs: processingTime,
+              agentId,
+              threadId,
             },
-            'Timer event processing timed out (best-effort delivery, continuing)',
+            '⏱️ Timer event processing timed out (best-effort delivery, continuing)',
           );
           return; // Exit gracefully - timer delivery is not critical
         }
 
-        // User messages should error on timeout
+        // User messages should error on timeout with VERY VISIBLE logging
         this.logger?.error(
           {
             sessionKey: event.session_key,
             eventId: event.id,
             eventType: event.type,
             timeoutMs,
+            processingTimeMs: processingTime,
+            agentId,
+            threadId,
+            userId,
           },
-          'Event processing timed out',
+          '🚨 Event processing TIMED OUT - likely LLM API hang (DeepInfra)',
         );
         throw new Error(`Event processing timed out after ${timeoutMs}ms`);
       }
 
+      // Non-timeout errors: likely network issues, API errors, or internal failures
+      const processingTime = Date.now() - startTime;
       this.logger?.error(
         {
           err: error,
           sessionKey: event.session_key,
           eventId: event.id,
           eventType: event.type,
+          processingTimeMs: processingTime,
+          agentId,
+          threadId,
+          userId,
+          errorName: error instanceof Error ? error.name : 'unknown',
+          errorMessage: error instanceof Error ? error.message : String(error),
         },
-        'Event processing failed',
+        '🚨 Event processing FAILED - LLM API or internal error',
       );
       throw error;
     } finally {

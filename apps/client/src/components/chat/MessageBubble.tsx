@@ -116,19 +116,30 @@ export function MessageBubble({
           <Box className="flex items-center gap-2 text-[10px] text-text-tertiary">
             {/* Latency in seconds */}
             {latencyMs != null && (
-              <Text as="span" aria-label="latency">
+              <Text as="span" aria-label="latency" className="opacity-80">
                 {Math.round(latencyMs / 1000)}s
               </Text>
             )}
 
-            {/* Token usage */}
+            {/* Token usage with color coding */}
             {tokenUsage && (
               <>
-                <Text as="span" className="text-border-default">
+                <Text as="span" className="text-border-default opacity-50">
                   ·
                 </Text>
-                <Text as="span" aria-label="token usage">
-                  {tokenUsage.utilisationPct}% ctx
+                <Text
+                  as="span"
+                  aria-label="token usage"
+                  title={`${tokenUsage.recentTokens.toLocaleString()} tokens / ${tokenUsage.budget.toLocaleString()} budget`}
+                  className={`font-medium ${
+                    tokenUsage.utilisationPct >= 90
+                      ? 'text-destructive'
+                      : tokenUsage.utilisationPct >= 70
+                        ? 'text-warning'
+                        : 'text-accent-primary'
+                  }`}
+                >
+                  {tokenUsage.recentTokens.toLocaleString()}tok ({tokenUsage.utilisationPct}%)
                 </Text>
               </>
             )}

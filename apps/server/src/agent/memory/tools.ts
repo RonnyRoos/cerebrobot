@@ -105,9 +105,18 @@ export function createUpsertMemoryTool(
         // Check for duplicate memories before generating expensive embedding (T071)
         // Use 0.95 similarity threshold to detect near-duplicates
         const DUPLICATE_THRESHOLD = 0.95;
+        const duplicateCheckStart = Date.now();
         const duplicates = await store.search(namespace, content, {
           threshold: DUPLICATE_THRESHOLD,
         });
+        const duplicateCheckMs = Date.now() - duplicateCheckStart;
+
+        if (duplicateCheckMs > 2000) {
+          logger.warn(
+            { duplicateCheckMs, agentId, userId },
+            `🐌 SLOW DUPLICATE CHECK: ${duplicateCheckMs}ms (threshold: 2000ms)`,
+          );
+        }
 
         if (duplicates.length > 0) {
           const topDuplicate = duplicates[0];

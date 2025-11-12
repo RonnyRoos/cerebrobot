@@ -3,6 +3,7 @@ import { useThreads } from '../hooks/useThreads.js';
 import { ThreadCard } from './thread-list/ThreadCard.js';
 import { EmptyState } from './EmptyState.js';
 import { Box, Stack, Button, Text } from '@workspace/ui';
+import { Plus } from 'lucide-react';
 import type { AgentListResponse } from '@cerebrobot/chat-shared';
 
 interface ThreadListViewProps {
@@ -109,15 +110,25 @@ export function ThreadListView({
         <Text className="text-sm font-semibold text-text-secondary">
           {threads.length === 1 ? '1 conversation' : `${threads.length} conversations`}
         </Text>
-        {agentContextMode && (
+        <Box className="flex items-center gap-2">
+          {agentContextMode && (
+            <Button
+              variant="ghost"
+              onClick={onExitAgentContext}
+              className="text-xs text-accent-primary hover:text-accent-primary hover:bg-accent-primary/10 transition-all duration-200 h-6 px-2"
+            >
+              ← All Threads
+            </Button>
+          )}
           <Button
-            variant="ghost"
-            onClick={onExitAgentContext}
-            className="text-xs text-accent-primary hover:text-accent-primary hover:bg-accent-primary/10 transition-all duration-200 h-6 px-2"
+            variant="primary"
+            onClick={onNewThread}
+            className="h-7 px-3 text-xs bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-glow-purple transition-all duration-200"
           >
-            ← All Threads
+            <Plus size={14} className="mr-1" />
+            New
           </Button>
-        )}
+        </Box>
       </Box>
 
       {/* Thread list or empty state */}

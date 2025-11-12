@@ -124,7 +124,19 @@ export class TimerWorker {
           });
 
           // Enqueue event for processing (triggers agent response)
-          void this.eventQueue.enqueue(createdEvent);
+          this.eventQueue.enqueue(createdEvent).catch((enqueueError) => {
+            // Log timer enqueue failures but don't crash server
+            // Timer events are best-effort - log and continue
+            this.logger.error(
+              {
+                error: enqueueError,
+                timerId: timer.timer_id,
+                sessionKey: timer.session_key,
+                seq: nextSeq,
+              },
+              'Failed to enqueue timer event after retries (best-effort delivery)',
+            );
+          });
 
           // Mark timer as promoted
           await this.timerStore.markPromoted(timer.id);

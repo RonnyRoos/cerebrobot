@@ -1,4 +1,4 @@
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage, RemoveMessage } from '@langchain/core/messages';
 import type { BaseMessage, BaseMessageLike } from '@langchain/core/messages';
 import type { ChatOpenAI } from '@langchain/openai';
 import { StateGraph, START, END } from '@langchain/langgraph';
@@ -10,7 +10,7 @@ import type { MemoryConfig } from '../memory/index.js';
 import { createRetrieveMemoriesNode } from '../memory/nodes.js';
 import type { createUpsertMemoryTool } from '../memory/tools.js';
 import { toStringContent } from '../utils/message-utils.js';
-import { splitMessagesByBudget } from '../utils/token-counting.js';
+import { splitMessagesByBudget, countTokens } from '../utils/token-counting.js';
 import {
   ConversationAnnotation,
   type ConversationState,
@@ -39,6 +39,8 @@ interface LangGraphChatAgentOptions {
   readonly autonomyConfig?: AgentAutonomyConfig;
   readonly llmApiKey: string;
   readonly llmApiBase: string;
+  readonly summarizerModel?: string;
+  readonly summarizerTokenBudget?: number;
 }
 
 function buildConversationGraph(
@@ -83,6 +85,15 @@ function buildConversationGraph(
     );
 
     if (overflow.length === 0) {
+      logger?.info(
+        {
+          recentMessages: recent.length,
+          recentTokens: recentTokenCount,
+          budget: hotpathTokenBudget,
+        },
+        '✅ All messages fit in budget - no summarization needed',
+      );
+
       if (recent.length === messages.length) {
         return {
           tokenUsage: {
@@ -103,16 +114,74 @@ function buildConversationGraph(
       } satisfies Partial<ConversationState>;
     }
 
-    const messagesToSummarize = overflow;
+    // Overflow detected - log before summarization
+    logger?.info(
+      {
+        trimmedMessages: overflow.length,
+        trimmedTokens: overflowTokenCount,
+        recentMessages: recent.length,
+        recentTokens: recentTokenCount,
+        budget: hotpathTokenBudget,
+      },
+      '🔄 Overflow detected - summarization required',
+    );
+
+    // Cap overflow sent to summarizer to prevent timeout
+    // Even though budget is 10K, we limit summarizer input to 8K for safety margin
+    const SUMMARIZER_TOKEN_LIMIT = 8000;
+    const { recent: cappedOverflow } = await splitMessagesByBudget(
+      overflow,
+      summarizerModel.modelName,
+      SUMMARIZER_TOKEN_LIMIT,
+      0, // No floor, just cap at token limit
+      0, // No margin
+    );
+
+    const messagesToSummarize = cappedOverflow;
 
     const summaryPrompt = state.summary
       ? `This is a summary of the conversation to date: ${state.summary}\n\nExtend the summary by taking into account the new messages above:`
       : 'Create a summary of the conversation above:';
 
+    if (!state.summary) {
+      logger?.info(
+        {
+          totalOverflowMessages: overflow.length,
+          totalOverflowTokens: overflowTokenCount,
+          cappedOverflowMessages: cappedOverflow.length,
+          summarizerTokenLimit: SUMMARIZER_TOKEN_LIMIT,
+        },
+        '📝 Creating NEW summary from overflow (capped for summarizer)',
+      );
+    } else {
+      logger?.info(
+        {
+          existingSummaryLength: state.summary.length,
+          totalOverflowMessages: overflow.length,
+          totalOverflowTokens: overflowTokenCount,
+          cappedOverflowMessages: cappedOverflow.length,
+          summarizerTokenLimit: SUMMARIZER_TOKEN_LIMIT,
+          summaryUpdatedAt: state.summaryUpdatedAt,
+        },
+        '📝 EXTENDING existing summary with overflow (capped for summarizer)',
+      );
+    }
+
     const summaryMessages: BaseMessageLike[] = [
       ...messagesToSummarize,
       new HumanMessage({ content: summaryPrompt }),
     ];
+
+    // Log before calling summarizer model
+    const summaryMessageTokens = await countTokens(summaryMessages, summarizerModel.modelName);
+    logger?.info(
+      {
+        model: summarizerModel.modelName ?? model,
+        summaryMessagesCount: summaryMessages.length,
+        summaryMessagesTokens: summaryMessageTokens,
+      },
+      '🤖 Calling SUMMARIZER model (separate from main LLM)',
+    );
 
     const response = await summarizerModel.invoke(summaryMessages, {
       configurable: { thread_id: state.threadId },
@@ -158,13 +227,29 @@ function buildConversationGraph(
       'langmem hotpath summarized',
     );
 
+    // CRITICAL: Use RemoveMessage to explicitly delete overflow from state
+    // MessagesAnnotation uses addMessages reducer which APPENDS by default
+    // Without RemoveMessage, overflow stays in state and gets re-summarized every turn
+    const deleteMessages = overflow.map((m) => new RemoveMessage({ id: m.id }));
+
+    // Log overflow removal confirmation
+    logger?.info(
+      {
+        messagesDeleted: overflow.length,
+        messagesKept: recent.length,
+        summaryLength: summaryText.length,
+        summaryTokensApprox: Math.floor(summaryText.length / 4), // rough estimate
+      },
+      '✂️ Overflow DELETED from state using RemoveMessage - replaced with summary',
+    );
+
     return {
       summary: summaryText,
       summaryUpdatedAt: new Date().toISOString(),
-      messages: recent,
+      messages: deleteMessages, // Delete overflow, keep recent
       tokenUsage: {
         recentTokens: recentTokenCount,
-        overflowTokens: overflowTokenCount,
+        overflowTokens: 0, // After deletion, no overflow remains
         budget: hotpathTokenBudget,
       },
     } satisfies Partial<ConversationState>;
@@ -182,6 +267,22 @@ function buildConversationGraph(
 
     const recentMessages = state.messages as ConversationMessages;
     const promptMessages: BaseMessage[] = [...systemMessages, ...recentMessages];
+
+    // Log token counts before calling main LLM
+    const systemTokens = await countTokens(systemMessages, model);
+    const recentTokens = await countTokens(recentMessages, model);
+    logger?.info(
+      {
+        systemMessagesCount: systemMessages.length,
+        systemTokens, // includes summary if exists
+        recentMessagesCount: recentMessages.length,
+        recentTokens,
+        totalTokens: systemTokens + recentTokens,
+        model: 'deepseek-chat',
+        hasSummary: !!state.summary,
+      },
+      '🤖 Calling MAIN LLM (receives summary + recent, NOT overflow)',
+    );
 
     const response = await modelWithTools.invoke(promptMessages, {
       configurable: { thread_id: state.threadId },

@@ -12,6 +12,7 @@ import { registerAgentRoutes } from './agent/routes.js';
 import { registerUserRoutes } from './user/routes.js';
 import { registerThreadRoutes } from './thread/routes.js';
 import { registerMemoryRoutes } from './agent/memory/routes.js';
+import { registerGlobalConfigRoutes } from './config/routes.js';
 import { createThreadService } from './thread/service.js';
 import { ConnectionManager } from './chat/connection-manager.js';
 import { createMemoryStore } from './agent/memory/index.js';
@@ -40,6 +41,7 @@ export interface BuildServerOptions {
   readonly checkpointer: BaseCheckpointSaver;
   readonly infrastructureConfig: InfrastructureConfig;
   readonly connectionManager: ConnectionManager;
+  readonly agentFactory: { clearCache: () => void }; // For cache invalidation on agent updates
   readonly logger?: Logger;
 }
 
@@ -289,9 +291,12 @@ export function buildServer(options: BuildServerOptions): {
       }
     });
 
-    registerAgentRoutes(fastifyInstance, prisma);
+    registerAgentRoutes(fastifyInstance, prisma, options.agentFactory);
     registerThreadCreationRoutes(fastifyInstance, options.threadManager, prisma);
     registerUserRoutes(fastifyInstance, { logger });
+
+    // Register global configuration routes (Spec 017 - User Story 4)
+    registerGlobalConfigRoutes(fastifyInstance, prisma);
 
     // Initialize memory infrastructure (Phase 2: Foundational)
     const memoryStore = createMemoryStore(

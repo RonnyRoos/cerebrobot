@@ -112,14 +112,14 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
   };
 
   // Callback for autonomous message completion
-  const handleAutonomousComplete = (requestId: string, message: string, latencyMs?: number) => {
+  const handleAutonomousComplete = (requestId: string, message: string, latencyMs?: number, tokenUsage?: TokenUsage) => {
     const messageId = autonomousMessagesRef.current.get(requestId);
 
     if (messageId) {
       // Update existing streaming message to complete
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === messageId ? { ...msg, content: message, status: 'complete', latencyMs } : msg,
+          msg.id === messageId ? { ...msg, content: message, status: 'complete', latencyMs, tokenUsage } : msg,
         ),
       );
       autonomousMessagesRef.current.delete(requestId);
@@ -132,6 +132,7 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
         content: message,
         status: 'complete',
         latencyMs,
+        tokenUsage,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, autonomousMessage]);
@@ -146,7 +147,7 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
   };
 
   // Thread-persistent WebSocket connection
-  const { sendMessage, cancelMessage, isConnected } = useThreadConnection(
+  const { sendMessage, cancelMessage, abortMessage, isConnected } = useThreadConnection(
     activeThreadId,
     handleAutonomousMessage,
     handleAutonomousToken,
@@ -353,8 +354,8 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
         appendAssistantToken(assistantMessageId, token);
       },
       // onComplete callback
-      (message: string, latencyMs?: number) => {
-        finalizeAssistantMessage(assistantMessageId, message, latencyMs, undefined);
+      (message: string, latencyMs?: number, tokenUsage?: TokenUsage) => {
+        finalizeAssistantMessage(assistantMessageId, message, latencyMs, tokenUsage);
         assistantMessageIdRef.current = null;
         currentRequestIdRef.current = null;
         setIsStreaming(false);
@@ -425,6 +426,16 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
     }
   };
 
+  const handleAbort = () => {
+    if (currentRequestIdRef.current) {
+      abortMessage(currentRequestIdRef.current);
+      // Force cleanup client-side state
+      assistantMessageIdRef.current = null;
+      currentRequestIdRef.current = null;
+      setIsStreaming(false);
+    }
+  };
+
   const canCancel = isStreaming && currentRequestIdRef.current !== null;
 
   return {
@@ -439,6 +450,7 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
     onRetry,
     clearChat,
     handleCancel,
+    handleAbort,
     canCancel,
   };
 }

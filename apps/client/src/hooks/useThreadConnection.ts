@@ -4,6 +4,7 @@ import type {
   MemoryCreatedEvent,
   MemoryUpdatedEvent,
   MemoryDeletedEvent,
+  TokenUsage,
 } from '@cerebrobot/chat-shared';
 import { WS_CLOSE_CODES } from '@cerebrobot/chat-shared';
 
@@ -12,7 +13,7 @@ import { WS_CLOSE_CODES } from '@cerebrobot/chat-shared';
  */
 interface ResponseHandler {
   onToken?: (token: string) => void;
-  onComplete?: (message: string, latencyMs?: number) => void;
+  onComplete?: (message: string, latencyMs?: number, tokenUsage?: TokenUsage) => void;
   onError?: (error: string, retryable: boolean) => void;
   onCancelled?: () => void;
   timeoutId?: ReturnType<typeof setTimeout>; // Timeout ID for cleanup
@@ -39,7 +40,7 @@ export function useThreadConnection(
   threadId: string | null,
   onAutonomousMessage?: (message: string) => void,
   onAutonomousToken?: (requestId: string, token: string) => void,
-  onAutonomousComplete?: (requestId: string, message: string, latencyMs?: number) => void,
+  onAutonomousComplete?: (requestId: string, message: string, latencyMs?: number, tokenUsage?: TokenUsage) => void,
   onMemoryCreated?: (event: MemoryCreatedEvent) => void,
   onMemoryUpdated?: (event: MemoryUpdatedEvent) => void,
   onMemoryDeleted?: (event: MemoryDeletedEvent) => void,
@@ -237,6 +238,7 @@ export function useThreadConnection(
                     requestId,
                     chatEvent.message,
                     chatEvent.latencyMs,
+                    chatEvent.tokenUsage,
                   );
                   // Also call legacy callback for backward compatibility
                   onAutonomousMessageRef.current?.(chatEvent.message);
@@ -268,7 +270,7 @@ export function useThreadConnection(
               break;
 
             case 'final':
-              handler.onComplete?.(chatEvent.message, chatEvent.latencyMs);
+              handler.onComplete?.(chatEvent.message, chatEvent.latencyMs, chatEvent.tokenUsage);
               cleanupHandler(requestId);
               break;
 
@@ -332,7 +334,7 @@ export function useThreadConnection(
    *
    * @param content - Message content to send
    * @param onToken - Callback for streaming tokens
-   * @param onComplete - Callback for completion
+   * @param onComplete - Callback for completion (includes tokenUsage)
    * @param onError - Callback for errors
    * @param onCancelled - Optional callback for cancellation acknowledgment
    * @returns requestId for cancellation tracking
@@ -340,7 +342,7 @@ export function useThreadConnection(
   function sendMessage(
     content: string,
     onToken: (token: string) => void,
-    onComplete: (message: string, latencyMs?: number) => void,
+    onComplete: (message: string, latencyMs?: number, tokenUsage?: TokenUsage) => void,
     onError: (error: string, retryable: boolean) => void,
     onCancelled?: () => void,
   ): string {
@@ -359,7 +361,7 @@ export function useThreadConnection(
     // Generate requestId using crypto.randomUUID()
     const requestId = crypto.randomUUID();
 
-    // Set 60-second timeout to auto-cleanup if server hangs
+    // Set 240-second timeout to auto-cleanup if server hangs
     const timeoutId = setTimeout(() => {
       const handler = inflightRequestsRef.current.get(requestId);
       if (handler) {
@@ -367,7 +369,7 @@ export function useThreadConnection(
         inflightRequestsRef.current.delete(requestId);
         handler.onError?.('Request timed out - server did not respond', true);
       }
-    }, 60000); // 60 seconds
+    }, 240000); // 240 seconds (4 minutes)
 
     // Register response handler (with timeout ID for cleanup)
     inflightRequestsRef.current.set(requestId, {
@@ -425,9 +427,47 @@ export function useThreadConnection(
     }
   }
 
+  /**
+   * Abort a stuck request forcefully (cleanup client-side and notify server)
+   *
+   * @param requestId - The request to abort
+   */
+  function abortMessage(requestId: string): void {
+    const handler = inflightRequestsRef.current.get(requestId);
+    
+    if (handler) {
+      // Clear timeout and cleanup handler
+      if (handler.timeoutId) {
+        clearTimeout(handler.timeoutId);
+      }
+      inflightRequestsRef.current.delete(requestId);
+      
+      // Notify caller that request was aborted
+      handler.onError?.('Request aborted by user', false);
+      
+      console.log('[useThreadConnection] Request aborted client-side', { requestId, threadId });
+    }
+
+    // Send abort signal to server if connected
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const abort = {
+        type: 'abort',
+        requestId,
+      };
+
+      try {
+        wsRef.current.send(JSON.stringify(abort));
+        console.log('[useThreadConnection] Abort signal sent to server', { requestId, threadId });
+      } catch (error) {
+        console.error('[useThreadConnection] Failed to send abort signal', { error, requestId });
+      }
+    }
+  }
+
   return {
     sendMessage,
     cancelMessage,
+    abortMessage,
     isConnected,
   };
 }

@@ -46,6 +46,29 @@ export const AgentLLMConfigSchema = z.object({
     .optional(),
 });
 
+/**
+ * Summarizer Configuration Schema
+ * Optional configuration for conversation summarization
+ * If not specified, falls back to main LLM config
+ * Allows cost optimization by using cheaper models for summarization
+ */
+export const AgentSummarizerConfigSchema = z.object({
+  model: z.string().min(1, { message: 'Summarizer model is required' }).optional(),
+  temperature: z
+    .number()
+    .min(0, { message: 'Summarizer temperature must be between 0 and 2' })
+    .max(2, { message: 'Summarizer temperature must be between 0 and 2' })
+    .optional(),
+  apiKey: z.string().min(1, { message: 'Summarizer API key is required' }).optional(),
+  apiBase: z.string().url({ message: 'Summarizer API base must be a valid URL' }).optional(),
+  tokenBudget: z
+    .number()
+    .int()
+    .min(100, { message: 'Token budget must be between 100 and 2,000,000' })
+    .max(2000000, { message: 'Token budget must be between 100 and 2,000,000' })
+    .optional(),
+});
+
 export const AgentMemoryConfigSchema = z.object({
   hotPathLimit: z
     .number()
@@ -198,6 +221,7 @@ export const AgentConfigSchema = z.object({
   llm: AgentLLMConfigSchema,
   memory: AgentMemoryConfigSchema,
   autonomy: AgentAutonomyConfigSchema,
+  summarizer: AgentSummarizerConfigSchema.optional(),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
@@ -214,3 +238,4 @@ export const AgentSchema = AgentConfigSchema.extend({
 
 export type Agent = z.infer<typeof AgentSchema>;
 export type AgentAutonomyConfig = z.infer<typeof AgentAutonomyConfigSchema>;
+export type AgentSummarizerConfig = z.infer<typeof AgentSummarizerConfigSchema>;
