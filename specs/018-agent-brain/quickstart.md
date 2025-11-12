@@ -1,6 +1,9 @@
 # Quickstart: Agent Brain Activity Transparency
 
-**Feature**: 017-agent-brain  
+# Quickstart: Agent Brain Activity Transparency
+
+**Branch**: `018-agent-brain` | **Spec**: [spec.md](./spec.md)
+**Feature**: 018-agent-brain  
 **Purpose**: Onboard developers to implement and test brain activity transparency  
 **Prerequisites**: Node.js ≥20, pnpm, Docker (PostgreSQL via `docker-compose.yml`)
 
@@ -497,12 +500,12 @@ pnpm --filter @workspace/server test -- brain-activity
 After completing quickstart:
 
 1. **Read Planning Docs**:
-   - `specs/017-agent-brain/plan.md` (implementation strategy)
-   - `specs/017-agent-brain/data-model.md` (entity relationships)
-   - `specs/017-agent-brain/contracts/brain-activity-api.yaml` (API contract)
+   - `specs/018-agent-brain/plan.md` (implementation strategy)
+   - `specs/018-agent-brain/data-model.md` (entity relationships)
+   - `specs/018-agent-brain/contracts/brain-activity-api.yaml` (API contract)
 
 2. **Review Research Decisions**:
-   - `specs/017-agent-brain/research.md` (resolved unknowns)
+   - `specs/018-agent-brain/research.md` (resolved unknowns)
 
 3. **Implement Week-by-Week Tasks**:
    - Run `/speckit.tasks` command to generate `tasks.md`

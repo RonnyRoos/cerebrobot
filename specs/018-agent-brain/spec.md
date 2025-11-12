@@ -1,6 +1,6 @@
 # Feature Specification: Agent Brain Activity Transparency
 
-**Feature Branch**: `017-agent-brain`  
+**Feature Branch**: `018-agent-brain`  
 **Created**: 2025-01-12  
 **Status**: Draft  
 **Input**: User description: "Agent Brain Activity Transparency - Surface agent decision-making process (tool calls, memory operations, autonomy decisions) in real-time via Events & Effects architecture"

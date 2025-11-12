@@ -1,6 +1,7 @@
-# Tasks: Agent Brain Activity Transparency
+# Implementation Tasks: Agent Brain Activity Transparency
 
-**Input**: Design documents from `/specs/017-agent-brain/`
+**Branch**: `018-agent-brain` | **Created**: 2025-11-11 | **Spec**: [spec.md](./spec.md)
+**Input**: Design documents from `/specs/018-agent-brain/`
 **Prerequisites**: plan.md ✅, spec.md ✅, research.md ✅, data-model.md ✅, contracts/ ✅
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.

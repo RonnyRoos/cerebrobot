@@ -1,7 +1,7 @@
 # Implementation Plan: Agent Brain Activity Transparency
 
-**Branch**: `017-agent-brain` | **Date**: 2025-11-11 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/017-agent-brain/spec.md`
+**Branch**: `018-agent-brain` | **Date**: 2025-11-11 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/018-agent-brain/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
@@ -94,7 +94,7 @@ Surface agent decision-making process (tool calls, memory operations, autonomy d
 ### Documentation (this feature)
 
 ```text
-specs/017-agent-brain/
+specs/018-agent-brain/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
@@ -220,7 +220,7 @@ prisma/
 ```
 
 Expected output:
-- `specs/017-agent-brain/tasks.md` with week-by-week breakdown
+- `specs/018-agent-brain/tasks.md` with week-by-week breakdown
 - Week 1: Backend foundation (database migration, ToolNode instrumentation, API endpoint)
 - Week 2: Frontend implementation (design library components, Activity tab, WebSocket integration)
 - Week 3: Testing & polish (Postgres validation tests, UI tests, documentation updates)
