@@ -112,14 +112,21 @@ export function useChatMessages(options: UseChatMessagesOptions): UseChatMessage
   };
 
   // Callback for autonomous message completion
-  const handleAutonomousComplete = (requestId: string, message: string, latencyMs?: number, tokenUsage?: TokenUsage) => {
+  const handleAutonomousComplete = (
+    requestId: string,
+    message: string,
+    latencyMs?: number,
+    tokenUsage?: TokenUsage,
+  ) => {
     const messageId = autonomousMessagesRef.current.get(requestId);
 
     if (messageId) {
       // Update existing streaming message to complete
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === messageId ? { ...msg, content: message, status: 'complete', latencyMs, tokenUsage } : msg,
+          msg.id === messageId
+            ? { ...msg, content: message, status: 'complete', latencyMs, tokenUsage }
+            : msg,
         ),
       );
       autonomousMessagesRef.current.delete(requestId);

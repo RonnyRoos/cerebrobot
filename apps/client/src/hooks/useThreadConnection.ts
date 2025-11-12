@@ -40,7 +40,12 @@ export function useThreadConnection(
   threadId: string | null,
   onAutonomousMessage?: (message: string) => void,
   onAutonomousToken?: (requestId: string, token: string) => void,
-  onAutonomousComplete?: (requestId: string, message: string, latencyMs?: number, tokenUsage?: TokenUsage) => void,
+  onAutonomousComplete?: (
+    requestId: string,
+    message: string,
+    latencyMs?: number,
+    tokenUsage?: TokenUsage,
+  ) => void,
   onMemoryCreated?: (event: MemoryCreatedEvent) => void,
   onMemoryUpdated?: (event: MemoryUpdatedEvent) => void,
   onMemoryDeleted?: (event: MemoryDeletedEvent) => void,
@@ -434,17 +439,17 @@ export function useThreadConnection(
    */
   function abortMessage(requestId: string): void {
     const handler = inflightRequestsRef.current.get(requestId);
-    
+
     if (handler) {
       // Clear timeout and cleanup handler
       if (handler.timeoutId) {
         clearTimeout(handler.timeoutId);
       }
       inflightRequestsRef.current.delete(requestId);
-      
+
       // Notify caller that request was aborted
       handler.onError?.('Request aborted by user', false);
-      
+
       console.log('[useThreadConnection] Request aborted client-side', { requestId, threadId });
     }
 
