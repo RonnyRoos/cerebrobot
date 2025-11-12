@@ -31,7 +31,7 @@ describe('TimerWorker', () => {
     } as unknown as EventStore;
 
     eventQueue = {
-      enqueue: vi.fn(),
+      enqueue: vi.fn().mockResolvedValue(undefined), // Mock must return a promise
     } as unknown as EventQueue;
 
     logger = pino({ level: 'silent' });

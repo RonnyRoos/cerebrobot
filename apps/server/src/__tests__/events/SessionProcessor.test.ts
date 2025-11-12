@@ -312,7 +312,8 @@ describe('SessionProcessor', () => {
       // US1: Should be HumanMessage with metadata
       expect(callArgs.message).toBeInstanceOf(HumanMessage);
       const humanMsg = callArgs.message as HumanMessage;
-      expect(humanMsg.content).toBe('Continue our conversation naturally.');
+      // After fix: Uses reason field for specific context instead of generic TRIGGER_PROMPTS
+      expect(humanMsg.content).toBe('No activity for 30 seconds');
       expect(humanMsg.additional_kwargs?.synthetic).toBe(true);
       expect(humanMsg.additional_kwargs?.trigger_type).toBe('check_in');
       expect(humanMsg.additional_kwargs?.trigger_reason).toBe('No activity for 30 seconds');

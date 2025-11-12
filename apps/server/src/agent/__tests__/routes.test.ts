@@ -78,8 +78,13 @@ describe('Agent Routes', () => {
       $transaction: vi.fn(),
     } as unknown as PrismaClient;
 
-    // Register routes with mocked Prisma
-    registerAgentRoutes(app, mockPrisma);
+    // Mock AgentFactory for cache invalidation
+    const mockAgentFactory = {
+      clearCache: vi.fn(),
+    };
+
+    // Register routes with mocked Prisma and AgentFactory
+    registerAgentRoutes(app, mockPrisma, mockAgentFactory);
   });
 
   describe('GET /api/agents', () => {

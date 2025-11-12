@@ -20,6 +20,7 @@ import { ValidationMessage } from './ValidationMessage.js';
 import { BasicInfoSection } from './BasicInfoSection.js';
 import { LLMConfigSection } from './LLMConfigSection.js';
 import { MemoryConfigSection } from './MemoryConfigSection.js';
+import { SummarizerConfigSection } from './SummarizerConfigSection.js';
 import { AutonomyConfigSection } from './AutonomyConfigSection.js';
 
 export interface AgentFormProps {
@@ -146,6 +147,15 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
     }));
   };
 
+  const handleSummarizerChange = (
+    summarizer: NonNullable<AgentConfig['summarizer']> | undefined,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      summarizer,
+    }));
+  };
+
   const handleAutonomyToggle = () => {
     setFormData((prev) => {
       const newEnabled = !prev.autonomy?.enabled;
@@ -252,6 +262,7 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
 
   const llmErrors = getFieldErrors('llm');
   const memoryErrors = getFieldErrors('memory');
+  const summarizerErrors = getFieldErrors('summarizer');
   const autonomyEvaluatorErrors = getFieldErrors('autonomy.evaluator');
   const autonomyLimitsErrors = getFieldErrors('autonomy.limits');
   const autonomyMemoryContextErrors = getFieldErrors('autonomy.memoryContext');
@@ -285,6 +296,13 @@ export function AgentForm({ mode, initialData, onSubmit, onCancel }: AgentFormPr
         memory={formData.memory!}
         onChange={handleMemoryFieldChange}
         errors={memoryErrors}
+      />
+
+      {/* Summarizer Config Section */}
+      <SummarizerConfigSection
+        summarizer={formData.summarizer}
+        onChange={handleSummarizerChange}
+        errors={summarizerErrors}
       />
 
       {/* Autonomy Section */}

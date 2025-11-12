@@ -9,7 +9,7 @@
  */
 
 import { useState, type FormEvent, type ChangeEvent } from 'react';
-import { Box, Stack, Text, Input, Button } from '@workspace/ui';
+import { Box, Stack, Input, Button } from '@workspace/ui';
 
 interface MemorySearchProps {
   /** Callback when search is submitted */
@@ -81,13 +81,6 @@ export function MemorySearch({
           </Button>
         )}
       </Stack>
-
-      {/* Search hint */}
-      {!isSearchActive && (
-        <Text variant="caption" className="mt-2">
-          Search using natural language (e.g., &ldquo;preferences&rdquo;, &ldquo;chocolate&rdquo;)
-        </Text>
-      )}
     </Box>
   );
 }

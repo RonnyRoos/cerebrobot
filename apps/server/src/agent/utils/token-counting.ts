@@ -84,6 +84,11 @@ interface TokenUsageSnapshot {
   budget: number;
 }
 
+async function countTokens(messages: BaseMessage[], model: string): Promise<number> {
+  const tokenizer = await getTokenizer(model);
+  return messages.reduce((acc, message) => acc + countMessageTokens(tokenizer, message), 0);
+}
+
 function formatTokenUsageSnapshot(snapshot: TokenUsageSnapshot | null | undefined) {
   if (!snapshot) {
     return undefined;
@@ -100,5 +105,5 @@ function formatTokenUsageSnapshot(snapshot: TokenUsageSnapshot | null | undefine
   } as const;
 }
 
-export { splitMessagesByBudget, formatTokenUsageSnapshot };
+export { splitMessagesByBudget, countTokens, formatTokenUsageSnapshot };
 export type { TokenUsageSnapshot };

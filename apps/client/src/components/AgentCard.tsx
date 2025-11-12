@@ -6,13 +6,14 @@
 import type { AgentListItem } from '@cerebrobot/chat-shared';
 import { memo, useCallback, useState } from 'react';
 import { Text, cn } from '@workspace/ui';
-import { MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { MessageSquare, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react';
 
 interface AgentCardProps {
   agent: AgentListItem;
   onEdit?: (agentId: string) => void;
   onDelete?: (agentId: string) => void;
   onViewThreads?: (agentId: string, agentName: string) => void;
+  onStartConversation?: (agentId: string, agentName: string) => void;
 }
 
 /**
@@ -36,6 +37,7 @@ const AgentCardComponent = ({
   onEdit,
   onDelete,
   onViewThreads,
+  onStartConversation,
 }: AgentCardProps): JSX.Element => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -110,6 +112,19 @@ const AgentCardComponent = ({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
+            onClick={() => onStartConversation?.(agent.id, agent.name)}
+            className={cn(
+              'p-1.5 rounded-md transition-all duration-200',
+              'hover:bg-accent-primary/10 hover:text-accent-primary',
+              'focus:outline-none focus:ring-2 focus:ring-accent-primary',
+            )}
+            aria-label="Start conversation"
+            title="Start new conversation with this agent"
+          >
+            <MessageSquarePlus size={16} />
+          </button>
+          <button
+            type="button"
             onClick={() => onViewThreads?.(agent.id, agent.name)}
             className={cn(
               'p-1.5 rounded-md transition-all duration-200',
@@ -117,7 +132,7 @@ const AgentCardComponent = ({
               'focus:outline-none focus:ring-2 focus:ring-accent-secondary',
             )}
             aria-label="View threads"
-            title="View threads"
+            title="View all conversations with this agent"
           >
             <MessageSquare size={16} />
           </button>

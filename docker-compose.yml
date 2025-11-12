@@ -67,7 +67,7 @@ services:
       - pnpm-server:/workspace/apps/server/node_modules
       - pnpm-chat-shared:/workspace/packages/chat-shared/node_modules
     command: >-
-      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter @cerebrobot/server dev"
+      sh -c "corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts && pnpm db:generate && pnpm --filter @cerebrobot/server dev"
     environment:
       DATABASE_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot
       LANGGRAPH_PG_URL: postgresql://cerebrobot:cerebrobot@postgres:5432/cerebrobot

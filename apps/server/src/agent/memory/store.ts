@@ -137,6 +137,7 @@ export class PostgresMemoryStore implements BaseStore {
     options?: StoreSearchOptions,
     signal?: AbortSignal,
   ): Promise<MemorySearchResult[]> {
+    const searchStartTime = Date.now();
     const threshold = options?.threshold ?? this.config.similarityThreshold;
     const limit = options?.limit;
 
@@ -144,12 +145,14 @@ export class PostgresMemoryStore implements BaseStore {
       // Check if operation was aborted before starting
       signal?.throwIfAborted();
 
+      const embeddingStartTime = Date.now();
       this.logger.debug(
         { namespace, query: query.substring(0, 100) },
         'Generating query embedding for search',
       );
 
       const queryEmbedding = await generateEmbedding(query, this.config, this.logger);
+      const embeddingDurationMs = Date.now() - embeddingStartTime;
 
       // Check again after expensive embedding operation
       signal?.throwIfAborted();
@@ -160,7 +163,11 @@ export class PostgresMemoryStore implements BaseStore {
       }
 
       this.logger.debug(
-        { namespace, embeddingDimensions: queryEmbedding.length },
+        {
+          namespace,
+          embeddingDimensions: queryEmbedding.length,
+          embeddingDurationMs,
+        },
         'Query embedding generated successfully',
       );
 
@@ -182,6 +189,7 @@ export class PostgresMemoryStore implements BaseStore {
 
       // Use $queryRaw with tagged template for proper parameterization
       // This ensures namespace array is correctly converted to PostgreSQL array format
+      const queryStartTime = Date.now();
       const results = await this.prisma.$queryRaw<
         Array<{
           id: string;
@@ -209,19 +217,37 @@ export class PostgresMemoryStore implements BaseStore {
         ORDER BY embedding <=> ${embeddingString}::vector
         ${limit ? Prisma.sql`LIMIT ${limit}` : Prisma.empty}
       `;
+      const queryDurationMs = Date.now() - queryStartTime;
+      const totalDurationMs = Date.now() - searchStartTime;
 
-      this.logger.info(
+      // WARN on slow searches (>2s total or >1s for just the query)
+      const isSlowSearch = totalDurationMs > 2000 || queryDurationMs > 1000;
+      const logLevel = isSlowSearch ? 'warn' : 'info';
+
+      this.logger[logLevel](
         {
           namespace,
           query: query.substring(0, 100),
           resultCount: results.length,
           threshold,
+          limit,
+          timingMs: {
+            embedding: embeddingDurationMs,
+            pgvectorQuery: queryDurationMs,
+            total: totalDurationMs,
+          },
+          performance: {
+            embeddingModel: this.config.embeddingModel,
+            vectorDimensions: queryEmbedding.length,
+          },
           topSimilarities: results.slice(0, 3).map((r) => ({
             content: r.content.substring(0, 50),
             similarity: r.similarity.toFixed(3),
           })),
         },
-        'Memory search completed',
+        isSlowSearch
+          ? `🐌 SLOW MEMORY SEARCH: ${totalDurationMs}ms (embedding: ${embeddingDurationMs}ms, query: ${queryDurationMs}ms) - threshold: 2000ms`
+          : 'Memory search completed',
       );
 
       return results.map((row) => ({

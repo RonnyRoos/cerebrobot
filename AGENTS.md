@@ -74,9 +74,63 @@ Cerebrobot uses browser `localStorage` to persist UI state across sessions:
 ## Active Technologies
 - TypeScript 5.x (Node.js ≥20) (016-metadata-autonomous-messages)
 - PostgreSQL via Prisma (LangGraph checkpoints persist message metadata) (016-metadata-autonomous-messages)
+- React Markdown (react-markdown, remark-gfm, rehype-highlight) for message rendering (017-ux-fixes)
 
 ## Recent Changes
+- 017-ux-fixes: Added global agent configuration (markdown responses, tool references), per-agent summarizer config, markdown rendering, tooltips on agent config fields
 - 016-metadata-autonomous-messages: Added TypeScript 5.x (Node.js ≥20)
+
+## Agent Configuration Patterns
+
+### Summarizer Configuration (Cost Optimization)
+
+Agents can use a separate, cheaper model for conversation summarization (hot-path → summary conversion when message count exceeds limits). This is independent from the main LLM used for conversation.
+
+**Default Behavior** (no summarizer field):
+```json
+{
+  "model": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+  "temperature": 0.7
+  // Summarizer uses same model/settings as main LLM
+}
+```
+
+**Cost-Optimized Configuration** (separate summarizer):
+```json
+{
+  "model": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+  "temperature": 0.7,
+  "summarizer": {
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+    "temperature": 0,
+    "tokenBudget": 8000
+  }
+}
+```
+
+**Benefits**:
+- **Cost savings**: Use cheaper models (e.g., DeepSeek) for summarization while keeping expensive models (e.g., GPT-4) for conversation
+- **Specialization**: Use models optimized for summarization tasks
+- **Control**: Set separate token budgets to prevent summarization timeouts on large conversations
+
+**Implementation**: See `apps/server/src/agent/langgraph-agent.ts` and `apps/server/src/agent/graph/conversation-graph.ts` for usage patterns.
+
+### Global Agent Settings
+
+System-wide settings that apply to **all agents** are managed via the Settings page (`/settings`) or REST API (`/api/config`):
+
+**`enableMarkdownResponses`**: Instructs all agents to format responses with markdown (headers, lists, code blocks, bold, italic). Injected into system prompts automatically.
+
+**`includeToolReferences`**: Adds a list of available LangChain tools to all agent system prompts (useful for tool-aware agents).
+
+**Access via API**:
+```bash
+curl http://localhost:3000/api/config
+curl -X PUT http://localhost:3000/api/config \
+  -d '{"enableMarkdownResponses": true, "includeToolReferences": false}'
+```
+
+**Implementation**: Global configuration stored as singleton in database, merged into agent system prompts at load time via `AgentFactory.getOrCreateAgent()`.
 
 ## Working cadence for agents
 1. Read the roadmap, tech stack, and style guides before coding; keep them open for cross-checks ([Tech Stack Guardrails](docs/tech-stack.md), [Engineering Best Practices](docs/best-practices.md), [TypeScript Code Style](docs/code-style.md)).

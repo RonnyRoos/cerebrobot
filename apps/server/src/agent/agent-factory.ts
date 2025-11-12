@@ -13,6 +13,7 @@ import type { ChatAgent } from '../chat/chat-agent.js';
 import type { ConnectionManager } from '../chat/connection-manager.js';
 import { discoverAgentConfigs, loadAgentConfig } from '../config/agent-loader.js';
 import { createLangGraphChatAgent } from './langgraph-agent.js';
+import { GlobalConfigurationService } from '../config/global-config-service.js';
 
 export interface AgentFactoryOptions {
   readonly prisma: PrismaClient;
@@ -64,8 +65,34 @@ export class AgentFactory {
       this.options.logger,
     );
 
+    // Fetch global configuration and inject into system prompt (Spec 017 - User Story 4)
+    // Gracefully handle missing table/client (during migrations or fresh installs)
+    let enhancedAgentConfig = agentConfig;
+    try {
+      const globalConfigService = new GlobalConfigurationService(this.options.prisma);
+      const globalConfig = await globalConfigService.getConfig();
+      const globalInstructions = globalConfigService.generateGlobalInstructions(globalConfig);
+
+      // Merge global instructions into agent system prompt
+      enhancedAgentConfig = {
+        ...agentConfig,
+        systemPrompt: globalInstructions
+          ? `${agentConfig.systemPrompt}\n\n${globalInstructions}`
+          : agentConfig.systemPrompt,
+      };
+    } catch (error: unknown) {
+      // Silently skip global config if Prisma client not regenerated or table missing
+      this.options.logger?.debug(
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          agentId: resolvedAgentId,
+        },
+        'Global configuration not available, proceeding without it',
+      );
+    }
+
     const agent = createLangGraphChatAgent(
-      agentConfig,
+      enhancedAgentConfig,
       this.options.logger,
       this.options.checkpointer,
       this.options.connectionManager,

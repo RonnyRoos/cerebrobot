@@ -179,6 +179,7 @@ Should we schedule an autonomous follow-up message? Provide your decision as JSO
                 payload: {
                   followUpType: evaluation.followUpType,
                   reason: evaluation.reason,
+                  suggestedMessage: evaluation.suggestedMessage,
                 },
               },
             },

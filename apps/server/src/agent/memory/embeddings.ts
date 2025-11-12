@@ -25,6 +25,7 @@ export async function generateEmbedding(
   config: MemoryConfig,
   logger?: Logger,
 ): Promise<number[] | null> {
+  const startTime = Date.now();
   try {
     // Use OpenAI SDK directly for full control over request parameters
     const client = new OpenAI({
@@ -46,10 +47,22 @@ export async function generateEmbedding(
       return null;
     }
 
-    // Log the dimensions we received
-    logger?.debug(
-      { embeddingLength: embedding.length, model: config.embeddingModel },
-      'Generated embedding',
+    const durationMs = Date.now() - startTime;
+
+    // Log the dimensions we received with performance metrics
+    // WARN on slow embedding generation (>1s)
+    const isSlowEmbedding = durationMs > 1000;
+    const logLevel = isSlowEmbedding ? 'warn' : 'debug';
+    logger?.[logLevel](
+      {
+        embeddingLength: embedding.length,
+        model: config.embeddingModel,
+        textLength: text.length,
+        durationMs,
+      },
+      isSlowEmbedding
+        ? `⚠️  SLOW EMBEDDING: ${durationMs}ms (threshold: 1000ms)`
+        : 'Generated embedding',
     );
 
     return embedding;
