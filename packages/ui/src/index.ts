@@ -26,6 +26,7 @@ export { Badge, type BadgeProps } from './components/primitives/badge';
 // Design System - Form Components (T021)
 export { Input, type InputProps } from './components/input';
 export { Textarea, type TextareaProps } from './components/textarea';
+export { Tooltip, type TooltipProps } from './components/Tooltip';
 export {
   Select,
   SelectGroup,

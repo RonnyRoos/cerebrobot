@@ -7,6 +7,7 @@ import { useMemoryPanel } from '../hooks/useMemoryPanel.js';
 import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { MemoryBrowser } from './MemoryBrowser/MemoryBrowser.js';
 import { MessageBubble } from './chat/MessageBubble.js';
+import { MessageContent } from './MessageContent.js';
 import { Toast } from './Toast.js';
 import { Box, Stack, Text, Button, Textarea } from '@workspace/ui';
 import { Brain } from 'lucide-react';
@@ -39,6 +40,25 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
   // Ref for auto-scrolling to bottom of messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Global configuration state
+  const [enableMarkdown, setEnableMarkdown] = useState(false);
+
+  // Fetch global config on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        if (response.ok) {
+          const config = await response.json();
+          setEnableMarkdown(config.enableMarkdownResponses || false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch global config:', error);
+      }
+    };
+    void fetchConfig();
+  }, []);
 
   // Memory panel state with lazy loading
   const { state: memoryPanelState, openPanel, closePanel, markAsLoaded } = useMemoryPanel();
@@ -208,6 +228,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
     setPendingMessage,
     onRetry,
     handleCancel,
+    handleAbort,
     canCancel,
   } = useChatMessages({
     userId,
@@ -301,7 +322,7 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
                 status={message.status}
                 glowIntensity="medium"
               >
-                {message.content}
+                <MessageContent content={message.content} enableMarkdown={enableMarkdown} />
               </MessageBubble>
             ))}
             {/* Invisible div for auto-scroll target */}
@@ -416,11 +437,32 @@ export function ChatView({ userId, agentId, threadId, onBack }: ChatViewProps): 
                 Send
               </Button>
             </Box>
-            {/* Cancel button only when streaming */}
+            {/* Subtle cancel/abort controls when streaming - small buttons */}
             {canCancel && (
-              <Button type="button" variant="danger" onClick={handleCancel} className="w-full">
-                Cancel
-              </Button>
+              <Box className="flex items-center justify-end gap-2">
+                <Text as="span" className="text-text-tertiary text-xs">
+                  Streaming response...
+                </Text>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancel}
+                  className="border border-warning text-warning hover:bg-warning/10 px-3 py-1.5 rounded"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAbort}
+                  title="Force stop if stuck"
+                  className="border border-destructive text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded"
+                >
+                  Abort
+                </Button>
+              </Box>
             )}
           </Stack>
         </Box>

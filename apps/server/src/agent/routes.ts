@@ -32,7 +32,11 @@ function isValidUUID(uuid: string): boolean {
   return uuidSchema.safeParse(uuid).success;
 }
 
-export function registerAgentRoutes(app: FastifyInstance, prisma: PrismaClient): void {
+export function registerAgentRoutes(
+  app: FastifyInstance,
+  prisma: PrismaClient,
+  agentFactory: { clearCache: () => void },
+): void {
   const agentService = new AgentService(prisma);
 
   /**
@@ -122,6 +126,10 @@ export function registerAgentRoutes(app: FastifyInstance, prisma: PrismaClient):
 
       const agent = await agentService.updateAgent(request.params.id, config);
 
+      // Invalidate cache so next request picks up fresh config
+      agentFactory.clearCache();
+      request.log.info({ agentId: request.params.id }, 'Agent cache cleared after update');
+
       return reply.code(200).send(agent);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -156,6 +164,10 @@ export function registerAgentRoutes(app: FastifyInstance, prisma: PrismaClient):
       }
 
       await agentService.deleteAgent(request.params.id);
+
+      // Invalidate cache to prevent stale agent references
+      agentFactory.clearCache();
+      request.log.info({ agentId: request.params.id }, 'Agent cache cleared after deletion');
 
       return reply.code(204).send();
     } catch (error) {

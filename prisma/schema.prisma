@@ -147,3 +147,16 @@ model Timer {
   @@index([sessionKey])
   @@map("timers")
 }
+
+/// Global Configuration (Spec 017 - User Story 4)
+/// Singleton model for system-wide agent settings
+/// Only one row should exist (enforced by id = 'singleton')
+model GlobalConfiguration {
+  id                      String   @id @default("singleton")
+  enableMarkdownResponses Boolean  @default(false) @map("enable_markdown_responses")
+  includeToolReferences   Boolean  @default(false) @map("include_tool_references")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("global_configuration")
+}
